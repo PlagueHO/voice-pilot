@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@azure/identity": "^2.0.0",
-    "openai": "^3.0.0",
+    "openai": "^5.20.1",
     "vscode": "^1.60.0"
   },
   "devDependencies": {
