@@ -1,0 +1,132 @@
+{
+  "name": "VoicePilot VS Code Extension Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/voice-pilot",
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // VS Code Extension Development
+        "ms-vscode.vscode-typescript-next",
+        "ms-vscode.extension-test-runner",
+        "ms-vscode.vscode-test-cli",
+        
+        // GitHub Copilot
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        
+        // TypeScript & JavaScript
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        
+        // Testing
+        "ms-vscode.test-adapter-converter",
+        "hbenl.vscode-test-explorer",
+        "ms-vscode.vscode-jest",
+        
+        // Azure Development
+        "ms-vscode.azure-account",
+        "ms-azuretools.azure-dev",
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-azuretools.vscode-azureresourcegroups",
+        "ms-azuretools.vscode-azurestorage",
+        "ms-azuretools.vscode-cosmosdb",
+        "ms-vscode.vscode-node-azure-pack",
+        
+        // Git & GitHub
+        "GitHub.vscode-pull-request-github",
+        "GitHub.vscode-github-actions",
+        "eamodio.gitlens",
+        
+        // Code Quality & Formatting
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-markdown",
+        "yzhang.markdown-all-in-one",
+        "DavidAnson.vscode-markdownlint",
+        
+        // Development Tools
+        "ms-vscode.vscode-npm-script",
+        "christian-kohler.npm-intellisense",
+        "ms-vscode.vscode-js-debug",
+        "ms-vscode.vscode-js-debug-companion",
+        "humao.rest-client",
+        
+        // Audio/Media Development (useful for voice features)
+        "ms-vscode.hexdump",
+        
+        // Productivity
+        "ms-vscode.remote-repositories",
+        "GitHub.remotehub",
+        "ms-vscode.remote-server"
+      ],
+      
+      "settings": {
+        "typescript.preferences.includePackageJsonAutoImports": "on",
+        "typescript.suggest.autoImports": true,
+        "typescript.updateImportsOnFileMove.enabled": "always",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit",
+          "source.organizeImports": "explicit"
+        },
+        "eslint.validate": [
+          "javascript",
+          "typescript"
+        ],
+        "extensions.autoUpdate": false,
+        "git.enableSmartCommit": true,
+        "git.confirmSync": false,
+        "github.copilot.enable": {
+          "*": true,
+          "yaml": true,
+          "plaintext": true,
+          "markdown": true,
+          "typescript": true,
+          "javascript": true
+        }
+      }
+    }
+  },
+
+  "forwardPorts": [3000, 8080, 9229],
+  "portsAttributes": {
+    "3000": {
+      "label": "Dev Server",
+      "protocol": "http"
+    },
+    "9229": {
+      "label": "Node Debug"
+    }
+  },
+
+  "postCreateCommand": "npm install && npm run compile",
+  
+  "postStartCommand": "echo 'VoicePilot Development Environment Ready! Run F5 to start debugging the extension.'",
+
+  "remoteUser": "node",
+  
+  "mounts": [
+    "source=${localWorkspaceFolder}/.git,target=/workspaces/voice-pilot/.git,type=bind,consistency=cached"
+  ],
+
+  "containerEnv": {
+    "NODE_ENV": "development",
+    "EXTENSION_DEVELOPMENT_HOST": "true"
+  },
+
+  "onCreateCommand": [
+    "sudo apt-get update",
+    "sudo apt-get install -y libasound2-dev portaudio19-dev libpulse-dev",
+    "npm install -g @vscode/vsce",
+    "npm install -g typescript",
+    "npm install -g eslint",
+    "npm install -g prettier",
+    "az extension add --name azure-devops",
+    "az extension add --name ml"
+  ]
+}

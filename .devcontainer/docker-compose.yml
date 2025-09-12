@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ../..:/workspaces:cached
+      # Mount git directory for better performance
+      - ../.git:/workspaces/voice-pilot/.git:cached
+    command: sleep infinity
+    environment:
+      - NODE_ENV=development
+      - EXTENSION_DEVELOPMENT_HOST=true
+    ports:
+      - "3000:3000"
+      - "8080:8080"  
+      - "9229:9229"
+    # Add capabilities for audio development
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    # Network mode for localhost debugging
+    network_mode: "host"
+    
+  # Optional: Redis for caching during development
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    profiles:
+      - tools
+
+volumes:
+  redis-data:

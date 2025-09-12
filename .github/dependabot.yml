@@ -1,0 +1,59 @@
+version: 2
+
+# Dependabot configuration for VoicePilot VS Code Extension
+updates:
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    rebase-strategy: "auto"
+    groups:
+      gh-actions:
+        patterns:
+          - "*"
+
+  # npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "06:00"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "dependencies"
+      - "npm"
+    rebase-strategy: "auto"
+    groups:
+      npm-production:
+        patterns:
+          - "@azure/*"
+          - "@vscode/*"
+          - "vscode"
+          - "axios"
+          - "ws"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-dev:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "webpack*"
+          - "ts-loader"
+          - "eslint*"
+          - "prettier"
+          - "jest"
+          - "mocha"
+        update-types:
+          - "minor"
+          - "patch"

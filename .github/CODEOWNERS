@@ -1,0 +1,6 @@
+# Global code ownership
+# This file defines individuals or teams that are responsible for code in this repository.
+# When Dependabot creates pull requests, these code owners will be automatically requested for review.
+
+# Default owners for everything in the repo
+* @PlagueHO

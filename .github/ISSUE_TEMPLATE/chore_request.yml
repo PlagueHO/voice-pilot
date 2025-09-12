@@ -1,0 +1,63 @@
+name: "🧹 Chore request"
+description: Log a general maintenance, refactoring, or hygiene task for the VoicePilot VS Code extension
+labels: [chore]
+title: "[Chore]: "
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the extension does this chore relate to?
+      options:
+        - Audio Pipeline (STT/TTS/Microphone)
+        - Copilot Integration
+        - Codebase Context
+        - GitHub Integration
+        - UI Components (Chat/Status/Transcript)
+        - Extension Lifecycle
+        - Azure Services Integration
+        - Configuration/Settings
+        - Documentation
+        - GitHub Actions / CI/CD
+        - Testing
+        - Dependency Management
+        - Code Quality / Refactoring
+        - TypeScript/Build System
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What is the reason for this chore? Why is it needed? (e.g., technical debt, code hygiene, dependency update, test coverage, etc.)
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: Task Description
+      description: Describe the specific work to be done. Be as detailed as possible so a Copilot Coding Agent can execute the task efficiently.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What are the requirements for this chore to be considered complete? (e.g., extension builds successfully, tests pass, no TypeScript errors, updated documentation, etc.)
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact / Risk
+      description: Are there any risks, side effects, or impacts to other parts of the extension? (e.g., breaking changes, VS Code compatibility, Azure service dependencies, etc.)
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, links, or screenshots that would help a Copilot Coding Agent complete this chore.
+    validations:
+      required: false

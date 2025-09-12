@@ -1,0 +1,53 @@
+name: "\U0001F680 Feature request"
+description: Suggest an idea or enhancement for the VoicePilot VS Code extension
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the extension does this enhancement relate to?
+      options:
+        - Audio Pipeline (STT/TTS/Microphone)
+        - Copilot Integration
+        - Codebase Context
+        - GitHub Integration
+        - UI Components (Chat/Status/Transcript)
+        - Extension Lifecycle
+        - Azure Services Integration
+        - Configuration/Settings
+        - Voice Commands
+        - Accessibility
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this feature solve? Why is it needed?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or features?
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context or screenshots about the feature request here.
+    validations:
+      required: false
