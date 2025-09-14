@@ -1,0 +1,83 @@
+# VoicePilot
+
+> VoicePilot is a VS Code extension that enables voice-driven interaction with GitHub Copilot and codebases. Built with TypeScript, it integrates Azure AI services for speech-to-text (GPT-Realtime), text-to-speech, and provides conversational coding assistance through natural language.
+
+VoicePilot streamlines developer workflow by allowing voice interaction for ideation, feature scoping, and GitHub issue creation. The extension supports both speech-to-text and text-to-speech capabilities, making it accessible while maintaining developer flow during coding sessions.
+
+Key technical components include Azure AI Foundry GPT-Realtime for low-latency transcription, Azure Speech SDK for text-to-speech, GitHub Copilot Chat extension integration, VS Code API utilization for codebase context, and GitHub API integration for issue creation.
+
+## Documentation
+
+- [README](README.md): Primary project documentation with architecture overview, key features, and development phases
+- [AGENTS](AGENTS.md): Comprehensive development guide covering project architecture, development commands, testing, and debugging
+- [VS Code Extension Quick Start](vsc-extension-quickstart.md): Guide for VS Code extension development fundamentals and best practices
+
+## Configuration
+
+- [Package Configuration](package.json): Extension manifest with dependencies, commands, and VS Code integration settings
+- [TypeScript Configuration](tsconfig.json): TypeScript compiler settings optimized for VS Code extension development
+- [Webpack Configuration](webpack.config.js): Build configuration for extension packaging and distribution
+- [VS Code Settings](.vscode/settings.json): Development environment settings including GitHub Copilot configuration
+- [MCP Configuration](.vscode/mcp.json): Model Context Protocol server configurations for GitHub and other integrations
+
+## Development Environment
+
+- [Development Container](.devcontainer/README.md): Comprehensive guide for containerized development with all tools and dependencies
+- [Dockerfile](.devcontainer/Dockerfile): Container definition with Node.js, Azure CLI, audio libraries, and development tools
+- [Docker Compose](.devcontainer/docker-compose.yml): Multi-service development environment with optional database and caching
+- [Container Configuration](.devcontainer/devcontainer.json): VS Code dev container setup with extensions and settings
+
+## VS Code Extension Development Documentation
+
+- [VS Code API Getting Started](https://code.visualstudio.com/api/get-started/your-first-extension): Essential guide for creating your first VS Code extension
+- [Extension Guides Overview](https://code.visualstudio.com/api/extension-guides/overview): Comprehensive guides for various extension types and features
+- [VS Code API References](https://code.visualstudio.com/api/references/vscode-api): Complete API documentation with namespaces, classes, and methods
+- [Contribution Points](https://code.visualstudio.com/api/references/contribution-points): Package.json configuration for commands, views, menus, settings, and more
+- [Extension Manifest](https://code.visualstudio.com/api/references/extension-manifest): Package.json schema and configuration options
+- [Activation Events](https://code.visualstudio.com/api/references/activation-events): When and how extensions are activated
+- [When Clause Contexts](https://code.visualstudio.com/api/references/when-clause-contexts): Context keys for conditional behavior
+- [Icons in Labels](https://code.visualstudio.com/api/references/icons-in-labels): Using theme icons and product icons
+- [Extension Testing](https://code.visualstudio.com/api/working-with-extensions/testing-extension): Unit and integration testing for extensions
+- [Publishing Extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension): Publishing to VS Code Marketplace
+- [Command Guide](https://code.visualstudio.com/api/extension-guides/command): Creating and registering commands
+- [Tree View Guide](https://code.visualstudio.com/api/extension-guides/tree-view): Building custom tree views and explorers
+- [Webview Guide](https://code.visualstudio.com/api/extension-guides/webview): Creating custom webview panels and views
+- [Custom Editors](https://code.visualstudio.com/api/extension-guides/custom-editors): Building custom editors for file types
+- [Authentication Guide](https://code.visualstudio.com/api/references/vscode-api#authentication): Managing user authentication in extensions
+- [Language Server Protocol](https://code.visualstudio.com/api/language-extensions/language-server-extension-guide): Building language support extensions
+- [Extension Samples Repository](https://github.com/microsoft/vscode-extension-samples): Official collection of extension examples and samples
+
+## Azure AI Foundry GPT-Realtime Documentation
+
+- [Realtime Audio Quickstart](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-quickstart): Complete quickstart guide with JavaScript, Python, and TypeScript examples
+- [Realtime Audio Overview](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio): Comprehensive guide covering session configuration, voice activity detection, and conversation management
+- [Realtime Audio WebRTC](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio-webrtc): WebRTC implementation guide for low-latency real-time audio streaming
+- [GPT Models and Versions](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/models): Available GPT-Realtime models (gpt-4o-realtime-preview, gpt-4o-mini-realtime-preview, gpt-realtime)
+- [API Version Lifecycle](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle): API versioning information for Realtime API (2025-08-28 recommended)
+- [Authentication Guide](https://learn.microsoft.com/en-us/azure/ai-services/authentication): Azure authentication methods including Microsoft Entra ID and API keys
+- [Environment Variables](https://learn.microsoft.com/en-us/azure/ai-services/cognitive-services-environment-variables): Setting up Azure service credentials and configuration
+- [API Keys with Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/apps-api-keys-secrets): Secure API key management best practices
+
+## Source Code Architecture
+
+- [Extension Entry Point](src/extension.ts): Main extension activation, command registration, and service initialization
+- [Audio Services](src/audio/): Speech-to-text (STT) and text-to-speech (TTS) service implementations using Azure AI
+- [Copilot Integration](src/copilot/): GitHub Copilot Chat extension integration and prompt handling
+- [Codebase Context](src/codebase/): File analysis, search services, and context building for AI interactions
+- [GitHub Integration](src/github/): Issue creation and GitHub API client implementations
+- [UI Components](src/ui/): Chat panels, status bar, and transcript view implementations
+- [Services](src/services/): Azure service integration and authentication management
+- [Type Definitions](src/types/): TypeScript interfaces and type definitions for all extension components
+
+## GitHub Configuration
+
+- [Issue Templates](.github/ISSUE_TEMPLATE/): Bug report and feature request templates for community contributions
+- [Pull Request Template](.github/PULL_REQUEST_TEMPLATE.md): Standardized template for code contributions and reviews
+- [Code Owners](.github/CODEOWNERS): Repository maintenance and review assignment configuration
+- [Dependabot Configuration](.github/dependabot.yml): Automated dependency update settings
+
+## Optional
+
+- [Prompt Library](.github/prompts/): Collection of AI agent prompts for various development tasks and automation
+- [GitHub Workflows](.github/workflows/): CI/CD pipeline configurations for automated testing and deployment
+- [GitHub Chat Modes](.github/chatmodes/): Specialized chat modes for different development scenarios

@@ -4,30 +4,52 @@
   "service": "app",
   "workspaceFolder": "/workspaces/voice-pilot",
   
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "installDirectlyFromGitHubRelease": true,
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": true,
+      "azureDnsAutoDetection": true,
+      "installDockerComposeSwitch": true
+    },
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "installBicep": true,
+      "extensions": "azure-devops,ml,cognitiveservices"
+    }
+  },
+  
   "customizations": {
     "vscode": {
       "extensions": [
-        // VS Code Extension Development
-        "ms-vscode.vscode-typescript-next",
+        // VS Code Extension Development (Essential)
         "ms-vscode.extension-test-runner",
         "ms-vscode.vscode-test-cli",
+        "ms-vscode.vscode-typescript-next",
+        "ms-vscode.vscode-webpack-tools",
+        "ms-vscode.vscode-json",
         
-        // GitHub Copilot
+        // GitHub Copilot (AI Assistant)
         "GitHub.copilot",
         "GitHub.copilot-chat",
         
-        // TypeScript & JavaScript
-        "ms-vscode.vscode-typescript-next",
-        "bradlc.vscode-tailwindcss",
+        // TypeScript & JavaScript Development
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-js-debug",
+        "ms-vscode.vscode-js-debug-companion",
         
-        // Testing
+        // Testing & Quality Assurance
         "ms-vscode.test-adapter-converter",
         "hbenl.vscode-test-explorer",
         "ms-vscode.vscode-jest",
+        "orta.vscode-jest",
+        "ms-vscode.vscode-coverage-gutters",
         
-        // Azure Development
+        // Azure Development Stack
         "ms-vscode.azure-account",
         "ms-azuretools.azure-dev",
         "ms-azuretools.vscode-azurefunctions",
@@ -35,98 +57,222 @@
         "ms-azuretools.vscode-azurestorage",
         "ms-azuretools.vscode-cosmosdb",
         "ms-vscode.vscode-node-azure-pack",
+        "ms-azuretools.vscode-azureappservice",
+        "ms-azuretools.vscode-azurestaticwebapps",
+        "ms-azuretools.vscode-azurevirtualmachines",
         
-        // Git & GitHub
+        // Git & GitHub Integration
         "GitHub.vscode-pull-request-github",
         "GitHub.vscode-github-actions",
         "eamodio.gitlens",
+        "GitHub.remotehub",
         
-        // Code Quality & Formatting
-        "ms-vscode.vscode-json",
-        "redhat.vscode-yaml",
+        // Documentation & Markdown
         "ms-vscode.vscode-markdown",
         "yzhang.markdown-all-in-one",
         "DavidAnson.vscode-markdownlint",
+        "bierner.markdown-mermaid",
+        "shd101wyy.markdown-preview-enhanced",
         
-        // Development Tools
+        // YAML & Configuration Files
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-json",
+        "tamasfe.even-better-toml",
+        
+        // Development Productivity
         "ms-vscode.vscode-npm-script",
         "christian-kohler.npm-intellisense",
-        "ms-vscode.vscode-js-debug",
-        "ms-vscode.vscode-js-debug-companion",
         "humao.rest-client",
-        
-        // Audio/Media Development (useful for voice features)
-        "ms-vscode.hexdump",
-        
-        // Productivity
+        "rangav.vscode-thunder-client",
         "ms-vscode.remote-repositories",
-        "GitHub.remotehub",
+        
+        // Audio/Media Development
+        "ms-vscode.hexdump",
+        "hediet.vscode-drawio",
+        
+        // Code Quality & Security
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "ms-vscode.vscode-typescript-next",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode.vscode-user-secrets",
+        
+        // Themes & UI Enhancement
+        "PKief.material-icon-theme",
+        "GitHub.github-vscode-theme",
+        
+        // Remote Development
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode-remote.remote-ssh",
         "ms-vscode.remote-server"
       ],
       
       "settings": {
+        // TypeScript Configuration
         "typescript.preferences.includePackageJsonAutoImports": "on",
         "typescript.suggest.autoImports": true,
         "typescript.updateImportsOnFileMove.enabled": "always",
+        "typescript.preferences.importModuleSpecifier": "relative",
+        "typescript.surveys.enabled": false,
+        
+        // Editor Configuration
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "editor.codeActionsOnSave": {
           "source.fixAll.eslint": "explicit",
           "source.organizeImports": "explicit"
         },
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false,
+        "editor.semanticHighlighting.enabled": true,
+        "editor.linkedEditing": true,
+        "editor.bracketPairColorization.enabled": true,
+        "editor.guides.bracketPairs": "active",
+        
+        // File Configuration
+        "files.associations": {
+          "*.json": "jsonc"
+        },
+        "files.exclude": {
+          "**/node_modules": true,
+          "**/out": true,
+          "**/.git": true,
+          "**/.DS_Store": true,
+          "**/Thumbs.db": true
+        },
+        
+        // Search Configuration
+        "search.exclude": {
+          "**/node_modules": true,
+          "**/out": true,
+          "**/.git": true,
+          "**/coverage": true
+        },
+        
+        // ESLint Configuration
         "eslint.validate": [
           "javascript",
           "typescript"
         ],
-        "extensions.autoUpdate": false,
+        "eslint.workingDirectories": [
+          {
+            "mode": "auto"
+          }
+        ],
+        
+        // Git Configuration
         "git.enableSmartCommit": true,
         "git.confirmSync": false,
+        "git.autofetch": true,
+        "git.enableCommitSigning": false,
+        
+        // GitHub Copilot Configuration
         "github.copilot.enable": {
           "*": true,
           "yaml": true,
           "plaintext": true,
           "markdown": true,
           "typescript": true,
-          "javascript": true
-        }
+          "javascript": true,
+          "jsonc": true
+        },
+        "github.copilot.advanced": {
+          "listCount": 10,
+          "inlineSuggestCount": 3
+        },
+        
+        // Extension Management
+        "extensions.autoUpdate": false,
+        "extensions.autoCheckUpdates": false,
+        
+        // Terminal Configuration
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          },
+          "zsh": {
+            "path": "zsh"
+          }
+        },
+        
+        // Testing Configuration
+        "jest.autoRun": "off",
+        "jest.showCoverageOnLoad": true,
+        
+        // Debugging Configuration
+        "debug.internalConsoleOptions": "openOnSessionStart",
+        "debug.console.acceptSuggestionOnEnter": "off",
+        
+        // Workspace Configuration
+        "workbench.startupEditor": "readme",
+        "workbench.iconTheme": "material-icon-theme",
+        "workbench.colorTheme": "GitHub Dark",
+        
+        // Security
+        "security.workspace.trust.enabled": false
       }
     }
   },
 
-  "forwardPorts": [3000, 8080, 9229],
+  "forwardPorts": [3000, 8080, 9229, 5000, 5001],
   "portsAttributes": {
     "3000": {
       "label": "Dev Server",
-      "protocol": "http"
+      "protocol": "http",
+      "onAutoForward": "notify"
+    },
+    "5000": {
+      "label": "Web App",
+      "protocol": "http",
+      "onAutoForward": "silent"
+    },
+    "5001": {
+      "label": "Web App (HTTPS)",
+      "protocol": "https",
+      "onAutoForward": "silent"
     },
     "9229": {
-      "label": "Node Debug"
+      "label": "Node Debug",
+      "onAutoForward": "silent"
     }
   },
 
-  "postCreateCommand": "npm install && npm run compile",
-  
-  "postStartCommand": "echo 'VoicePilot Development Environment Ready! Run F5 to start debugging the extension.'",
+  "initializeCommand": "echo 'Initializing VoicePilot development environment...'",
+  "onCreateCommand": [
+    "bash",
+    "-c",
+    "echo 'Setting up audio development libraries...' && sudo apt-get update && sudo apt-get install -y libasound2-dev portaudio19-dev libpulse-dev libsox-dev ffmpeg"
+  ],
+  "updateContentCommand": [
+    "bash",
+    "-c", 
+    "echo 'Updating dependencies...' && npm ci && echo 'Compiling TypeScript...' && npm run compile"
+  ],
+  "postCreateCommand": [
+    "bash",
+    "-c",
+    "echo 'Installing global tools...' && npm install -g @vscode/vsce typescript eslint prettier jest ts-jest @types/node && echo 'VoicePilot development environment setup complete!'"
+  ],
+  "postStartCommand": "echo 'VoicePilot Development Environment Ready! Press F5 to start debugging the extension.'",
 
   "remoteUser": "node",
   
   "mounts": [
-    "source=${localWorkspaceFolder}/.git,target=/workspaces/voice-pilot/.git,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/.git,target=/workspaces/voice-pilot/.git,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/node_modules,target=/workspaces/voice-pilot/node_modules,type=volume"
   ],
 
   "containerEnv": {
     "NODE_ENV": "development",
-    "EXTENSION_DEVELOPMENT_HOST": "true"
+    "EXTENSION_DEVELOPMENT_HOST": "true",
+    "NPM_CONFIG_UPDATE_NOTIFIER": "false",
+    "NPM_CONFIG_FUND": "false"
   },
 
-  "onCreateCommand": [
-    "sudo apt-get update",
-    "sudo apt-get install -y libasound2-dev portaudio19-dev libpulse-dev",
-    "npm install -g @vscode/vsce",
-    "npm install -g typescript",
-    "npm install -g eslint",
-    "npm install -g prettier",
-    "az extension add --name azure-devops",
-    "az extension add --name ml"
-  ]
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/workspaces/voice-pilot/node_modules/.bin"
+  }
 }
