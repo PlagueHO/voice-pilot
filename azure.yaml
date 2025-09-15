@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: voice-pilot
+
+metadata:
+  template: voice-pilot@1.0
+  name: voice-pilot@1.0
+
+infra:
+  path: ./infra/

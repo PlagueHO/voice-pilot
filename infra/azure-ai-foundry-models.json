@@ -1,0 +1,14 @@
+[
+  {
+    "model": {
+      "format": "OpenAI",
+      "name": "gpt-realtime",
+      "version": "2025-08-28"
+    },
+    "name": "gpt-realtime",
+    "sku": {
+      "name": "GlobalStandard",
+      "capacity": 100
+    }
+  }
+]
