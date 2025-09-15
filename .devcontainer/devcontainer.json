@@ -24,7 +24,8 @@
         "hbenl.vscode-test-explorer",
         "ms-vscode.test-adapter-converter",
         "ms-azuretools.azure-dev",
-        "DavidAnson.vscode-markdownlint"
+        "DavidAnson.vscode-markdownlint",
+        "ms-azuretools.vscode-bicep"
       ],
 
       "settings": {
