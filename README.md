@@ -4,6 +4,8 @@
 
 VoicePilot is a desktop-based VS Code extension designed to enable developers to interact with GitHub Copilot and their codebase using voice. It streamlines ideation, feature scoping, and GitHub issue creation through natural conversation, supporting both speech-to-text and text-to-speech. The tool is accessibility-friendly but primarily focused on maintaining developer flow during ideation.
 
+**Implementation Approach**: VoicePilot functions as an AI manager agent that orchestrates the VS Code GitHub Copilot Agent, acting as an intelligent translator between the GitHub Copilot Agent's chat panel and file operations and the user's voice interactions. This design enables 100% voice-only communication by seamlessly converting spoken requests into appropriate Copilot commands and translating Copilot responses back into natural speech, eliminating the need for traditional text-based interactions.
+
 ## Key Features
 
 - Voice Input: Use Azure AI Foundry's GPT-Realtime or Azure Speech SDK for real-time transcription.
@@ -26,10 +28,13 @@ VoicePilot is a desktop-based VS Code extension designed to enable developers to
 3. **Text-to-Speech (TTS)**
     - Primary: Azure TTS SDK or REST API
     - Optional: OS-native TTS for fallback
-4. **Copilot Integration**
-    - Use GitHub Copilot Chat extension APIs
+4. **Copilot Integration (AI Manager Agent)**
+    - Orchestrate GitHub Copilot Agent through Chat extension APIs
+    - Act as intelligent translator between voice input and Copilot commands
+    - Convert spoken requests into structured @vscode/copilot-chat prompts
+    - Process Copilot responses for optimal voice delivery
+    - Manage conversation context and follow-up interactions
     - Reference: Copilot Chat GitHub Repo
-    - Use @vscode/copilot-chat commands to send prompts and receive responses
 5. **Codebase Context**
     - Use VS Code APIs to:
         - Read open files
@@ -48,11 +53,14 @@ VoicePilot is a desktop-based VS Code extension designed to enable developers to
 - Integrate GPT-Realtime for STT
 - Implement Azure TTS for response playback
 
-### Phase 2: Copilot Chat Integration
+### Phase 2: AI Manager Agent & Copilot Orchestration
 
-- Connect to Copilot Chat extension
-- Send transcribed prompts
-- Receive and display concise responses
+- Implement AI manager agent layer
+- Connect to GitHub Copilot Chat extension APIs
+- Develop intelligent prompt translation (voice → Copilot commands)
+- Create response processing pipeline (Copilot → optimized speech)
+- Establish conversation context management
+- Enable seamless voice-only interaction flow
 
 ### Phase 3: Codebase Awareness
 
