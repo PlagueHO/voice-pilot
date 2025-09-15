@@ -19,7 +19,12 @@
         "dbaeumer.vscode-eslint",
         "ms-azuretools.vscode-azure-github-copilot",
         "ms-azuretools.vscode-azureresourcegroups",
-        "ms-vscode.azure-repos"
+        "ms-vscode.azure-repos",
+        "bradlc.vscode-tailwindcss",
+        "hbenl.vscode-test-explorer",
+        "ms-vscode.test-adapter-converter",
+        "ms-azuretools.azure-dev",
+        "DavidAnson.vscode-markdownlint"
       ],
 
       "settings": {
