@@ -2,44 +2,36 @@
   "name": "VoicePilot VS Code Extension Development",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22",
   "workspaceFolder": "/workspaces/voice-pilot",
-  
+
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/azure-cli:1": {}
   },
-  
+
   "customizations": {
     "vscode": {
       "extensions": [
-        // Essential VS Code Extension Development
         "ms-vscode.extension-test-runner",
         "ms-vscode.vscode-typescript-next",
-        
-        // GitHub Copilot
         "GitHub.copilot",
         "GitHub.copilot-chat",
-        
-        // TypeScript Development
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
-        
-        // Git Integration
-        "eamodio.gitlens",
-        
-        // Basic Azure (for later)
-        "ms-vscode.azure-account"
+        "ms-azuretools.vscode-azure-github-copilot",
+        "ms-azuretools.vscode-azureresourcegroups",
+        "ms-vscode.azure-repos"
       ],
-      
+
       "settings": {
         // Editor basics
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "editor.tabSize": 2,
-        
+
         // TypeScript
         "typescript.preferences.includePackageJsonAutoImports": "on",
         "typescript.suggest.autoImports": true,
-        
+
         // GitHub Copilot
         "github.copilot.enable": {
           "*": true,

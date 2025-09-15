@@ -1,15 +1,17 @@
 {
     "compilerOptions": {
         "target": "ES2022",
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
+        "module": "commonjs",
+        "lib": ["ES2022", "DOM"],
         "skipLibCheck": true,
         "strict": true,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
-        "outDir": "./dist",
-        "rootDir": "./src"
+        "outDir": "./out",
+        "rootDir": "./src",
+        "sourceMap": true,
+        "declaration": false
     },
     "include": ["src/**/*.ts"],
-    "exclude": ["node_modules", "**/*.spec.ts"]
+    "exclude": ["node_modules", "**/*.spec.ts", "out"]
 }

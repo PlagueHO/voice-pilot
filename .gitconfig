@@ -1,0 +1,93 @@
+[core]
+    # Ensure consistent line endings across platforms
+    autocrlf = input
+    eol = lf
+
+    # Handle Unicode filenames properly
+    precomposeunicode = true
+    quotepath = false
+
+    # Better diff and merge experience
+    editor = code --wait
+
+[push]
+    # Only push the current branch by default
+    default = current
+
+    # Follow tags when pushing
+    followTags = true
+
+[pull]
+    # Use rebase instead of merge when pulling
+    rebase = true
+
+[merge]
+    # Use VS Code as merge tool
+    tool = vscode
+
+[mergetool "vscode"]
+    cmd = code --wait $MERGED
+
+[diff]
+    # Use VS Code as diff tool
+    tool = vscode
+
+[difftool "vscode"]
+    cmd = code --wait --diff $LOCAL $REMOTE
+
+[alias]
+    # Useful shortcuts
+    st = status
+    co = checkout
+    br = branch
+    ci = commit
+    unstage = reset HEAD --
+    last = log -1 HEAD
+    visual = !gitk
+
+    # Pretty log formats
+    lg = log --oneline --decorate --graph
+    lga = log --oneline --decorate --graph --all
+
+    # Show files in a commit
+    show-files = show --pretty="" --name-only
+
+    # Undo last commit but keep changes
+    undo = reset --soft HEAD~1
+
+    # Clean up merged branches
+    cleanup = "!git branch --merged | grep -v '\\*\\|main\\|master\\|develop' | xargs -n 1 git branch -d"
+
+[branch]
+    # Automatically set up tracking when creating new branches
+    autosetupmerge = always
+    autosetuprebase = always
+
+[rerere]
+    # Remember how conflicts were resolved
+    enabled = true
+
+[help]
+    # Correct typos automatically
+    autocorrect = 1
+
+[init]
+    # Use 'main' as default branch name
+    defaultBranch = main
+
+[fetch]
+    # Prune deleted remote branches when fetching
+    prune = true
+
+[tag]
+    # Sort tags by version when listing
+    sort = version:refname
+
+[versionsort]
+    # Better version sorting
+    suffix = -pre
+    suffix = .pre
+    suffix = -beta
+    suffix = .beta
+    suffix = -rc
+    suffix = .rc

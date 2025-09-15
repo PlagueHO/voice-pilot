@@ -5,17 +5,20 @@
   "version": "0.1.0",
   "publisher": "your-publisher-name",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.74.0"
   },
   "activationEvents": [
     "onCommand:voicepilot.start"
   ],
-  "main": "./src/extension.js",
+  "main": "./out/extension.js",
   "scripts": {
-    "vscode:prepublish": "webpack --mode production",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install"
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
   },
   "contributes": {
     "commands": [
@@ -35,13 +38,20 @@
     }
   },
   "dependencies": {
-    "@azure/identity": "^2.0.0",
-    "openai": "^3.0.0",
-    "vscode": "^1.60.0"
+    "@azure/identity": "^4.0.1",
+    "openai": "^4.71.1",
+    "microsoft-cognitiveservices-speech-sdk": "^1.45.0",
+    "ws": "^8.18.0",
+    "axios": "^1.7.7"
   },
   "devDependencies": {
-    "typescript": "^4.4.0",
-    "webpack": "^5.0.0",
-    "webpack-cli": "^4.0.0"
+    "@types/vscode": "^1.74.0",
+    "@types/node": "18.x",
+    "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^6.4.1",
+    "@typescript-eslint/parser": "^6.4.1",
+    "eslint": "^8.47.0",
+    "typescript": "^5.1.6",
+    "@vscode/test-electron": "^2.3.4"
   }
 }

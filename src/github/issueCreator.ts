@@ -1,3 +1,5 @@
+import { ApiClient } from "./apiClient";
+
 export class IssueCreator {
     private apiClient: ApiClient;
 
@@ -5,17 +7,17 @@ export class IssueCreator {
         this.apiClient = apiClient;
     }
 
-    async createIssue(repo: string, title: string, body: string): Promise<void> {
-        const issueData = {
-            title: title,
-            body: body,
-        };
-
+    async createIssue(
+        repo: string,
+        title: string,
+        body: string
+    ): Promise<void> {
         try {
-            await this.apiClient.post(`/repos/${repo}/issues`, issueData);
+            await this.apiClient.createIssue(repo, title, body);
             console.log(`Issue created successfully in ${repo}`);
         } catch (error) {
-            console.error("Error creating issue:", error);
+            console.error("Failed to create issue:", error);
+            throw error;
         }
     }
 

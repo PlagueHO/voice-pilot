@@ -1,6 +1,9 @@
-import { DefaultAzureCredential } from "@azure/identity";
-import { OpenAIRealtimeWS } from "openai/beta/realtime/ws";
+import {
+    DefaultAzureCredential,
+    getBearerTokenProvider,
+} from "@azure/identity";
 import { AzureOpenAI } from "openai";
+import { OpenAIRealtimeWS } from "openai/beta/realtime/ws";
 
 export class AzureService {
     private endpoint: string;
@@ -9,16 +12,21 @@ export class AzureService {
     private credential: DefaultAzureCredential;
 
     constructor() {
-        this.endpoint = process.env.AZURE_OPENAI_ENDPOINT || "AZURE_OPENAI_ENDPOINT";
-        this.deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-realtime";
+        this.endpoint =
+            process.env.AZURE_OPENAI_ENDPOINT || "AZURE_OPENAI_ENDPOINT";
+        this.deploymentName =
+            process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-realtime";
         this.apiVersion = process.env.OPENAI_API_VERSION || "2025-08-28";
         this.credential = new DefaultAzureCredential();
     }
 
     public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
         const scope = "https://cognitiveservices.azure.com/.default";
-        const azureADTokenProvider = this.credential.getToken(scope);
-        
+        const azureADTokenProvider = getBearerTokenProvider(
+            this.credential,
+            scope
+        );
+
         const azureOpenAIClient = new AzureOpenAI({
             azureADTokenProvider,
             apiVersion: this.apiVersion,
