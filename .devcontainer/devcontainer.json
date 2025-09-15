@@ -25,7 +25,8 @@
         "ms-vscode.test-adapter-converter",
         "ms-azuretools.azure-dev",
         "DavidAnson.vscode-markdownlint",
-        "ms-azuretools.vscode-bicep"
+        "ms-azuretools.vscode-bicep",
+        "bierner.markdown-mermaid"
       ],
 
       "settings": {
