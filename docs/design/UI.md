@@ -2,7 +2,7 @@
 
 ## Overview
 
-VoicePilot provides a natural, conversational voice interface similar to Microsoft Copilot's realtime chat mode. The focus is on seamless two-way conversation where users can interrupt VoicePilot at any time, with minimal visual controls and gentle audio/visual feedback during processing states.
+VoicePilot provides a natural, conversational voice interface for hands/eyes free project planning, specification writing, and task management. The focus is on seamless two-way conversation where users can interrupt VoicePilot at any time, with minimal visual controls and gentle audio/visual feedback during processing states. This design serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or during ideation sessions).
 
 ## Design Principles
 
@@ -55,27 +55,28 @@ Tooltip: "VoicePilot - Start Conversation"
 
 **Design Pattern**: Clean conversational flow with minimal visual elements
 
-```
+```text
 ┌─────────────────────────────────────┐
 │                                     │
-│ "Create a function that calculates  │
-│ the factorial of a number"          │
+│ "I need to plan a new user          │
+│ authentication feature"             │
 │                                     │
-│ I'll create a factorial function    │
-│ for you in TypeScript.              │
+│ I'll help you plan the auth         │
+│ feature. Let me analyze your        │
+│ current system first...             │
 │                                     │
-│ ✓ Function added to current file    │
+│ ✓ System context analyzed           │
 │                                     │
-│ "Add error handling for negative    │
-│ numbers"                            │
+│ "What security requirements should  │
+│ we consider?"                       │
 │                                     │
 │ ⋯ (gentle thinking animation)       │
 │                                     │
-│ Good idea! I'll add input           │
-│ validation to handle negative       │
-│ numbers and throw an error.         │
+│ Based on your existing system,      │
+│ here are key security               │
+│ considerations...                   │
 │                                     │
-│ ✓ Error handling added              │
+│ ✓ Requirements document created     │
 │                                     │
 └─────────────────────────────────────┘
 ```
@@ -103,38 +104,38 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ### 2.1 Initial State (Ready to Start)
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ 🎤 VoicePilot                    ⚙️  │
 ├─────────────────────────────────────┤
 │                                     │
-│      Voice Coding Assistant         │
+│    Hands/Eyes Free Planning         │
 │                                     │
 │    Start a natural conversation     │
-│    about your code                  │
+│    about your project               │
 │                                     │
 │       [Start Conversation]          │
 │                                     │
-│  Just speak naturally - ask         │
-│  questions, request changes,        │
-│  or get explanations                │
+│  Discuss requirements, plan         │
+│  features, create specifications,   │
+│  or break down tasks                │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
 ### 2.2 Active Conversation State
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ 🎤 VoicePilot                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ● Listening                         │
 ├─────────────────────────────────────┤
 │                                     │
-│ "Create a function that calculates  │
-│ the factorial of a number"          │
+│ "I need to plan a new user          │
+│ authentication feature"             │
 │                                     │
-│ ⋯ Thinking...                       │
+│ ⋯ Analyzing system context...       │
 │                                     │
 │        [End Conversation]           │
 │                                     │
@@ -145,15 +146,15 @@ Tooltip: "VoicePilot - Start Conversation"
 
 #### VoicePilot Thinking
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ 🎤 VoicePilot                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ⋯ Thinking                          │
 ├─────────────────────────────────────┤
 │                                     │
-│ "Create a function that calculates  │
-│ the factorial of a number"          │
+│ "I need to plan a new user          │
+│ authentication feature"             │
 │                                     │
 │ ⋯ (gentle pulsing animation)        │
 │   (soft thinking audio plays)       │
@@ -163,14 +164,15 @@ Tooltip: "VoicePilot - Start Conversation"
 
 #### Waiting for Copilot
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ 🎤 VoicePilot                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ⋯ Waiting for Copilot               │
 ├─────────────────────────────────────┤
 │                                     │
-│ "Explain this complex algorithm"    │
+│ "How should we structure the user   │
+│ database schema?"                   │
 │                                     │
 │ ⋯ Waiting for Copilot...            │
 │   (gentle thinking audio)           │
@@ -181,18 +183,18 @@ Tooltip: "VoicePilot - Start Conversation"
 
 #### VoicePilot Speaking
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ 🎤 VoicePilot                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ● Speaking                          │
 ├─────────────────────────────────────┤
 │                                     │
-│ "Create a function that calculates  │
-│ the factorial of a number"          │
+│ "I need to plan a new user          │
+│ authentication feature"             │
 │                                     │
-│ I'll create a factorial function    │
-│ for you. This function will...      │
+│ I'll help you plan the auth         │
+│ feature. Based on your existing...  │
 │   (text appears as spoken)          │
 │   (user can interrupt by speaking)  │
 │                                     │
@@ -268,35 +270,28 @@ stateDiagram-v2
 - **Voice Annotations**: Messages include speaker indicators (👤 User, 🎤 Voice)
 - **Mixed Interaction**: Users can switch between voice and text seamlessly
 - **Context Sharing**: Voice conversations contribute to Copilot's context
+- **System Context**: Leverages Copilot's existing codebase and design document awareness
+- **MCP Server Access**: Utilizes Copilot's MCP server integrations for enhanced planning capabilities
 
-### 5.2 Response Formatting
+### 5.2 Planning Response Formatting
 
+````text
+👤 User (voice): "How should we approach user authentication for our new mobile app?"
+
+🤖 Copilot: Let me help you plan the authentication strategy. Based on your existing system architecture, here are some considerations:
+
+**Authentication Options:**
+1. OAuth 2.0 with PKCE for mobile apps
+2. JWT tokens with refresh token rotation
+3. Biometric authentication integration
+
+**Security Requirements:**
+- Multi-factor authentication support
+- Session management and timeout
+- Secure token storage on mobile devices
+
+Would you like me to create a detailed specification document for any of these approaches?
 ````
-👤 User (voice): "How do I create a new React component?"
-
-🤖 Copilot: Let me help you create a React component. Here's a functional component pattern:
-
-```tsx
-import React from 'react';
-
-interface MyComponentProps {
-  title: string;
-}
-
-const MyComponent: React.FC<MyComponentProps> = ({ title }) => {
-  return (
-    <div>
-      <h2>{title}</h2>
-    </div>
-  );
-};
-
-export default MyComponent;
-````
-
-Would you like me to explain any part of this component structure?
-
-```
 
 ## 6. Accessibility and Responsive Design
 

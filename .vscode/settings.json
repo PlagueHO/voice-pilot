@@ -20,7 +20,7 @@
     "editor.tabSize": 4,
     "editor.detectIndentation": false,
     "editor.trimAutoWhitespace": true,
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "editor.formatOnPaste": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": "explicit",

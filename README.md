@@ -1,19 +1,41 @@
-# VoicePilot: Conversational Coding Assistant for VS Code
+# VoicePilot: Hands/Eyes Free Planning and Specification Assistant for VS Code
 
 ## Project Overview
 
-VoicePilot is a desktop-based VS Code extension designed to enable developers to interact with GitHub Copilot and their codebase using voice. It streamlines ideation, feature scoping, and GitHub issue creation through natural conversation, supporting both speech-to-text and text-to-speech. The tool is accessibility-friendly but primarily focused on maintaining developer flow during ideation.
+VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management. It enables natural conversation for ideation, feature scoping, architecture planning, and GitHub issue creation through speech-to-text and text-to-speech. The tool serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or when maintaining conversational flow is more important than precise code editing).
 
-**Implementation Approach**: VoicePilot functions as an AI manager agent that orchestrates the VS Code GitHub Copilot Agent, acting as an intelligent translator between the GitHub Copilot Agent's chat panel and file operations and the user's voice interactions. This design enables 100% voice-only communication by seamlessly converting spoken requests into appropriate Copilot commands and translating Copilot responses back into natural speech, eliminating the need for traditional text-based interactions.
+**Implementation Approach**: VoicePilot functions as an AI manager agent that orchestrates the VS Code GitHub Copilot Agent, acting as an intelligent translator between voice interactions and Copilot's planning and specification capabilities. This design enables 100% hands/eyes free communication by converting spoken planning discussions into appropriate Copilot prompts and translating responses back into natural speech. By leveraging Copilot's existing system context awareness and MCP server integrations, VoicePilot can help with specification writing and planning that considers existing codebases, design documents, and external system knowledge without reimplementing these complex integrations.
+
+## Why GitHub Copilot Integration?
+
+**Leveraging Existing Context**: When planning features for existing systems, context matters tremendously. GitHub Copilot already has sophisticated understanding of:
+
+- Your current codebase structure and patterns
+- Existing design documents and architecture decisions
+- Dependencies and technology stack
+- Code quality standards and conventions
+
+**MCP Server Access**: Rather than reimplementing integrations with external systems, VoicePilot leverages GitHub Copilot's existing MCP (Model Context Protocol) server connections. This provides access to:
+
+- GitHub repositories and issue tracking
+- Documentation systems and wikis
+- Project management tools
+- External APIs and services
+- Custom organizational knowledge bases
+
+**Proven AI Planning Capabilities**: GitHub Copilot has already invested heavily in understanding software planning workflows, requirement analysis, and architectural decision-making. VoicePilot amplifies these capabilities through natural voice interaction rather than rebuilding them from scratch.
 
 ## Key Features
 
-- Voice Input: Use Azure AI Foundry's GPT-Realtime or Azure Speech SDK for real-time transcription.
-- Text-to-Speech: Read Copilot responses aloud using Azure TTS.
-- Copilot Integration: Communicate with GitHub Copilot via VS Code APIs or Copilot Chat extension.
-- Codebase Awareness: Search and summarize code using VS Code APIs.
-- GitHub Issue Creation: Create issues via GitHub MCP server or REST API.
-- Flow-Oriented Design: Concise responses, follow-up questions, and conversational memory.
+- **Hands/Eyes Free Operation**: Complete voice-only interaction for accessibility and situational needs
+- **Voice Input**: Use Azure AI Foundry's GPT-Realtime or Azure Speech SDK for real-time transcription
+- **Text-to-Speech**: Read Copilot responses aloud using Azure TTS for audio-only workflows
+- **Copilot Integration**: Leverage GitHub Copilot's existing system context and MCP server access for informed planning
+- **Specification Writing**: Voice-driven creation of requirements, architecture docs, and technical specifications
+- **Project Planning**: Conversational ideation, feature scoping, and task breakdown
+- **Context Awareness**: Leverage existing codebase and design documentation through Copilot's knowledge
+- **GitHub Issue Management**: Create and manage issues via voice for planning and task tracking
+- **Conversational Flow**: Natural dialogue with follow-up questions and conversational memory
 
 ## Architecture Components
 
@@ -31,9 +53,11 @@ VoicePilot is a desktop-based VS Code extension designed to enable developers to
 4. **Copilot Integration (AI Manager Agent)**
     - Orchestrate GitHub Copilot Agent through Chat extension APIs
     - Act as intelligent translator between voice input and Copilot commands
-    - Convert spoken requests into structured @vscode/copilot-chat prompts
-    - Process Copilot responses for optimal voice delivery
-    - Manage conversation context and follow-up interactions
+    - Convert spoken planning discussions into structured @vscode/copilot-chat prompts
+    - Process Copilot responses for optimal voice delivery and specification formatting
+    - Leverage Copilot's existing system context (codebase, design docs) for informed planning
+    - Utilize Copilot's MCP server integrations without reimplementation
+    - Manage conversation context and follow-up interactions for planning sessions
     - Reference: Copilot Chat GitHub Repo
 5. **Codebase Context**
     - Use VS Code APIs to:
@@ -57,27 +81,29 @@ VoicePilot is a desktop-based VS Code extension designed to enable developers to
 
 - Implement AI manager agent layer
 - Connect to GitHub Copilot Chat extension APIs
-- Develop intelligent prompt translation (voice → Copilot commands)
-- Create response processing pipeline (Copilot → optimized speech)
-- Establish conversation context management
-- Enable seamless voice-only interaction flow
+- Develop intelligent prompt translation (voice planning → Copilot commands)
+- Create response processing pipeline (Copilot → optimized speech for specifications)
+- Establish conversation context management for planning sessions
+- Enable seamless hands/eyes free interaction flow
 
-### Phase 3: Codebase Awareness
+### Phase 3: Specification & Planning Workflows
 
-- Implement file search and summarization
-- Use AI to interpret code context
+- Implement voice-driven document creation (requirements, architecture specs)
+- Leverage Copilot's codebase context for informed planning
+- Create planning session templates and workflows
 
-### Phase 4: GitHub Issue Creation
+### Phase 4: Task & Issue Management
 
-- Draft issues from conversation
-- Send to MCP server or GitHub API
-- Confirm creation via voice
+- Draft issues and tasks from planning conversations
+- Leverage Copilot's GitHub integrations and MCP servers
+- Voice-driven issue creation and task breakdown
 
-### Phase 5: UX & Polish
+### Phase 5: Accessibility & UX Polish
 
-- Add transcript panel
-- Support voice commands like "edit issue"
-- Optimize latency and privacy
+- Optimize for screen-free operation
+- Add conversation transcription and replay
+- Support for planning session management
+- Optimize latency for conversational flow
 
 ## Reference Projects & APIs
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-VoicePilot is a VS Code extension that enables voice-driven interaction with GitHub Copilot and codebases using Azure OpenAI's GPT Realtime API via WebRTC. This document outlines the component architecture and interaction flows required for implementation.
+VoicePilot is a VS Code extension that enables hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management using Azure OpenAI's GPT Realtime API via WebRTC. This document outlines the component architecture and interaction flows required for voice-driven planning sessions, document creation, and project ideation that leverages Copilot's existing system context and MCP server integrations.
 
 ## Architecture Principles
 
@@ -100,60 +100,67 @@ VoicePilot is a VS Code extension that enables voice-driven interaction with Git
 **Responsibilities:**
 
 - Interface with VS Code Copilot Chat extension
-- Convert voice commands to Copilot prompts
-- Handle Copilot responses and format for TTS
+- Convert voice planning discussions to Copilot prompts
+- Handle specification and planning responses for optimal voice delivery
+- Leverage Copilot's existing system context (codebase, design docs)
+- Utilize Copilot's MCP server integrations without reimplementation
 
 **Key Methods:**
 
-- `sendPromptToCopilot(prompt: string): Promise<string>`
-- `formatResponseForSpeech(response: string): string`
-- `extractCodeSnippets(response: string): CodeSnippet[]`
+- `sendPlanningPromptToCopilot(prompt: string): Promise<string>`
+- `formatSpecificationForSpeech(response: string): string`
+- `extractActionItems(response: string): ActionItem[]`
+- `createSpecificationDocument(content: string): Promise<string>`
 
 #### 3.2 Intent Processor (`src/copilot/intentProcessor.ts`)
 
 **Responsibilities:**
 
-- Parse voice input for coding intentions
-- Map voice commands to specific actions
-- Generate appropriate prompts for Copilot
+- Parse voice input for planning and specification intentions
+- Map voice discussions to specific planning actions (requirements, architecture, tasks)
+- Generate appropriate prompts for Copilot's planning capabilities
+- Identify when existing system context is needed
 
 **Key Methods:**
 
-- `processVoiceCommand(transcript: string): Intent`
-- `generateCopilotPrompt(intent: Intent): string`
-- `extractParameters(command: string): Record<string, any>`
+- `processPlanningCommand(transcript: string): PlanningIntent`
+- `generateSpecificationPrompt(intent: PlanningIntent): string`
+- `extractRequirements(discussion: string): Requirement[]`
+- `identifySystemContext(intent: PlanningIntent): ContextRequest`
 
-### 4. Codebase Interaction Layer
+### 4. Planning & Specification Layer
 
-#### 4.1 Code Context Manager (`src/codebase/codeContextManager.ts`)
+#### 4.1 Project Context Manager (`src/planning/projectContextManager.ts`)
 
 **Responsibilities:**
 
-- Analyze current editor context
-- Extract relevant code for voice operations
-- Manage file and selection state
+- Analyze current project and codebase context for informed planning
+- Extract relevant architecture and design information
+- Leverage Copilot's existing context awareness
+- Provide system understanding for specification discussions
 
 **Key Methods:**
 
-- `getCurrentContext(): CodeContext`
-- `getSelectedText(): string`
-- `getActiveFile(): TextDocument`
-- `getVisibleFiles(): TextDocument[]`
+- `getCurrentProjectContext(): ProjectContext`
+- `getArchitectureOverview(): ArchitectureInfo`
+- `getRelevantDesignDocs(): DesignDocument[]`
+- `analyzeExistingFeatures(): FeatureInventory`
 
-#### 4.2 Code Manipulation Service (`src/codebase/codeManipulationService.ts`)
+#### 4.2 Specification Management Service (`src/planning/specificationService.ts`)
 
 **Responsibilities:**
 
-- Execute code modifications based on voice commands
-- Handle text insertion, deletion, and replacement
-- Manage undo/redo operations
+- Create and manage specification documents from voice discussions
+- Generate requirements, architecture docs, and planning artifacts
+- Integrate with existing documentation workflows
+- Track planning session outcomes and action items
 
 **Key Methods:**
 
-- `insertCode(position: Position, code: string): void`
-- `replaceSelection(newCode: string): void`
-- `deleteRange(range: Range): void`
-- `formatDocument(): void`
+- `createSpecificationDocument(content: SpecificationContent): Promise<string>`
+- `updateRequirements(requirements: Requirement[]): void`
+- `generateArchitectureDoc(discussion: ArchitectureDiscussion): string`
+- `extractActionItems(session: PlanningSession): ActionItem[]`
 
 ### 5. UI Components
 
