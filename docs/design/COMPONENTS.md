@@ -6,111 +6,164 @@ VoicePilot is a VS Code extension that enables hands/eyes free interaction with 
 
 ## Architecture Principles
 
-- **Client-Side Processing**: Both client and server components run within the VS Code extension
+- **Webview-Based Audio Processing**: Audio capture and Azure integration run in VS Code webview context for Web API access
+- **Extension Host Coordination**: Extension host manages VS Code integration, commands, and Copilot communication
 - **WebRTC for Real-time Audio**: Use WebRTC for low-latency audio streaming to Azure OpenAI Realtime API
-- **Secure Authentication**: Implement ephemeral key pattern for secure communication
+- **Secure Authentication**: Implement ephemeral key pattern with backend service for secure communication
+- **Message Passing Architecture**: Bidirectional communication between extension host and webview
 - **Modular Design**: Loosely coupled components for maintainability and testability
 
 ## Core Components
 
-### 1. Audio Management Layer
+### 1. Webview Audio Processing Layer
 
-#### 1.1 WebRTC Client (`src/audio/webrtcClient.ts`)
+#### 1.1 Audio Webview (`src/webview/audioWebview.ts`)
 
 **Responsibilities:**
 
-- Establish WebRTC peer connection to Azure OpenAI Realtime API
-- Handle SDP offer/answer negotiation
-- Manage audio tracks and data channels
-- Process real-time audio streams
+- Host webview for audio processing with Web API access
+- Manage webview lifecycle and message passing
+- Handle Content Security Policy configuration
+- Coordinate between extension host and webview audio context
 
 **Key Methods:**
 
-- `initializeConnection(ephemeralKey: string): Promise<void>`
-- `startAudioStream(): void`
-- `stopAudioStream(): void`
-- `sendAudioData(audioData: ArrayBuffer): void`
+- `createAudioWebview(): vscode.WebviewPanel`
+- `postMessage(message: AudioMessage): void`
+- `onMessage(callback: (message: AudioMessage) => void): void`
+- `dispose(): void`
+
+**CSP Configuration:**
+
+```typescript
+const csp = `
+  default-src 'none';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  media-src 'self';
+  connect-src https://*.openai.azure.com wss://*.azure.com;
+`;
+```
+
+#### 1.2 WebRTC Audio Client (Webview Context: `src/webview/webrtcAudioClient.js`)
+
+**Responsibilities:**
+
+- Establish WebRTC peer connection to Azure OpenAI Realtime API from webview
+- Handle microphone access via getUserMedia() Web API
+- Manage real-time audio streaming and processing
+- Process Azure OpenAI audio responses
+
+**Key Methods:**
+
+- `initializeWebRTCConnection(ephemeralKey: string): Promise<void>`
+- `startMicrophoneCapture(): Promise<MediaStream>`
+- `streamAudioToAzure(audioData: ArrayBuffer): void`
 - `onAudioReceived(callback: (audio: ArrayBuffer) => void): void`
+- `closeConnection(): void`
 
-#### 1.2 Audio Capture Service (`src/audio/audioCaptureService.ts`)
-
-**Responsibilities:**
-
-- Capture microphone input using Web Audio API
-- Handle audio format conversion (PCM16)
-- Implement noise reduction and echo cancellation
-- Manage recording state
-
-**Key Methods:**
-
-- `startCapture(): Promise<MediaStream>`
-- `stopCapture(): void`
-- `getAudioData(): ArrayBuffer`
-- `setAudioConstraints(constraints: MediaTrackConstraints): void`
-
-#### 1.3 Audio Playback Service (`src/audio/audioPlaybackService.ts`)
+#### 1.3 Audio Processing Service (Webview Context: `src/webview/audioProcessingService.js`)
 
 **Responsibilities:**
 
-- Play received audio from Azure OpenAI
-- Handle audio buffering and synchronization
-- Manage volume and playback controls
+- Handle Web Audio API processing within webview
+- Convert audio formats (PCM16) for Azure OpenAI compatibility
+- Implement real-time audio processing and filtering
+- Manage audio quality and noise reduction
 
 **Key Methods:**
 
-- `playAudio(audioData: ArrayBuffer): void`
-- `pausePlayback(): void`
-- `resumePlayback(): void`
-- `setVolume(level: number): void`
+- `createAudioContext(): AudioContext`
+- `processAudioStream(stream: MediaStream): AudioWorkletNode`
+- `convertToPCM16(audioBuffer: AudioBuffer): ArrayBuffer`
+- `applyNoiseReduction(audioData: ArrayBuffer): ArrayBuffer`
 
 ### 2. Authentication & Session Management
 
-#### 2.1 Ephemeral Key Manager (`src/auth/ephemeralKeyManager.ts`)
+#### 2.1 Ephemeral Key Backend Service (`src/auth/ephemeralKeyService.ts`)
 
 **Responsibilities:**
 
-- Request ephemeral keys from Azure OpenAI Sessions API
-- Cache and manage key lifecycle (1-minute validity)
-- Handle key renewal and rotation
+- Securely store Azure OpenAI API keys in VS Code secret storage
+- Mint ephemeral keys using backend service pattern
+- Handle key renewal and rotation (1-minute validity)
+- Never expose standard API keys to webview context
 
 **Key Methods:**
 
 - `requestEphemeralKey(): Promise<string>`
-- `isKeyValid(): boolean`
-- `renewKey(): Promise<string>`
+- `storeApiKey(apiKey: string): Promise<void>`
+- `isKeyValid(ephemeralKey: string): boolean`
+- `renewEphemeralKey(): Promise<string>`
+
+**Security Pattern:**
+
+```typescript
+// Extension host only - NEVER in webview
+class EphemeralKeyService {
+  private async mintEphemeralKey(): Promise<string> {
+    const apiKey = await this.context.secrets.get('azure-openai-key');
+    // Use standard API key to request ephemeral key from Azure
+    const response = await fetch(`${endpoint}/openai/realtimeapi/sessions`, {
+      headers: { 'api-key': apiKey }
+    });
+    return response.json().ephemeralKey;
+  }
+}
+```
 
 #### 2.2 Session Manager (`src/session/sessionManager.ts`)
 
 **Responsibilities:**
 
-- Manage Realtime API sessions
-- Handle session configuration and updates
-- Coordinate session lifecycle events
+- Coordinate session lifecycle between extension host and webview
+- Manage session configuration and updates
+- Handle session termination and cleanup
+- Orchestrate ephemeral key delivery to webview
 
 **Key Methods:**
 
 - `createSession(config: SessionConfig): Promise<string>`
+- `deliverEphemeralKeyToWebview(key: string): void`
 - `updateSession(sessionId: string, config: Partial<SessionConfig>): void`
 - `endSession(sessionId: string): void`
 
 ### 3. Copilot Integration Layer
 
-#### 3.1 Copilot Adapter (`src/copilot/copilotAdapter.ts`)
+#### 3.1 Language Model Adapter (`src/copilot/languageModelAdapter.ts`)
 
 **Responsibilities:**
 
-- Interface with VS Code Copilot Chat extension
-- Convert voice planning discussions to Copilot prompts
+- Interface with VS Code Language Model API (`vscode.lm`) for direct Copilot access
+- Register as chat participant (@voicepilot) for conversational interface
+- Convert voice planning discussions to language model prompts
 - Handle specification and planning responses for optimal voice delivery
-- Leverage Copilot's existing system context (codebase, design docs)
-- Utilize Copilot's MCP server integrations without reimplementation
+- Leverage Copilot's existing system context and MCP server integrations
 
 **Key Methods:**
 
-- `sendPlanningPromptToCopilot(prompt: string): Promise<string>`
-- `formatSpecificationForSpeech(response: string): string`
+- `getCopilotModels(): Promise<vscode.LanguageModelChat[]>`
+- `sendPromptToLanguageModel(prompt: string, model: vscode.LanguageModelChat): Promise<string>`
+- `registerChatParticipant(): vscode.ChatParticipant`
+- `formatResponseForSpeech(response: string): string`
 - `extractActionItems(response: string): ActionItem[]`
-- `createSpecificationDocument(content: string): Promise<string>`
+
+**Primary Integration Pattern:**
+
+```typescript
+class LanguageModelAdapter {
+  async initializeCopilotAccess(): Promise<void> {
+    // Direct language model access
+    const [model] = await vscode.lm.selectChatModels({
+      vendor: 'copilot',
+      family: 'gpt-4o'
+    });
+
+    // Register chat participant
+    const participant = vscode.chat.createChatParticipant('voicepilot', this.handleChatRequest);
+  }
+}
+```
 
 #### 3.2 Intent Processor (`src/copilot/intentProcessor.ts`)
 
@@ -118,15 +171,17 @@ VoicePilot is a VS Code extension that enables hands/eyes free interaction with 
 
 - Parse voice input for planning and specification intentions
 - Map voice discussions to specific planning actions (requirements, architecture, tasks)
-- Generate appropriate prompts for Copilot's planning capabilities
+- Generate appropriate prompts for language model capabilities
 - Identify when existing system context is needed
+- Handle both direct language model calls and chat participant interactions
 
 **Key Methods:**
 
 - `processPlanningCommand(transcript: string): PlanningIntent`
-- `generateSpecificationPrompt(intent: PlanningIntent): string`
+- `generateLanguageModelPrompt(intent: PlanningIntent): vscode.LanguageModelChatMessage[]`
 - `extractRequirements(discussion: string): Requirement[]`
 - `identifySystemContext(intent: PlanningIntent): ContextRequest`
+- `handleChatParticipantRequest(request: vscode.ChatRequest): Promise<void>`
 
 ### 4. Planning & Specification Layer
 
@@ -168,16 +223,35 @@ VoicePilot is a VS Code extension that enables hands/eyes free interaction with 
 
 **Responsibilities:**
 
-- Provide voice recording controls
+- Coordinate between extension host and webview for voice controls
 - Display connection status and session info
-- Show real-time transcription
+- Show real-time transcription from webview
+- Handle user interaction and pass commands to webview
 
 **Features:**
 
-- Start/Stop recording button
-- Connection status indicator
-- Live transcription display
-- Volume meters
+- Start/Stop recording button (sends messages to webview)
+- WebRTC connection status indicator
+- Live transcription display from webview messages
+- Volume meters and audio quality indicators
+- Permission status and troubleshooting guidance
+
+**Message Passing Pattern:**
+
+```typescript
+class VoiceControlPanel {
+  private sendToWebview(command: 'start' | 'stop' | 'configure'): void {
+    this.webview.postMessage({ type: 'audio-command', command });
+  }
+
+  private onWebviewMessage(message: AudioMessage): void {
+    switch (message.type) {
+      case 'transcription': this.updateTranscription(message.text); break;
+      case 'status': this.updateConnectionStatus(message.status); break;
+    }
+  }
+}
+```
 
 #### 5.2 Settings Panel (`src/ui/settingsPanel.ts`)
 
@@ -241,65 +315,75 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant UI as Voice Control Panel
-    participant AudioCapture as Audio Capture Service
-    participant WebRTC as WebRTC Client
-    participant AuthMgr as Ephemeral Key Manager
+    participant ExtHost as Extension Host
+    participant KeyService as Ephemeral Key Service
+    participant Webview as Audio Webview
     participant Azure as Azure OpenAI Realtime API
 
     User->>UI: Click "Start Recording"
-    UI->>AuthMgr: requestEphemeralKey()
-    AuthMgr->>Azure: POST /realtime/sessions
-    Azure-->>AuthMgr: Ephemeral key + Session ID
-    AuthMgr-->>UI: Ephemeral key received
+    UI->>ExtHost: startVoiceSession()
+    ExtHost->>KeyService: requestEphemeralKey()
+    KeyService->>Azure: POST /realtime/sessions (with stored API key)
+    Azure-->>KeyService: Ephemeral key + Session ID
+    KeyService-->>ExtHost: Ephemeral key received
 
-    UI->>WebRTC: initializeConnection(ephemeralKey)
-    WebRTC->>Azure: WebRTC SDP Offer
-    Azure-->>WebRTC: SDP Answer
-    WebRTC-->>UI: Connection established
+    ExtHost->>Webview: postMessage({type: 'start-session', ephemeralKey})
+    Webview->>Azure: WebRTC SDP Offer (with ephemeral key)
+    Azure-->>Webview: SDP Answer
+    Webview-->>ExtHost: postMessage({type: 'connection-established'})
+    ExtHost-->>UI: Update connection status
 
-    UI->>AudioCapture: startCapture()
-    AudioCapture->>User: Request microphone access
-    User-->>AudioCapture: Permission granted
-    AudioCapture-->>UI: Capture started
+    Webview->>User: Request microphone access (getUserMedia)
+    User-->>Webview: Permission granted
+    Webview-->>ExtHost: postMessage({type: 'microphone-ready'})
+    ExtHost-->>UI: Update recording status
 
     loop Real-time audio streaming
-        AudioCapture->>WebRTC: Audio data (PCM16)
-        WebRTC->>Azure: Stream audio via WebRTC
-        Azure->>WebRTC: Response audio + events
-        WebRTC->>UI: Audio received + transcript
+        Webview->>Azure: Stream audio via WebRTC (PCM16)
+        Azure->>Webview: Response audio + transcript events
+        Webview->>ExtHost: postMessage({type: 'transcription', text})
+        ExtHost->>UI: Update transcription display
     end
 
     User->>UI: Click "Stop Recording"
-    UI->>AudioCapture: stopCapture()
-    UI->>WebRTC: closeConnection()
+    UI->>ExtHost: stopVoiceSession()
+    ExtHost->>Webview: postMessage({type: 'stop-session'})
+    Webview->>Azure: Close WebRTC connection
+    Webview-->>ExtHost: postMessage({type: 'session-ended'})
 ```
 
 ### 3. Copilot Integration Sequence
 
 ```mermaid
 sequenceDiagram
-    participant WebRTC as WebRTC Client
+    participant Webview as Audio Webview
+    participant ExtHost as Extension Host
     participant IntentProc as Intent Processor
-    participant CopilotAdapter as Copilot Adapter
-    participant VSCodeCopilot as VS Code Copilot
+    participant LMAdapter as Language Model Adapter
+    participant VSCodeLM as VS Code Language Model API
     participant CodeContext as Code Context Manager
     participant CodeManip as Code Manipulation Service
-    participant TTS as Audio Playback Service
 
-    WebRTC->>IntentProc: Voice transcript received
+    Webview->>ExtHost: postMessage({type: 'transcription', text})
+    ExtHost->>IntentProc: processVoiceTranscript(text)
     IntentProc->>CodeContext: getCurrentContext()
     CodeContext-->>IntentProc: Current file & selection
     IntentProc->>IntentProc: processVoiceCommand()
-    IntentProc->>CopilotAdapter: generateCopilotPrompt(intent)
+    IntentProc->>LMAdapter: generateLanguageModelPrompt(intent)
 
-    CopilotAdapter->>VSCodeCopilot: sendPromptToCopilot(prompt)
-    VSCodeCopilot-->>CopilotAdapter: Copilot response
-    CopilotAdapter->>CopilotAdapter: formatResponseForSpeech()
-    CopilotAdapter->>TTS: playAudio(formattedResponse)
+    LMAdapter->>VSCodeLM: selectChatModels({vendor: 'copilot'})
+    VSCodeLM-->>LMAdapter: Copilot model instance
+    LMAdapter->>VSCodeLM: sendRequest(messages, model)
+    VSCodeLM-->>LMAdapter: Copilot response stream
+    LMAdapter->>LMAdapter: formatResponseForSpeech()
+
+    LMAdapter->>ExtHost: sendResponseToWebview(formattedResponse)
+    ExtHost->>Webview: postMessage({type: 'speak-response', audio})
+    Webview->>Webview: playAudioResponse()
 
     alt Code modification required
-        CopilotAdapter->>CodeManip: insertCode() / replaceSelection()
-        CodeManip->>VSCodeCopilot: Apply changes to editor
+        LMAdapter->>CodeManip: insertCode() / replaceSelection()
+        CodeManip->>VSCodeLM: Apply changes to editor
     end
 ```
 
@@ -415,9 +499,24 @@ graph TD
 ### Azure OpenAI Settings
 
 - `voicepilot.azureOpenAI.endpoint`: Azure OpenAI resource endpoint
-- `voicepilot.azureOpenAI.apiKey`: Azure OpenAI API key
 - `voicepilot.azureOpenAI.deploymentName`: Realtime model deployment name
 - `voicepilot.azureOpenAI.region`: Azure region (eastus2 or swedencentral)
+- **API Key Storage**: Stored securely in VS Code secret storage, never in settings
+
+### Webview Security Configuration
+
+- **Content Security Policy**:
+
+  ```csp
+  default-src 'none';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  media-src 'self';
+  connect-src https://*.openai.azure.com wss://*.azure.com;
+  ```
+
+- **Local Resource Roots**: Configured for webview asset loading
+- **Enable Scripts**: Required for Web Audio API and WebRTC functionality
 
 ### Audio Settings
 
@@ -435,11 +534,14 @@ graph TD
 
 ## Security Considerations
 
-1. **API Key Protection**: Never expose Azure OpenAI API keys in client-side code
-2. **Ephemeral Key Management**: Implement secure key rotation every 50 seconds
-3. **Audio Privacy**: Ensure audio data is only sent to authorized Azure endpoints
-4. **Permission Management**: Request minimal necessary permissions for microphone access
-5. **Error Handling**: Avoid exposing sensitive information in error messages
+1. **API Key Protection**: Store Azure OpenAI API keys in VS Code secret storage, never in webview context
+2. **Ephemeral Key Backend Service**: Extension host mints ephemeral keys, webview only receives time-limited keys
+3. **Webview Isolation**: Audio processing isolated in webview with strict CSP configuration
+4. **Message Passing Security**: Validate all messages between extension host and webview
+5. **Audio Privacy**: Ensure audio data is only sent to authorized Azure endpoints via HTTPS/WSS
+6. **Permission Management**: Handle microphone permissions gracefully with user guidance
+7. **Cross-Origin Security**: Webview CSP prevents unauthorized external connections
+8. **Error Handling**: Avoid exposing sensitive information in error messages or webview console
 
 ## Performance Optimization
 
