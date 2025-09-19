@@ -19,7 +19,7 @@ export class ExtensionController implements ServiceInitializable {
   ) {}
 
   async initialize(): Promise<void> {
-    if (this.initialized) {return;}
+    if (this.initialized) { return; }
 
     // Initialize in dependency order with error handling
     const initializedServices: Array<{ name: string, dispose: () => void }> = [];
