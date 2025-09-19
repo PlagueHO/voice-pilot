@@ -74,6 +74,30 @@ Use Command Palette → “Tasks: Run Task”.
 - **Breakpoints**: Place in TypeScript sources; sourcemaps map to `out/`
 - **Packaging**: `npm run package` produces a `.vsix` (uses `vsce`)
 - **Dependencies**: `openai`, `microsoft-cognitiveservices-speech-sdk`, `@azure/identity`, `ws`, `axios`, VS Code API types
+- **Target Version**: VS Code 1.104+ (Node.js 22+) for modern JavaScript features
+
+## TypeScript Compilation & Output
+
+**Target Configuration**: Extension targets ES2022 for Node.js 22+ (VS Code 1.104+)
+
+- **Modern Output**: Native async/await, class fields, all ES2022+ features
+- **Build Directory**: Compiled `.js` files go to `out/` directory only
+- **Source Control**: Only `.ts` files in `src/` directory
+
+### TypeScript Configuration
+
+Ensure `tsconfig.json` targets modern JavaScript:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",        // Node.js 22+ native support
+    "module": "commonjs",     // Node.js compatibility
+    "outDir": "./out",        // Compiled output
+    "rootDir": "./src"        // Source location
+  }
+}
+```
 
 ## Azure Integration Patterns
 
@@ -115,6 +139,7 @@ speechConfig.speechSynthesisVoiceName = config.azureSpeech.voice;
 - **Async**: `async/await` for all async IO
 - **Error Handling**: Contextual logging with lightweight error objects
 - **Separation**: Feature-based folder structure (audio, copilot, github, etc.)
+- **Source Purity**: Only `.ts` files in `src/`; compiled `.js` output goes to `out/`
 
 ## Testing
 
@@ -166,6 +191,7 @@ Secrets (keys) stored via VS Code SecretStorage; never persisted in plaintext.
 - **Latency**: Inspect network / console logs for SDP or ICE delays
 - **Copilot**: Ensure GitHub Copilot Chat extension installed & enabled
 - **STT / TTS**: Validate endpoint & region values in settings
+- **Node.js APIs**: Use Node.js 22+ features without compatibility concerns
 
 ## Common Commands & Task References
 

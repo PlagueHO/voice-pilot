@@ -19,88 +19,46 @@ export class ExtensionController implements ServiceInitializable {
   ) {}
 
   async initialize(): Promise<void> {
-    if (this.initialized) { return; }
+    if (this.initialized) {
+      return;
+    }
 
-    // Initialize in dependency order with error handling
-    const initializedServices: Array<{ name: string, dispose: () => void }> = [];
+    const initialized: Array<{ name: string; dispose: () => void }> = [];
     try {
-      this.logger.info('Initializing configuration manager');
-      await this.configurationManager.initialize();
-      initializedServices.push({ name: 'configurationManager', dispose: () => this.configurationManager.dispose() });
-
-      this.logger.info('Initializing ephemeral key service');
-      await this.keyService.initialize();
-      initializedServices.push({ name: 'keyService', dispose: () => this.keyService.dispose() });
-
-      this.logger.info('Initializing session manager');
-      await this.sessionManager.initialize();
-      initializedServices.push({ name: 'sessionManager', dispose: () => this.sessionManager.dispose() });
-
-      this.logger.info('Initializing voice control panel');
-      await this.voicePanel.initialize();
-      initializedServices.push({ name: 'voicePanel', dispose: () => this.voicePanel.dispose() });
-
+      await this.safeInit('configuration manager', () => this.configurationManager.initialize(), () => this.configurationManager.dispose(), initialized, 'configurationManager');
+      await this.safeInit('ephemeral key service', () => this.keyService.initialize(), () => this.keyService.dispose(), initialized, 'keyService');
+      await this.safeInit('session manager', () => this.sessionManager.initialize(), () => this.sessionManager.dispose(), initialized, 'sessionManager');
+      await this.safeInit('voice control panel', () => this.voicePanel.initialize(), () => this.voicePanel.dispose(), initialized, 'voicePanel');
       this.registerCommands();
       this.initialized = true;
     } catch (err: any) {
-      this.logger.error(`Error during initialization: ${err && err.message ? err.message : err}`);
-      // Dispose any services that were initialized before the error
-      for (const svc of initializedServices.reverse()) {
-        try {
-          this.logger.info(`Disposing ${svc.name} due to failed initialization`);
-          svc.dispose();
-        } catch (disposeErr: any) {
-          this.logger.error(`Error disposing ${svc.name}: ${disposeErr && disposeErr.message ? disposeErr.message : disposeErr}`);
-        }
+      this.logger.error(`Initialization failed: ${err?.message || err}`);
+      for (const svc of initialized.reverse()) {
+        try { svc.dispose(); } catch (e: any) { this.logger.error(`Error disposing ${svc.name}: ${e?.message || e}`); }
       }
       throw err;
     }
   }
 
+  private async safeInit(label: string, initFn: () => Promise<void>, disposeFn: () => void, list: Array<{ name: string; dispose: () => void }>, name: string) {
+    this.logger.info(`Initializing ${label}`);
+    await initFn();
+    list.push({ name, dispose: disposeFn });
+  }
+
   isInitialized(): boolean { return this.initialized; }
 
   dispose(): void {
-    this.logger.info('Disposing voice panel');
-    try {
-      this.voicePanel.dispose();
-    } catch (err: any) {
-      this.logger.error(`Error disposing voice panel: ${err.message ?? err}`);
+    const steps: Array<[string, () => void]> = [
+      ['voice panel', () => this.voicePanel.dispose()],
+      ['session manager', () => this.sessionManager.dispose()],
+      ['ephemeral key service', () => this.keyService.dispose()],
+      ['configuration manager', () => this.configurationManager.dispose()]
+    ];
+    for (const [name, fn] of steps) {
+      this.logger.info(`Disposing ${name}`);
+      try { fn(); } catch (err: any) { this.logger.error(`Error disposing ${name}: ${err?.message || err}`); }
     }
-    this.logger.info('Disposing session manager');
-    try {
-      this.sessionManager.dispose();
-    } catch (err: any) {
-      this.logger.error(`Error disposing session manager: ${err.message ?? err}`);
-    }
-    this.logger.info('Disposing key service');
-    try {
-      this.keyService.dispose();
-    } catch (err: any) {
-      this.logger.error(`Error disposing key service: ${err.message ?? err}`);
-    }
-    this.logger.info('Disposing configuration manager');
-    try {
-      this.configurationManager.dispose();
-    } catch (err: any) {
-      this.logger.error(`Error disposing configuration manager: ${err.message ?? err}`);
-    }
-    this.logger.info('Disposed all services');
-    } catch (err: any) {
-      this.logger.error('Error disposing session manager:', err);
-    }
-    this.logger.info('Disposing key service');
-    try {
-      this.keyService.dispose();
-    } catch (err: any) {
-      this.logger.error('Error disposing key service:', err);
-    }
-    this.logger.info('Disposing configuration manager');
-    try {
-      this.configurationManager.dispose();
-    } catch (err: any) {
-      this.logger.error('Error disposing configuration manager:', err);
-    }
-    this.logger.info('Disposed all services');
   }
 
   private registerCommands(): void {
@@ -136,7 +94,6 @@ export class ExtensionController implements ServiceInitializable {
     this.context.subscriptions.push(...disposables);
   }
 
-  // Accessors
   getConfigurationManager(): ConfigurationManager { return this.configurationManager; }
   getSessionManager(): SessionManager { return this.sessionManager; }
   getEphemeralKeyService(): EphemeralKeyService { return this.keyService; }

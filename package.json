@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "your-publisher-name",
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.104.0"
   },
   "main": "./out/extension.js",
   "scripts": {
@@ -59,15 +59,15 @@
     "axios": "^1.7.7"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0",
-    "@types/node": "18.x",
+    "@types/vscode": "^1.104.0",
+    "@types/node": "22.x",
     "@types/ws": "^8.5.13",
     "@types/mocha": "^10.0.6",
-    "@typescript-eslint/eslint-plugin": "^6.4.1",
-    "@typescript-eslint/parser": "^6.4.1",
-    "eslint": "^8.47.0",
-    "typescript": "^5.1.6",
-    "@vscode/test-electron": "^2.3.4",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "@vscode/test-electron": "^2.4.0",
     "mocha": "^10.7.3"
   }
 }

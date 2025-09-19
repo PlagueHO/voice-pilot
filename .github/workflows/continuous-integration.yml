@@ -1,0 +1,219 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Lint TypeScript
+      run: npm run lint
+
+    - name: Compile TypeScript
+      run: npm run compile
+
+    - name: Verify no JS files in src
+      run: |
+        if find src -name "*.js" -o -name "*.js.map" | grep -q .; then
+          echo "❌ Error: Found compiled JS files in src/ directory"
+          find src -name "*.js" -o -name "*.js.map"
+          exit 1
+        else
+          echo "✅ Clean: No JS files found in src/ directory"
+        fi
+
+    - name: Verify modern ES2022 output
+      run: |
+        if grep -r "__generator" out/ 2>/dev/null; then
+          echo "❌ Error: Found legacy generator polyfills in compiled output"
+          exit 1
+        else
+          echo "✅ Modern: Clean ES2022 output without generator polyfills"
+        fi
+
+    - name: Run unit tests
+      run: npm test
+      env:
+        # Disable GUI requirements for VS Code tests in CI
+        DISPLAY: ':99'
+      continue-on-error: true # VS Code tests may fail in headless environment
+
+    - name: Test extension packaging
+      run: |
+        npm install -g @vscode/vsce
+        npm run package
+
+    - name: Upload extension artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: voicepilot-extension
+        path: '*.vsix'
+        retention-days: 30
+
+  infrastructure-validation:
+    runs-on: windows-latest # PowerShell required for Bicep tasks
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Bicep CLI
+      run: |
+        # Install Bicep CLI
+        $installPath = "$env:USERPROFILE\.bicep"
+        $installDir = New-Item -ItemType Directory -Path $installPath -Force
+        $installDir.Attributes += "Hidden"
+        (New-Object Net.WebClient).DownloadFile("https://github.com/Azure/bicep/releases/latest/download/bicep-win-x64.exe", "$installPath\bicep.exe")
+        $currentPath = (Get-Item -path "HKCU:\Environment" ).GetValue("Path", "", "DoNotExpandEnvironmentNames")
+        if (-not $currentPath.Contains("%USERPROFILE%\.bicep")) { setx PATH ($currentPath + ";%USERPROFILE%\.bicep") }
+        if (-not $env:path.Contains($installPath)) { $env:path += ";$installPath" }
+      shell: powershell
+
+    - name: Validate Bicep templates
+      run: |
+        bicep build .\infra\main.bicep
+        Get-ChildItem -Path .\infra -Filter 'main.bicep' -Recurse | ForEach-Object {
+          if ($_.FullName -ne (Resolve-Path '.\infra\main.bicep').Path) {
+            Write-Host "Building $($_.FullName)"
+            bicep build $_.FullName
+          }
+        }
+      shell: powershell
+
+    - name: Verify generated ARM templates
+      run: |
+        $jsonFiles = Get-ChildItem -Path .\infra -Filter '*.json' -Recurse
+        if ($jsonFiles.Count -eq 0) {
+          Write-Error "No ARM JSON templates found after Bicep compilation"
+          exit 1
+        }
+        Write-Host "✅ Generated $($jsonFiles.Count) ARM templates successfully"
+        $jsonFiles | ForEach-Object { Write-Host "  - $($_.FullName)" }
+      shell: powershell
+
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+
+    - name: Check for sensitive data in source
+      run: |
+        # Check for potential secrets or API keys
+        if grep -r -i -E "(api[_-]?key|secret|password|token)" src/ --exclude-dir=node_modules || true; then
+          echo "⚠️  Found potential sensitive data patterns in source code"
+          echo "Please review the above matches to ensure no secrets are committed"
+        else
+          echo "✅ No obvious sensitive data patterns found"
+        fi
+
+    - name: Verify package.json security
+      run: |
+        # Check that package.json doesn't contain sensitive activation events
+        if grep -E "(onStartupFinished|\*)" package.json; then
+          echo "⚠️  Found broad activation events - consider more specific triggers"
+        else
+          echo "✅ Package.json uses appropriate activation events"
+        fi
+
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: TypeScript strict compilation
+      run: npm run compile
+
+    - name: Check TypeScript configuration
+      run: |
+        # Verify ES2022 target for VS Code 1.104+ with Node.js 22
+        if ! grep -q '"target": "ES2022"' tsconfig.json; then
+          echo "❌ Error: tsconfig.json should target ES2022 for VS Code 1.104+ extensions"
+          exit 1
+        fi
+
+        # Verify output directory configuration
+        if ! grep -q '"outDir": "./out"' tsconfig.json; then
+          echo "❌ Error: tsconfig.json should output to ./out directory"
+          exit 1
+        fi
+
+        echo "✅ TypeScript configuration verified"
+
+    - name: Validate VS Code extension manifest
+      run: |
+        # Check required fields in package.json
+        node -e "
+          const pkg = require('./package.json');
+          const required = ['name', 'displayName', 'description', 'version', 'engines', 'main', 'contributes'];
+          const missing = required.filter(field => !pkg[field]);
+          if (missing.length > 0) {
+            console.error('❌ Missing required package.json fields:', missing.join(', '));
+            process.exit(1);
+          }
+
+          if (!pkg.engines.vscode || !pkg.engines.vscode.match(/\^1\.(10[4-9]|1[1-9]\d|[2-9]\d\d)\.\d+/)) {
+            console.error('❌ VS Code engine should be 1.104.0 or higher in package.json');
+            process.exit(1);
+          }
+
+          console.log('✅ VS Code extension manifest validated');
+        "
+
+    - name: Check extension size
+      run: |
+        npm run package
+        VSIX_SIZE=$(du -h *.vsix | cut -f1)
+        echo "📦 Extension package size: $VSIX_SIZE"
+
+        # Warn if extension is getting large (>10MB)
+        VSIX_SIZE_BYTES=$(du -b *.vsix | cut -f1)
+        if [ $VSIX_SIZE_BYTES -gt 10485760 ]; then
+          echo "⚠️  Extension package is larger than 10MB - consider optimizing"
+        fi
