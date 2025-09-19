@@ -64,11 +64,27 @@ export class ExtensionController implements ServiceInitializable {
     try {
       this.voicePanel.dispose();
     } catch (err: any) {
-      this.logger.error('Error disposing voice panel:', err);
+      this.logger.error(`Error disposing voice panel: ${err.message ?? err}`);
     }
     this.logger.info('Disposing session manager');
     try {
       this.sessionManager.dispose();
+    } catch (err: any) {
+      this.logger.error(`Error disposing session manager: ${err.message ?? err}`);
+    }
+    this.logger.info('Disposing key service');
+    try {
+      this.keyService.dispose();
+    } catch (err: any) {
+      this.logger.error(`Error disposing key service: ${err.message ?? err}`);
+    }
+    this.logger.info('Disposing configuration manager');
+    try {
+      this.configurationManager.dispose();
+    } catch (err: any) {
+      this.logger.error(`Error disposing configuration manager: ${err.message ?? err}`);
+    }
+    this.logger.info('Disposed all services');
     } catch (err: any) {
       this.logger.error('Error disposing session manager:', err);
     }
