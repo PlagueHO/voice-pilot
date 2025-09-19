@@ -76,26 +76,22 @@ This specification defines the activation and lifecycle management requirements 
 ### Extension Manifest (package.json)
 ```json
 {
-  "activationEvents": [
-    "onCommand:voicepilot.startConversation",
-    "onView:voicepilot.sidebar"
-  ],
+  "engines": {
+    "vscode": "^1.75.0"
+  },
   "contributes": {
     "commands": [
       {
         "command": "voicepilot.startConversation",
-        "title": "Start Conversation",
-        "category": "VoicePilot"
+        "title": "VoicePilot: Start Conversation"
       },
       {
         "command": "voicepilot.endConversation",
-        "title": "End Conversation",
-        "category": "VoicePilot"
+        "title": "VoicePilot: End Conversation"
       },
       {
         "command": "voicepilot.openSettings",
-        "title": "Open Settings",
-        "category": "VoicePilot"
+        "title": "VoicePilot: Open Settings"
       }
     ],
     "views": {
@@ -112,7 +108,7 @@ This specification defines the activation and lifecycle management requirements 
         {
           "id": "voicepilot",
           "title": "VoicePilot",
-          "icon": "$(mic)"
+          "icon": "resources/icon.png"
         }
       ]
     }
@@ -123,8 +119,9 @@ This specification defines the activation and lifecycle management requirements 
 ### Extension Controller Interface
 ```typescript
 interface ExtensionController {
-  activate(context: vscode.ExtensionContext): Promise<void>;
-  deactivate(): Promise<void>;
+  initialize(): Promise<void>;
+  dispose(): void;
+  isInitialized(): boolean;
   getConfigurationManager(): ConfigurationManager;
   getSessionManager(): SessionManager;
   getEphemeralKeyService(): EphemeralKeyService;
@@ -135,7 +132,7 @@ interface ExtensionController {
 ### Service Initialization Contract
 ```typescript
 interface ServiceInitializable {
-  initialize(context: vscode.ExtensionContext): Promise<void>;
+  initialize(): Promise<void>;
   dispose(): void;
   isInitialized(): boolean;
 }
@@ -164,7 +161,7 @@ interface CommandDefinition {
 ## 6. Test Automation Strategy
 
 - **Test Levels**: Unit tests for service initialization, Integration tests for VS Code API interactions, End-to-End tests for complete activation flow
-- **Frameworks**: VS Code Extension Test Runner, Jest for unit tests, Moq equivalent for VS Code API mocking
+- **Frameworks**: VS Code Extension Test Runner, Mocha for unit tests, VS Code API mocking for isolation
 - **Test Data Management**: Mock VS Code extension context, isolated test workspaces
 - **CI/CD Integration**: GitHub Actions with VS Code extension testing environment
 - **Coverage Requirements**: 90% code coverage for activation/deactivation paths
@@ -199,6 +196,7 @@ The activation sequence (Configuration → Authentication → Session → UI) en
 - **SVC-002**: Ephemeral Key Service - Azure authentication token management
 - **SVC-003**: Session Manager - Audio session lifecycle coordination
 - **SVC-004**: Voice Control Panel - Primary user interface component
+- **SVC-005**: Logger - Structured logging with level filtering and output channel integration
 
 ### Infrastructure Dependencies
 - **INF-001**: TypeScript Compilation - Build-time type checking and ES module generation
