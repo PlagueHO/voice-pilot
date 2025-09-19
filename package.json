@@ -5,11 +5,8 @@
   "version": "0.1.0",
   "publisher": "your-publisher-name",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.75.0"
   },
-  "activationEvents": [
-    "onCommand:voicepilot.start"
-  ],
   "main": "./out/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -23,16 +20,33 @@
   "contributes": {
     "commands": [
       {
-        "command": "voicepilot.start",
-        "title": "Start VoicePilot"
+        "command": "voicepilot.startConversation",
+        "title": "VoicePilot: Start Conversation"
+      },
+      {
+        "command": "voicepilot.endConversation",
+        "title": "VoicePilot: End Conversation"
+      },
+      {
+        "command": "voicepilot.openSettings",
+        "title": "VoicePilot: Open Settings"
       }
     ],
-    "menus": {
-      "commandPalette": [
+    "viewsContainers": {
+      "activitybar": [
         {
-          "command": "voicepilot.start",
-          "when": "editorTextFocus",
-          "group": "navigation"
+          "id": "voicepilot",
+          "title": "VoicePilot",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "voicepilot": [
+        {
+          "id": "voicepilot.sidebar",
+          "name": "VoicePilot",
+          "when": "voicepilot.activated"
         }
       ]
     }
@@ -48,10 +62,12 @@
     "@types/vscode": "^1.74.0",
     "@types/node": "18.x",
     "@types/ws": "^8.5.13",
+    "@types/mocha": "^10.0.6",
     "@typescript-eslint/eslint-plugin": "^6.4.1",
     "@typescript-eslint/parser": "^6.4.1",
     "eslint": "^8.47.0",
     "typescript": "^5.1.6",
-    "@vscode/test-electron": "^2.3.4"
+    "@vscode/test-electron": "^2.3.4",
+    "mocha": "^10.7.3"
   }
 }
