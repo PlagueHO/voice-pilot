@@ -36,7 +36,7 @@ export class Logger {
   private format(ev: LogEvent): string {
     const base = `[${ev.timestamp}] [${ev.level.toUpperCase()}] ${ev.message}`;
     if (ev.data !== undefined) {
-      try { return `${base} :: ${JSON.stringify(ev.data)}`; } catch { return base; }
+      try { return `${base} :: ${JSON.stringify(ev.data)}`; } catch (err) { return `${base} [WARN: Failed to serialize data: ${err instanceof Error ? err.message : String(err)}]`; }
     }
     return base;
   }
