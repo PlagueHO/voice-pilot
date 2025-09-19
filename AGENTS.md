@@ -2,130 +2,215 @@
 
 ## Project Overview
 
-VoicePilot is a VS Code extension that enables voice-driven interaction with GitHub Copilot and codebases. Built with TypeScript, it integrates Azure AI services for speech-to-text (GPT-Realtime), text-to-speech, and provides conversational coding assistance through natural language.
+VoicePilot is a VS Code extension that enables natural, low‑latency voice interaction with GitHub Copilot and the active codebase. It leverages Azure OpenAI Realtime (WebRTC) for streaming speech-to-text + reasoning, Azure Speech for high‑quality TTS, and provides an interruption‑friendly conversational assistant.
 
 ## Core Architecture
 
-- **Extension Entry**: `src/extension.ts` - VS Code extension activation and command registration
-- **Audio Pipeline**: `src/audio/` - STT via Azure GPT-Realtime, TTS via Azure Speech, microphone capture
-- **Copilot Integration**: `src/copilot/` - Chat with GitHub Copilot extension APIs
-- **Codebase Context**: `src/codebase/` - File analysis, search, and context building using VS Code APIs
-- **GitHub Integration**: `src/github/` - Issue creation via GitHub API
-- **UI Components**: `src/ui/` - Chat panels, status bar, transcript views
+- **Extension Entry**: `src/extension.ts` - Activation, command registration
+- **Audio Pipeline**: `src/audio/` - Capture, STT (Realtime), TTS output
+- **Copilot Integration**: `src/copilot/` - Bridge to GitHub Copilot chat APIs
+- **Codebase Context**: `src/codebase/` - File analysis, search, context assembly
+- **GitHub Integration**: `src/github/` - Issue creation & API calls
+- **UI Components**: `src/ui/` - Sidebar panel, status bar, transcripts
 
-## Development Commands
+## Development Commands (npm scripts)
 
 ```bash
 # Install dependencies
 npm install
 
-# Build extension
+# One-shot compile (TypeScript -> out/)
 npm run compile
 
-# Watch mode for development
+# Watch recompile during development
 npm run watch
 
-# Package extension
-npm run package
+# Run tests (pretest: compile + lint)
+npm test
 
-# Run tests
-npm run test
-
-# Lint code
+# Lint sources
 npm run lint
+
+# Package VSIX (runs compile via vscode:prepublish)
+npm run package
 ```
+
+## VS Code Tasks Workflow (`.vscode/tasks.json`)
+
+Use Command Palette → “Tasks: Run Task”.
+
+| Task | Purpose | When To Run | Notes |
+|------|---------|------------|-------|
+| Build Bicep | Compile all infra `main.bicep` files to JSON | After infra edits | PowerShell script enumerates nested templates |
+| Compile Extension | Single TypeScript build | Quick validation | Default build task (Ctrl+Shift+B) |
+| Watch Extension | Continuous incremental build | Active feature work | Background task; stop when idle |
+| Test Extension | Execute test suite | Before commit / PR | Runs after compile + lint (pretest) |
+| Lint Extension | Static analysis | During refactor / before PR | Add `--fix` manually if needed |
+| Package Extension | Produce `.vsix` | Release prep | Depends on compiled output |
+
+### Recommended Inner Loop
+
+1. Start `Watch Extension`.
+2. Implement changes in `src/`.
+3. Press F5 (Extension Development Host) to interact.
+4. Run `Test Extension` then `Lint Extension`.
+5. (Infra changes) Run `Build Bicep` & inspect JSON outputs.
+6. Commit; `Package Extension` when distributing.
+
+### Fast Patch Flow
+
+`Compile Extension` → F5 → verify → commit.
+
+### Infra (Bicep) Change Flow
+
+1. Edit files under `infra/`.
+2. Run `Build Bicep`.
+3. Review generated `*.json` siblings (confirm intended drift).
+4. Commit only expected changes.
 
 ## VS Code Extension Development
 
-- **Test the extension**: Press F5 to launch Extension Development Host
-- **Debug**: Set breakpoints in TypeScript files, use VS Code debugger
-- **Package**: Use `vsce package` to create .vsix file for distribution
-- **Dependencies**: Key packages include `@azure/openai`, `@vscode/vscode-uri`, `vscode` API types
+- **Run / Debug**: Press F5 to launch Extension Development Host
+- **Breakpoints**: Place in TypeScript sources; sourcemaps map to `out/`
+- **Packaging**: `npm run package` produces a `.vsix` (uses `vsce`)
+- **Dependencies**: `openai`, `microsoft-cognitiveservices-speech-sdk`, `@azure/identity`, `ws`, `axios`, VS Code API types
 
 ## Azure Integration Patterns
 
-All Azure services use consistent authentication and configuration:
+Realtime voice (planned) uses ephemeral token + WebRTC. Fallback / non‑realtime uses REST via the `openai` client pointed at Azure OpenAI deployment endpoint.
 
 ```typescript
-// Azure OpenAI for GPT-Realtime STT
-const client = new AzureOpenAI({
-    endpoint: config.azureOpenAI.endpoint,
-    apiKey: config.azureOpenAI.apiKey,
-    apiVersion: "2024-10-01-preview"
+import OpenAI from 'openai';
+import { SpeechConfig } from 'microsoft-cognitiveservices-speech-sdk';
+
+const openai = new OpenAI({
+  apiKey: config.azureOpenAI.apiKey,
+  baseURL: `${config.azureOpenAI.endpoint}/openai/deployments/${config.azureOpenAI.deployment}`
 });
 
-// Azure Speech for TTS
+async function getEphemeralKey() {
+  // Backend required (not in repo) to exchange permanent Azure key server-side
+  return ephemeralService.fetchKey();
+}
+
 const speechConfig = SpeechConfig.fromSubscription(
-    config.azureSpeech.apiKey,
-    config.azureSpeech.region
+  config.azureSpeech.apiKey,
+  config.azureSpeech.region
 );
+speechConfig.speechSynthesisVoiceName = config.azureSpeech.voice;
 ```
+
+### Realtime Flow (Conceptual)
+
+1. Fetch ephemeral key
+2. Create `RTCPeerConnection` + attach microphone track
+3. Exchange SDP with Azure OpenAI Realtime endpoint
+4. Stream user audio; receive partial transcripts & assistant events
+5. Local VAD interruption → send stop / resume events
+6. Close & release resources; discard ephemeral key
 
 ## Code Style & Conventions
 
-- **TypeScript**: Strict mode enabled, prefer interfaces over types
-- **Async/Await**: Use throughout for all async operations
-- **Error Handling**: Wrap Azure API calls in try-catch, log errors with context
-- **VS Code APIs**: Use `vscode.window`, `vscode.workspace`, `vscode.commands` namespaces
-- **File Organization**: Group by feature (audio, copilot, github) not by type
+- **Strict TypeScript**: Prefer interfaces; no `any` unless isolated
+- **Async**: `async/await` for all async IO
+- **Error Handling**: Contextual logging with lightweight error objects
+- **Separation**: Feature-based folder structure (audio, copilot, github, etc.)
 
-## Testing Instructions
+## Testing
 
-- **Unit Tests**: Jest with VS Code extension testing framework
-- **Integration Tests**: Test with mock VS Code APIs and Azure services
-- **Manual Testing**: Use Extension Development Host to test voice flows
-- **Audio Testing**: Test with different microphones and audio devices
+- **Unit**: Core services (mock VS Code + Azure clients)
+- **Integration**: Extension activation & command flows
+- **Manual Voice**: Use dev host; test microphone permission + latency
+- **Add Tests**: Place under `src/test` or existing `src/test` pattern (current: `src/test/` -> compiled to `out/test`)
 
 ## Critical Dependencies
 
-- `vscode` - VS Code extension API (engine compatibility in package.json)
-- `@azure/openai` - GPT-Realtime for speech-to-text
-- `@azure/cognitiveservices-speech-sdk` - Text-to-speech
-- `@vscode/copilot-chat` - Integration with GitHub Copilot Chat extension
-- `ws` - WebSocket for real-time audio streaming
+- `vscode` - Extension API
+- `openai` - Azure OpenAI compatible client
+- `microsoft-cognitiveservices-speech-sdk` - Azure Speech TTS
+- `@azure/identity` - Future credential flows / managed identity
+- `ws` - Realtime / fallback streaming support
+- `axios` - HTTP (ephemeral key service, auxiliary endpoints)
 
 ## Configuration Management
 
-Extension uses VS Code settings for user configuration:
+VS Code settings namespace: `voicepilot.*`
 
-- `voicepilot.azureOpenAI.*` - Azure OpenAI credentials and endpoints
-- `voicepilot.azureSpeech.*` - Azure Speech service configuration
-- `voicepilot.github.*` - GitHub authentication and repository settings
+- `voicepilot.azureOpenAI.*` (endpoint, deployment, apiKey storage key)
+- `voicepilot.azureSpeech.*` (apiKey, region, voice)
+- `voicepilot.github.*` (repo, auth mode)
 
-## Security Considerations
+Secrets (keys) stored via VS Code SecretStorage; never persisted in plaintext.
 
-- **API Keys**: Store in VS Code secret storage, never in plain text
-- **Authentication**: Use VS Code's built-in GitHub auth when possible
-- **Audio Privacy**: Process audio locally when possible, clear buffers after use
-- **Network**: All Azure calls use HTTPS, validate SSL certificates
+## Security & Privacy
 
-## Extension Lifecycle
+- **Ephemeral Keys**: Short-lived for Realtime; renewal cadence (planned) ~50s
+- **Local Processing**: VAD / preprocessing local where possible
+- **No Audio Persistence**: Raw audio buffers cleared after use
+- **HTTPS Only**: All network calls over TLS
 
-1. **Activation**: Register commands, initialize services, setup UI
-2. **Voice Input**: Capture audio → Azure STT → process command
-3. **Copilot Interaction**: Send prompt → receive response → TTS output
-4. **GitHub Actions**: Create issues, search repositories
-5. **Deactivation**: Cleanup resources, dispose services
+## Extension Lifecycle (Updated)
+
+1. Activation
+2. Conversation start (mic access, VAD init, ephemeral fetch)
+3. Realtime / streaming loop
+4. Intent + context resolution
+5. Copilot bridge / augmentation
+6. Code action execution
+7. TTS streaming & interruption handling
+8. Teardown & cleanup
 
 ## Debugging Tips
 
-- **Audio Issues**: Check microphone permissions, Azure Speech service quotas
-- **Copilot Integration**: Verify GitHub Copilot Chat extension is installed and active
-- **Azure Connectivity**: Test endpoints with curl, check API key validity
-- **VS Code APIs**: Use VS Code Extension Host logs for API debugging
+- **Microphone Issues**: Check OS permission & device availability
+- **Latency**: Inspect network / console logs for SDP or ICE delays
+- **Copilot**: Ensure GitHub Copilot Chat extension installed & enabled
+- **STT / TTS**: Validate endpoint & region values in settings
 
-## Common Commands
+## Common Commands & Task References
 
 ```bash
-# Install VS Code Extension CLI
+# Install packaging CLI
 npm install -g @vscode/vsce
 
-# Package for marketplace
-vsce package
+# Build (default task)
+Ctrl+Shift+B
 
-# Publish to marketplace
-vsce publish
+# Watch
+npm run watch
 
-# Generate types for VS Code API
-npm run vscode:prepublish
+# Tests
+npm test
+
+# Lint
+npm run lint
+
+# Build infra (Task: Build Bicep recommended)
+# bicep build infra/main.bicep
+
+# Package
+npm run package
 ```
+
+### After Making Changes
+
+1. Ensure `Watch Extension` running OR run `Compile Extension`.
+2. Press F5 to launch Extension Development Host.
+3. Exercise feature or voice flow.
+4. Run `Test Extension`.
+5. Run `Lint Extension`.
+6. (Infra changed) Run `Build Bicep`, review JSON outputs.
+7. Commit; `Package Extension` if releasing.
+
+### Pre-Release Checklist
+
+- [ ] Tests passing
+- [ ] Lint clean
+- [ ] No debug-only logs left
+- [ ] Version bumped (if publishing)
+- [ ] Manual voice test passes
+- [ ] `.vsix` installs & activates cleanly
+
+---
+
+This document guides contributors through development, tasks, infrastructure validation, realtime integration planning, and packaging for VoicePilot.
