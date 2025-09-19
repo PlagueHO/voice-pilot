@@ -21,18 +21,40 @@ export class ExtensionController implements ServiceInitializable {
   async initialize(): Promise<void> {
     if (this.initialized) {return;}
 
-    // Initialize in dependency order
-  this.logger.info('Initializing configuration manager');
-  await this.configurationManager.initialize();
-  this.logger.info('Initializing ephemeral key service');
-  await this.keyService.initialize();
-  this.logger.info('Initializing session manager');
-  await this.sessionManager.initialize();
-  this.logger.info('Initializing voice control panel');
-  await this.voicePanel.initialize();
+    // Initialize in dependency order with error handling
+    const initializedServices: Array<{ name: string, dispose: () => void }> = [];
+    try {
+      this.logger.info('Initializing configuration manager');
+      await this.configurationManager.initialize();
+      initializedServices.push({ name: 'configurationManager', dispose: () => this.configurationManager.dispose() });
 
-    this.registerCommands();
-    this.initialized = true;
+      this.logger.info('Initializing ephemeral key service');
+      await this.keyService.initialize();
+      initializedServices.push({ name: 'keyService', dispose: () => this.keyService.dispose() });
+
+      this.logger.info('Initializing session manager');
+      await this.sessionManager.initialize();
+      initializedServices.push({ name: 'sessionManager', dispose: () => this.sessionManager.dispose() });
+
+      this.logger.info('Initializing voice control panel');
+      await this.voicePanel.initialize();
+      initializedServices.push({ name: 'voicePanel', dispose: () => this.voicePanel.dispose() });
+
+      this.registerCommands();
+      this.initialized = true;
+    } catch (err: any) {
+      this.logger.error(`Error during initialization: ${err && err.message ? err.message : err}`);
+      // Dispose any services that were initialized before the error
+      for (const svc of initializedServices.reverse()) {
+        try {
+          this.logger.info(`Disposing ${svc.name} due to failed initialization`);
+          svc.dispose();
+        } catch (disposeErr: any) {
+          this.logger.error(`Error disposing ${svc.name}: ${disposeErr && disposeErr.message ? disposeErr.message : disposeErr}`);
+        }
+      }
+      throw err;
+    }
   }
 
   isInitialized(): boolean { return this.initialized; }
