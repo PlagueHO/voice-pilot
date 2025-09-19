@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.34.44.8038",
-      "templateHash": "489892749687204771"
+      "templateHash": "13699451670657127202"
     }
   },
   "parameters": {
@@ -195,37 +195,13 @@
       {
         "model": {
           "format": "OpenAI",
-          "name": "gpt-4.1",
-          "version": "2025-04-14"
+          "name": "gpt-realtime",
+          "version": "2025-08-28"
         },
-        "name": "gpt-4-1",
-        "sku": {
-          "name": "GlobalStandard",
-          "capacity": 50
-        }
-      },
-      {
-        "model": {
-          "format": "OpenAI",
-          "name": "gpt-4.1-mini",
-          "version": "2025-04-14"
-        },
-        "name": "gpt-4-1-mini",
+        "name": "gpt-realtime",
         "sku": {
           "name": "GlobalStandard",
           "capacity": 100
-        }
-      },
-      {
-        "model": {
-          "format": "OpenAI",
-          "name": "text-embedding-ada-002",
-          "version": "2"
-        },
-        "name": "text-embedding-ada-002",
-        "sku": {
-          "name": "GlobalStandard",
-          "capacity": 150
         }
       }
     ],

@@ -23,6 +23,53 @@
 			},
 			"presentation": { "reveal": "always" },
 			"problemMatcher": []
+		},
+		// TypeScript compile (one-shot)
+		{
+			"label": "Compile Extension",
+			"type": "npm",
+			"script": "compile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": ["$tsc"]
+		},
+		// TypeScript watch mode
+		{
+			"label": "Watch Extension",
+			"type": "npm",
+			"script": "watch",
+			"isBackground": true,
+			"problemMatcher": [
+				{
+					"owner": "typescript",
+					"fileLocation": ["relative", "${workspaceFolder}"],
+					"pattern": "$tsc"
+				}
+			]
+		},
+		// Run tests (pretest runs compile+lint)
+		{
+			"label": "Test Extension",
+			"type": "npm",
+			"script": "test",
+			"group": "test",
+			"problemMatcher": []
+		},
+		// ESLint
+		{
+			"label": "Lint Extension",
+			"type": "npm",
+			"script": "lint",
+			"problemMatcher": ["$eslint-stylish"]
+		},
+		// Package VSIX using vsce
+		{
+			"label": "Package Extension",
+			"type": "npm",
+			"script": "package",
+			"problemMatcher": []
 		}
 	]
 }
