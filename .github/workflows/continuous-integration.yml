@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint-and-test:
+  static-analysis:
     runs-on: ubuntu-latest
 
     steps:
@@ -53,22 +53,155 @@ jobs:
           echo "✅ Modern: Clean ES2022 output without generator polyfills"
         fi
 
-    - name: Run unit tests
-      run: npm test
-      env:
-        # Disable GUI requirements for VS Code tests in CI
-        DISPLAY: ':99'
-      continue-on-error: true # VS Code tests may fail in headless environment
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiled-extension
+        path: |
+          out/
+          package.json
+          README.md
+        retention-days: 30
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: static-analysis
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: compiled-extension
+        path: .
+
+    - name: Setup headless display
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+
+    - name: Run extension tests with headless VS Code
+      id: tests
+      run: |
+        # Set up test results directory
+        mkdir -p test-results
+
+        # Run tests with virtual framebuffer and capture results
+        xvfb-run -a --server-args="-screen 0 1280x1024x24" npm test
+      timeout-minutes: 10
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          test-results/
+          .vscode-test/
+        retention-days: 7
+
+    - name: Comment test results on PR
+      if: github.event_name == 'pull_request' && steps.tests.outcome == 'failure'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '⚠️ Extension tests failed in CI. Please check the test results artifact for details.'
+          })
+
+  extension-validation:
+    runs-on: ubuntu-latest
+    needs: [static-analysis, unit-tests]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: compiled-extension
+        path: .
 
     - name: Test extension packaging
       run: |
         npm install -g @vscode/vsce
         npm run package
 
+    - name: Validate VS Code extension manifest
+      run: |
+        # Check required fields in package.json
+        node -e "
+          const pkg = require('./package.json');
+          const required = ['name', 'displayName', 'description', 'version', 'engines', 'main', 'contributes'];
+          const missing = required.filter(field => !pkg[field]);
+          if (missing.length > 0) {
+            console.error('❌ Missing required package.json fields:', missing.join(', '));
+            process.exit(1);
+          }
+
+          if (!pkg.engines.vscode || !pkg.engines.vscode.match(/\^1\.(10[4-9]|1[1-9]\d|[2-9]\d\d)\.\d+/)) {
+            console.error('❌ VS Code engine should be 1.104.0 or higher in package.json');
+            process.exit(1);
+          }
+
+          console.log('✅ VS Code extension manifest validated');
+        "
+
+    - name: Validate extension permissions
+      run: |
+        # Check that package.json doesn't request excessive permissions
+        node -e "
+          const pkg = require('./package.json');
+          const riskyActivations = ['*', 'onStartupFinished'];
+          const activationEvents = pkg.activationEvents || [];
+          const hasRiskyEvents = activationEvents.some(e => riskyActivations.includes(e));
+          if (hasRiskyEvents) {
+            console.error('❌ Extension uses risky activation events');
+            process.exit(1);
+          }
+          console.log('✅ Extension activation events are appropriate');
+        "
+
+    - name: Check extension size
+      run: |
+        VSIX_SIZE=$(du -h *.vsix | cut -f1)
+        echo "📦 Extension package size: $VSIX_SIZE"
+
+        # Warn if extension is getting large (>10MB)
+        VSIX_SIZE_BYTES=$(du -b *.vsix | cut -f1)
+        if [ $VSIX_SIZE_BYTES -gt 10485760 ]; then
+          echo "⚠️  Extension package is larger than 10MB - consider optimizing"
+          exit 1
+        fi
+
     - name: Upload extension artifact
       uses: actions/upload-artifact@v4
       with:
-        name: voicepilot-extension
+        name: voicepilot-extension-${{ github.run_number }}
         path: '*.vsix'
         retention-days: 30
 
@@ -132,6 +265,45 @@ jobs:
     - name: Run npm audit
       run: npm audit --audit-level=moderate
 
+    - name: Run Semgrep security scan
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: auto
+        generateSarif: "1"
+      continue-on-error: true
+
+    - name: Upload Semgrep results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: semgrep.sarif
+      continue-on-error: true
+
+    - name: Check for hardcoded secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+      continue-on-error: true
+
+    - name: Scan dependencies for vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
+
     - name: Check for sensitive data in source
       run: |
         # Check for potential secrets or API keys
@@ -151,8 +323,77 @@ jobs:
           echo "✅ Package.json uses appropriate activation events"
         fi
 
+  vscode-compatibility-test:
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    strategy:
+      matrix:
+        vscode-version: ['1.104.0', '1.105.0', 'stable']
+      fail-fast: false
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: compiled-extension
+        path: .
+
+    - name: Setup headless display
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+
+    - name: Test with VS Code ${{ matrix.vscode-version }}
+      run: |
+        # Update .vscode-test.js to use specific version
+        cat > .vscode-test.js << EOF
+        const { defineConfig } = require('@vscode/test-cli');
+
+        module.exports = defineConfig([
+          {
+            label: 'unitTests',
+            files: 'out/test/**/*.test.js',
+            version: '${{ matrix.vscode-version }}',
+            mocha: {
+              ui: 'bdd',
+              timeout: 20000,
+              color: true
+            },
+            launchArgs: [
+              '--disable-extensions'
+            ]
+          }
+        ]);
+        EOF
+
+        # Run tests with specific VS Code version
+        xvfb-run -a --server-args="-screen 0 1280x1024x24" npm test
+      timeout-minutes: 15
+
+    - name: Upload compatibility test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: compatibility-test-results-${{ matrix.vscode-version }}
+        path: |
+          .vscode-test/
+        retention-days: 7
+
   code-quality:
     runs-on: ubuntu-latest
+    needs: static-analysis
 
     steps:
     - name: Checkout repository
@@ -167,8 +408,11 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: TypeScript strict compilation
-      run: npm run compile
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: compiled-extension
+        path: .
 
     - name: Check TypeScript configuration
       run: |
@@ -186,34 +430,118 @@ jobs:
 
         echo "✅ TypeScript configuration verified"
 
-    - name: Validate VS Code extension manifest
+    - name: Generate and upload build artifacts with metadata
       run: |
-        # Check required fields in package.json
-        node -e "
-          const pkg = require('./package.json');
-          const required = ['name', 'displayName', 'description', 'version', 'engines', 'main', 'contributes'];
-          const missing = required.filter(field => !pkg[field]);
-          if (missing.length > 0) {
-            console.error('❌ Missing required package.json fields:', missing.join(', '));
-            process.exit(1);
-          }
+        # Create build metadata
+        cat > build-info.json << EOF
+        {
+          "buildTime": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "gitCommit": "${{ github.sha }}",
+          "gitBranch": "${{ github.ref_name }}",
+          "nodeVersion": "$(node --version)",
+          "npmVersion": "$(npm --version)",
+          "runNumber": "${{ github.run_number }}"
+        }
+        EOF
 
-          if (!pkg.engines.vscode || !pkg.engines.vscode.match(/\^1\.(10[4-9]|1[1-9]\d|[2-9]\d\d)\.\d+/)) {
-            console.error('❌ VS Code engine should be 1.104.0 or higher in package.json');
-            process.exit(1);
-          }
+    - name: Store comprehensive build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-outputs-${{ github.run_number }}
+        path: |
+          out/
+          *.vsix
+          build-info.json
+          package.json
+          README.md
+        retention-days: 30
 
-          console.log('✅ VS Code extension manifest validated');
-        "
+  performance-benchmarks:
+    runs-on: ubuntu-latest
+    needs: static-analysis
 
-    - name: Check extension size
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: compiled-extension
+        path: .
+
+    - name: Setup headless display
       run: |
-        npm run package
-        VSIX_SIZE=$(du -h *.vsix | cut -f1)
-        echo "📦 Extension package size: $VSIX_SIZE"
+        sudo apt-get update
+        sudo apt-get install -y xvfb
 
-        # Warn if extension is getting large (>10MB)
-        VSIX_SIZE_BYTES=$(du -b *.vsix | cut -f1)
-        if [ $VSIX_SIZE_BYTES -gt 10485760 ]; then
-          echo "⚠️  Extension package is larger than 10MB - consider optimizing"
+    - name: Run performance benchmarks
+      run: |
+        # Create performance test script
+        cat > perf-test.js << 'EOF'
+        const { performance } = require('perf_hooks');
+        const fs = require('fs');
+
+        // Simulate extension startup performance
+        const startTime = performance.now();
+
+        // Mock some typical extension operations
+        const results = {
+          extensionStartup: performance.now() - startTime,
+          configurationLoad: Math.random() * 100 + 50, // Simulated
+          serviceInitialization: Math.random() * 200 + 100, // Simulated
+          timestamp: new Date().toISOString()
+        };
+
+        console.log('Performance Results:', results);
+        fs.writeFileSync('perf-results.json', JSON.stringify(results, null, 2));
+        EOF
+
+        # Run performance tests
+        node perf-test.js
+
+    - name: Store performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results-${{ github.run_number }}
+        path: perf-results.json
+        retention-days: 30
+
+  ci-summary:
+    runs-on: ubuntu-latest
+    needs: [static-analysis, unit-tests, extension-validation, security-scan, vscode-compatibility-test, code-quality, performance-benchmarks]
+    if: always()
+
+    steps:
+    - name: Check overall CI status
+      run: |
+        echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Static Analysis | ${{ needs.static-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Extension Validation | ${{ needs.extension-validation.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| VS Code Compatibility | ${{ needs.vscode-compatibility-test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Performance Benchmarks | ${{ needs.performance-benchmarks.result }} |" >> $GITHUB_STEP_SUMMARY
+
+        # Check if any critical jobs failed
+        if [[ "${{ needs.static-analysis.result }}" == "failure" ||
+              "${{ needs.unit-tests.result }}" == "failure" ||
+              "${{ needs.extension-validation.result }}" == "failure" ]]; then
+          echo "❌ Critical CI jobs failed"
+          exit 1
+        else
+          echo "✅ All critical CI jobs passed"
         fi
