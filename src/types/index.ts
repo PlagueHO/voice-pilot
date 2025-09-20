@@ -62,3 +62,5 @@ export interface AuthService {
     login(username: string, password: string): Promise<void>;
     logout(): Promise<void>;
 }
+
+export * from './configuration';

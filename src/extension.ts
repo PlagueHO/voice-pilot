@@ -10,12 +10,11 @@ let controller: ExtensionController | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
   const start = performance.now();
-  const configurationManager = new ConfigurationManager();
+  const logger = new Logger();
+  const configurationManager = new ConfigurationManager(context, logger);
   const keyService = new EphemeralKeyService();
   const sessionManager = new SessionManager();
   const voicePanel = new VoiceControlPanel(context);
-
-  const logger = new Logger();
   controller = new ExtensionController(
     context,
     configurationManager,

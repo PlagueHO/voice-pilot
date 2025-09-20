@@ -14,24 +14,126 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
+    "test": "vscode-test",
     "package": "vsce package"
   },
   "contributes": {
     "commands": [
       {
         "command": "voicepilot.startConversation",
-        "title": "VoicePilot: Start Conversation"
+        "title": "VoicePilot: Start Conversation",
+        "icon": "$(comment-discussion)"
       },
       {
         "command": "voicepilot.endConversation",
-        "title": "VoicePilot: End Conversation"
+        "title": "VoicePilot: End Conversation",
+        "icon": "$(debug-stop)"
       },
       {
         "command": "voicepilot.openSettings",
-        "title": "VoicePilot: Open Settings"
+        "title": "VoicePilot: Open Settings",
+        "icon": "$(gear)"
       }
     ],
+    "configuration": {
+      "title": "VoicePilot",
+      "properties": {
+        "voicepilot.azureOpenAI.endpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI resource endpoint URL",
+          "pattern": "^https://.*\\.openai\\.azure\\.com/?$"
+        },
+        "voicepilot.azureOpenAI.deploymentName": {
+          "type": "string",
+          "default": "gpt-4o-realtime-preview",
+          "description": "Azure OpenAI Realtime model deployment name"
+        },
+        "voicepilot.azureOpenAI.region": {
+          "type": "string",
+          "default": "eastus2",
+          "enum": [
+            "eastus2",
+            "swedencentral"
+          ],
+          "description": "Azure region for OpenAI service"
+        },
+        "voicepilot.azureSpeech.region": {
+          "type": "string",
+          "default": "eastus",
+          "description": "Azure Speech service region"
+        },
+        "voicepilot.azureSpeech.voice": {
+          "type": "string",
+          "default": "en-US-JennyNeural",
+          "description": "Azure Speech synthesis voice name"
+        },
+        "voicepilot.audio.inputDevice": {
+          "type": "string",
+          "default": "default",
+          "description": "Preferred microphone device ID"
+        },
+        "voicepilot.audio.outputDevice": {
+          "type": "string",
+          "default": "default",
+          "description": "Preferred speaker device ID"
+        },
+        "voicepilot.audio.noiseReduction": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable noise reduction for microphone input"
+        },
+        "voicepilot.audio.echoCancellation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable echo cancellation"
+        },
+        "voicepilot.audio.sampleRate": {
+          "type": "number",
+          "default": 24000,
+          "enum": [
+            16000,
+            24000,
+            48000
+          ],
+          "description": "Audio sample rate in Hz"
+        },
+        "voicepilot.commands.wakeWord": {
+          "type": "string",
+          "default": "voicepilot",
+          "description": "Wake word for voice activation"
+        },
+        "voicepilot.commands.sensitivity": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0.1,
+          "maximum": 1,
+          "description": "Voice detection sensitivity (0.1-1.0)"
+        },
+        "voicepilot.commands.timeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Command timeout in seconds"
+        },
+        "voicepilot.github.repository": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub repository in owner/repo format"
+        },
+        "voicepilot.github.authMode": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "token",
+            "oauth"
+          ],
+          "description": "GitHub authentication method"
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -46,28 +148,32 @@
         {
           "id": "voicepilot.sidebar",
           "name": "VoicePilot",
-          "when": "voicepilot.activated"
+          "when": "voicepilot.activated",
+          "icon": "resources/icon.svg"
         }
       ]
     }
   },
   "dependencies": {
     "@azure/identity": "^4.0.1",
-    "openai": "^4.71.1",
+    "axios": "^1.7.7",
     "microsoft-cognitiveservices-speech-sdk": "^1.45.0",
-    "ws": "^8.18.0",
-    "axios": "^1.7.7"
+    "openai": "^4.71.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.104.0",
-    "@types/node": "22.x",
-    "@types/ws": "^8.5.13",
+    "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.6",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.104.0",
+    "@types/ws": "^8.5.13",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
-    "typescript": "^5.6.0",
+    "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.0",
-    "mocha": "^10.7.3"
+    "eslint": "^9.0.0",
+    "glob": "^11.0.3",
+    "mocha": "^10.7.3",
+    "typescript": "^5.6.0"
   }
 }

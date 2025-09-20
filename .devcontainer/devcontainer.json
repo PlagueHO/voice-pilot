@@ -5,7 +5,12 @@
 
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/azure-cli:1": {}
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "password": "vscode",
+      "webPort": "6080",
+      "vncPort": "5901"
+    }
   },
 
   "customizations": {
@@ -50,15 +55,28 @@
     }
   },
 
-  "forwardPorts": [9229],
+  "forwardPorts": [9229, 6080, 5901],
   "portsAttributes": {
     "9229": {
       "label": "Node Debug",
       "onAutoForward": "silent"
+    },
+    "6080": {
+      "label": "Desktop (noVNC)",
+      "onAutoForward": "openPreview"
+    },
+    "5901": {
+      "label": "Desktop (VNC)",
+      "onAutoForward": "ignore"
     }
   },
 
-  "postCreateCommand": "npm install && npm install -g @vscode/vsce",
+  "containerEnv": {
+    "DISPLAY": ":1",
+    "ELECTRON_ENABLE_LOGGING": "1"
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh",
 
   "remoteUser": "node"
 }

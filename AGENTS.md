@@ -143,10 +143,61 @@ speechConfig.speechSynthesisVoiceName = config.azureSpeech.voice;
 
 ## Testing
 
+**Reference**: [VS Code Extension Testing](https://code.visualstudio.com/api/working-with-extensions/testing-extension)
+
+### Testing Types
+
 - **Unit**: Core services (mock VS Code + Azure clients)
-- **Integration**: Extension activation & command flows
+- **Integration**: Extension activation & command flows in Extension Development Host
 - **Manual Voice**: Use dev host; test microphone permission + latency
-- **Add Tests**: Place under `src/test` or existing `src/test` pattern (current: `src/test/` -> compiled to `out/test`)
+
+### Testing Setup Patterns
+
+- **Quick Setup**: Use `@vscode/test-cli` with `.vscode-test.js` config file
+- **Advanced Setup**: Custom runner with `@vscode/test-electron` API
+- **Framework**: Mocha-based tests with full VS Code API access
+
+### Key Tools & Dependencies
+
+- `@vscode/test-cli` - Command-line test runner
+- `@vscode/test-electron` - VS Code instance management for tests
+- `mocha` - Test framework (standard for VS Code extensions)
+
+### Testing Principles
+
+- Tests run in Extension Development Host with full VS Code API access
+- Place tests under `src/test/` → compiled to `out/test/`
+- Use `npm test` command or "Test: Run All Tests" in VS Code
+- Debug tests with "Test: Debug All Tests" command
+- Use `--disable-extensions` to isolate extension during testing
+
+### Testing Configuration
+
+The project uses modern VS Code testing patterns:
+
+- **`.vscode-test.js`**: Configuration for `@vscode/test-cli`
+- **`.vscode/launch.json`**: Debug configurations for extension and tests
+- **Test discovery**: Automatic via glob pattern `out/test/**/*.test.js`
+- **Isolation**: Tests run with `--disable-extensions` flag
+
+### Common Patterns
+
+```typescript
+// Basic test structure
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+
+suite('Extension Test Suite', () => {
+  test('Sample test', () => {
+    assert.strictEqual(-1, [1, 2, 3].indexOf(5));
+  });
+
+  test('VS Code API access', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    assert.ok(Array.isArray(workspaceFolders) || workspaceFolders === undefined);
+  });
+});
+```
 
 ## Critical Dependencies
 
