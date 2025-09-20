@@ -26,7 +26,8 @@
         "ms-azuretools.azure-dev",
         "DavidAnson.vscode-markdownlint",
         "ms-azuretools.vscode-bicep",
-        "bierner.markdown-mermaid"
+        "bierner.markdown-mermaid",
+        "github.vscode-github-actions"
       ],
 
       "settings": {
