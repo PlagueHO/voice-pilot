@@ -14,7 +14,7 @@ This document lists all planned features in implementation phase order. It will 
 | Phase | ID | Title | Type | Purpose (Concise) | Spec Filename | Dependencies | Status |
 |-------|----|-------|------|-------------------|---------------|--------------|--------|
 | 1 | SP-001 | Core Extension Activation & Lifecycle | architecture | Activation events, command wiring, teardown | spec-architecture-extension-lifecycle.md |  | ✅ Complete |
-| 1 | SP-002 | Configuration & Settings Management | design | Settings schema, validation, change handling | spec-design-configuration-management.md | SP-001 | ⏳ Pending |
+| 1 | SP-002 | Configuration & Settings Management | design | Settings schema, validation, change handling | spec-design-configuration-management.md | SP-001 | ✅ Complete |
 | 1 | SP-003 | Secret Storage & Credential Handling | security | Secure storage & retrieval boundaries | spec-security-secret-storage.md | SP-001,SP-002 | ⏳ Pending |
 | 1 | SP-004 | Ephemeral Key Service (Azure Realtime) | architecture | Mint & rotate ephemeral session keys | spec-architecture-ephemeral-key-service.md | SP-001,SP-002,SP-003 | ⏳ Pending |
 | 1 | SP-005 | Session Management & Renewal | design | Session lifecycle & timers | spec-design-session-management.md | SP-001,SP-004 | ⏳ Pending |
