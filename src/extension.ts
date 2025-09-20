@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { EphemeralKeyService } from './auth/EphemeralKeyService';
 import { ConfigurationManager } from './config/ConfigurationManager';
 import { ExtensionController } from './core/ExtensionController';
 import { Logger } from './core/logger';
@@ -12,13 +11,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const start = performance.now();
   const logger = new Logger();
   const configurationManager = new ConfigurationManager(context, logger);
-  const keyService = new EphemeralKeyService();
   const sessionManager = new SessionManager();
   const voicePanel = new VoiceControlPanel(context);
   controller = new ExtensionController(
     context,
     configurationManager,
-    keyService,
     sessionManager,
     voicePanel,
     logger

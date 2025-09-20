@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { EphemeralKeyService } from '../auth/EphemeralKeyService';
+import { CredentialManagerImpl } from '../auth/CredentialManager';
+import { EphemeralKeyServiceImpl } from '../auth/EphemeralKeyService';
 import { ConfigurationManager } from '../config/ConfigurationManager';
 import { SessionManager } from '../session/SessionManager';
 import { VoiceControlPanel } from '../ui/VoiceControlPanel';
@@ -8,11 +9,12 @@ import { Logger } from './logger';
 
 export class ExtensionController implements ServiceInitializable {
   private initialized = false;
+  private credentialManager!: CredentialManagerImpl;
+  private ephemeralKeyService!: EphemeralKeyServiceImpl;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly configurationManager: ConfigurationManager,
-    private readonly keyService: EphemeralKeyService,
     private readonly sessionManager: SessionManager,
     private readonly voicePanel: VoiceControlPanel,
     private readonly logger: Logger
@@ -25,10 +27,21 @@ export class ExtensionController implements ServiceInitializable {
 
     const initialized: Array<{ name: string; dispose: () => void }> = [];
     try {
+      // Initialize credential manager first
+      this.credentialManager = new CredentialManagerImpl(this.context, this.logger);
+      await this.safeInit('credential manager', () => this.credentialManager.initialize(), () => this.credentialManager.dispose(), initialized, 'credentialManager');
+
+      // Initialize configuration manager
       await this.safeInit('configuration manager', () => this.configurationManager.initialize(), () => this.configurationManager.dispose(), initialized, 'configurationManager');
-      await this.safeInit('ephemeral key service', () => this.keyService.initialize(), () => this.keyService.dispose(), initialized, 'keyService');
+
+      // Initialize ephemeral key service with dependencies
+      this.ephemeralKeyService = new EphemeralKeyServiceImpl(this.credentialManager, this.configurationManager, this.logger);
+      await this.safeInit('ephemeral key service', () => this.ephemeralKeyService.initialize(), () => this.ephemeralKeyService.dispose(), initialized, 'ephemeralKeyService');
+
+      // Initialize remaining services
       await this.safeInit('session manager', () => this.sessionManager.initialize(), () => this.sessionManager.dispose(), initialized, 'sessionManager');
       await this.safeInit('voice control panel', () => this.voicePanel.initialize(), () => this.voicePanel.dispose(), initialized, 'voicePanel');
+
       this.registerCommands();
       this.initialized = true;
     } catch (err: any) {
@@ -52,7 +65,8 @@ export class ExtensionController implements ServiceInitializable {
     const steps: Array<[string, () => void]> = [
       ['voice panel', () => this.voicePanel.dispose()],
       ['session manager', () => this.sessionManager.dispose()],
-      ['ephemeral key service', () => this.keyService.dispose()],
+      ['ephemeral key service', () => this.ephemeralKeyService?.dispose()],
+      ['credential manager', () => this.credentialManager?.dispose()],
       ['configuration manager', () => this.configurationManager.dispose()]
     ];
     for (const [name, fn] of steps) {
@@ -95,7 +109,8 @@ export class ExtensionController implements ServiceInitializable {
   }
 
   getConfigurationManager(): ConfigurationManager { return this.configurationManager; }
+  getCredentialManager(): CredentialManagerImpl { return this.credentialManager; }
   getSessionManager(): SessionManager { return this.sessionManager; }
-  getEphemeralKeyService(): EphemeralKeyService { return this.keyService; }
+  getEphemeralKeyService(): EphemeralKeyServiceImpl { return this.ephemeralKeyService; }
   getVoiceControlPanel(): VoiceControlPanel { return this.voicePanel; }
 }

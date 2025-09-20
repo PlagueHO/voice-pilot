@@ -2,6 +2,7 @@ export interface AzureOpenAIConfig {
   endpoint: string;
   deploymentName: string;
   region: 'eastus2' | 'swedencentral';
+  apiVersion?: string; // Default: "2025-04-01-preview"
   apiKey?: string; // secret storage
 }
 

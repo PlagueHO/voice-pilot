@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import { suite, suiteSetup, suiteTeardown, test } from 'mocha';
 import * as vscode from 'vscode';
-import { EphemeralKeyService } from '../auth/EphemeralKeyService';
+import { EphemeralKeyServiceImpl } from '../auth/EphemeralKeyService';
 import { ConfigurationManager } from '../config/ConfigurationManager';
 import { Logger } from '../core/logger';
 import { SessionManager } from '../session/SessionManager';
@@ -49,7 +49,7 @@ suite('Extension Lifecycle', () => {
     const events: string[] = [];
     const logger = new Logger('TestLogger');
     const config = new ConfigurationManager(context, logger);
-    const keyService = new EphemeralKeyService();
+    const keyService = new EphemeralKeyServiceImpl();
     const session = new SessionManager();
     const panel = new VoiceControlPanel(context);
 
