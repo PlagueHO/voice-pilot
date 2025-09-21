@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { ConfigurationManager } from '../../config/ConfigurationManager';
+import { ConfigurationManager } from '../../config/configuration-manager';
 import { Logger } from '../../core/logger';
 
 describe('Configuration Manager', () => {

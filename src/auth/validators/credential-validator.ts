@@ -5,7 +5,7 @@ import {
     AzureOpenAIValidationRules,
     GitHubTokenValidationRules,
     ValidationErrorCodes
-} from './ValidationRules';
+} from './validation-rules';
 
 /**
  * Implementation of credential validation with format and network checks

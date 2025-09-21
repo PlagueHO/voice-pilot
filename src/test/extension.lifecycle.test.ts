@@ -1,11 +1,11 @@
 import * as assert from 'assert';
 import { suiteSetup, suiteTeardown } from 'mocha';
 import * as vscode from 'vscode';
-import { EphemeralKeyServiceImpl } from '../auth/EphemeralKeyService';
-import { ConfigurationManager } from '../config/ConfigurationManager';
+import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
+import { ConfigurationManager } from '../config/configuration-manager';
 import { Logger } from '../core/logger';
-import { SessionManager } from '../session/SessionManager';
-import { VoiceControlPanel } from '../ui/VoiceControlPanel';
+import { SessionManager } from '../session/session-manager';
+import { VoiceControlPanel } from '../ui/voice-control-panel';
 
 describe('Extension Lifecycle', () => {
   const disposables: vscode.Disposable[] = [];

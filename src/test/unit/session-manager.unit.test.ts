@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { SessionManagerImpl } from '../../session/SessionManager';
+import { SessionManagerImpl } from '../../session/session-manager';
 
 describe('Unit: SessionManagerImpl', () => {
   it('is not initialized by default', () => {

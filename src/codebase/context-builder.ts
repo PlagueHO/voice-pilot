@@ -1,5 +1,5 @@
-import { FileAnalyzer } from "./fileAnalyzer";
-import { SearchService } from "./searchService";
+import { FileAnalyzer } from "./file-analyzer";
+import { SearchService } from "./search-service";
 
 export class ContextBuilder {
     private fileAnalyzer: FileAnalyzer;

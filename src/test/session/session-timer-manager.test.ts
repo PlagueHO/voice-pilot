@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import { Logger } from '../../core/logger';
-import { SessionTimerManagerImpl } from '../../session/SessionTimerManager';
+import { SessionTimerManagerImpl } from '../../session/session-timer-manager';
 
 class TestLogger extends Logger {
   constructor() { super('SessionTimerTest'); }

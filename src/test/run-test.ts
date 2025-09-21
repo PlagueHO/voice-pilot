@@ -19,7 +19,7 @@ async function main() {
     process.env.MOCHA_UI = process.env.MOCHA_UI || 'tdd';
     // Preload the TDD shim inside the extension host process so globals exist
     // before Mocha loads test files. Use Node/Electron --require option.
-    const tddShimPath = path.resolve(extensionDevelopmentPath, 'out', 'test', 'setupMochaTddShim.js');
+    const tddShimPath = path.resolve(extensionDevelopmentPath, 'out', 'test', 'setup-mocha-tdd-shim.js');
 
     await runTests({
       extensionDevelopmentPath,

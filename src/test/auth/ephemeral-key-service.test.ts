@@ -1,8 +1,8 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { CredentialManagerImpl } from '../../auth/CredentialManager';
-import { EphemeralKeyServiceImpl } from '../../auth/EphemeralKeyService';
-import { ConfigurationManager } from '../../config/ConfigurationManager';
+import { CredentialManagerImpl } from '../../auth/credential-manager';
+import { EphemeralKeyServiceImpl } from '../../auth/ephemeral-key-service';
+import { ConfigurationManager } from '../../config/configuration-manager';
 import { Logger } from '../../core/logger';
 import { AzureOpenAIConfig } from '../../types/configuration';
 

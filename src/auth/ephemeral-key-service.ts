@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ConfigurationManager } from '../config/ConfigurationManager';
+import { ConfigurationManager } from '../config/configuration-manager';
 import { Logger } from '../core/logger';
 import { AzureOpenAIConfig } from '../types/configuration';
 import {
@@ -16,7 +16,7 @@ import {
     KeyRenewalHandler,
     RealtimeSessionInfo
 } from '../types/ephemeral';
-import { CredentialManagerImpl } from './CredentialManager';
+import { CredentialManagerImpl } from './credential-manager';
 
 /**
  * Implementation of ephemeral key service for Azure OpenAI Realtime API authentication.

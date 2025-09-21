@@ -1,4 +1,4 @@
-import { ServiceInitializable } from '../core/ServiceInitializable';
+import { ServiceInitializable } from '../core/service-initializable';
 
 /**
  * Enumeration of supported credential types

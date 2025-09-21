@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ServiceInitializable } from '../core/ServiceInitializable';
+import { ServiceInitializable } from '../core/service-initializable';
 
 // Core service interface
 export interface EphemeralKeyService extends ServiceInitializable {

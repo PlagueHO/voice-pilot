@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { EphemeralKeyServiceImpl } from '../../auth/EphemeralKeyService';
+import { EphemeralKeyServiceImpl } from '../../auth/ephemeral-key-service';
 import { Logger } from '../../core/logger';
 import { AzureOpenAIConfig } from '../../types/configuration';
 

@@ -1,6 +1,6 @@
 import { Logger } from '../../core/logger';
 import { ConfigurationAccessors, ValidationError, ValidationResult, ValidationWarning } from '../../types/configuration';
-import { allRules, RuleContext } from './ValidationRules';
+import { allRules, RuleContext } from './validation-rules';
 
 export class ConfigurationValidator {
   constructor(private readonly logger: Logger, private readonly access: ConfigurationAccessors) {}

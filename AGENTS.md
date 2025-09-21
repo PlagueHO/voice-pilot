@@ -117,7 +117,8 @@ voice-pilot/
 - **SOLID**: Follow SOLID principles for maintainable code
 - **DRY**: Avoid code duplication; abstract common logic
 - **Code Smells**: Refactor to eliminate long methods, large classes, and complex conditionals
-- **Naming Conventions**: Consistent camelCase for variables/functions, PascalCase for classes/interfaces. Prioritize meaningful names and self-documenting code
+- **Naming Conventions**: Consistent camelCase for variables/functions, PascalCase for classes/interfaces, kebab-case for filenames. Prioritize meaningful names and self-documenting code
+- **File Naming**: Use kebab-case for all TypeScript filenames (e.g., `credential-validator.ts`, `azure-openai-validation-rules.ts`) while keeping class names in PascalCase
 - **Prioritize Readability**: Clear naming, comments, and documentation
 - **Performance**: Implement lazy loading for heavy services; use debounced updates for configuration changes
 - **Error Handling**: Implement structured error handling with proper user feedback

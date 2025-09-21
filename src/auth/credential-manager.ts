@@ -8,7 +8,7 @@ import {
     HealthCheckResult
 } from '../types/credentials';
 import { LEGACY_KEYS, SECRET_KEYS } from './constants';
-import { CredentialValidatorImpl } from './validators/CredentialValidator';
+import { CredentialValidatorImpl } from './validators/credential-validator';
 
 /**
  * Implementation of secure credential management using VS Code Secret Storage

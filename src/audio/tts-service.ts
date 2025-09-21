@@ -1,5 +1,5 @@
 import { Logger } from '../core/logger';
-import { AudioChunk, RealtimeAudioConfig, RealtimeAudioService } from './RealtimeAudioService';
+import { AudioChunk, RealtimeAudioConfig, RealtimeAudioService } from './realtime-audio-service';
 
 /**
  * Text-to-Speech service using Azure OpenAI Realtime API

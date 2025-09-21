@@ -1,7 +1,7 @@
-import { ServiceInitializable } from '../core/ServiceInitializable';
 import { Logger } from '../core/logger';
-import { AudioChunk, AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './RealtimeAudioService';
-import { AudioCapture, AudioCaptureConfig } from './audioCapture';
+import { ServiceInitializable } from '../core/service-initializable';
+import { AudioCapture, AudioCaptureConfig } from './audio-capture';
+import { AudioChunk, AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './realtime-audio-service';
 
 export interface AudioPipelineConfig {
     realtime: RealtimeAudioConfig;

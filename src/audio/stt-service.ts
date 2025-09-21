@@ -1,5 +1,5 @@
 import { Logger } from '../core/logger';
-import { AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './RealtimeAudioService';
+import { AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './realtime-audio-service';
 
 /**
  * Speech-to-Text service using Azure OpenAI Realtime API

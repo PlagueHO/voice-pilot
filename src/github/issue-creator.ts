@@ -1,4 +1,4 @@
-import { ApiClient } from "./apiClient";
+import { ApiClient } from "./api-client";
 
 export class IssueCreator {
     private apiClient: ApiClient;

@@ -1,5 +1,5 @@
 import { CredentialValidationError } from '../../../types/credentials';
-import { ValidationErrorCodes } from '../validationErrorCodes';
+import { ValidationErrorCodes } from '../validation-error-codes';
 
 /**
  * Format validation for GitHub Personal Access Tokens (classic and fine-grained).

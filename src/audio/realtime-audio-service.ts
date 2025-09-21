@@ -1,8 +1,8 @@
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 import { AzureOpenAI } from "openai";
 import { OpenAIRealtimeWS } from "openai/beta/realtime/ws";
-import { ServiceInitializable } from '../core/ServiceInitializable';
 import { Logger } from '../core/logger';
+import { ServiceInitializable } from '../core/service-initializable';
 
 export interface RealtimeAudioConfig {
   endpoint: string;

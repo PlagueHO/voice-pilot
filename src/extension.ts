@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { ConfigurationManager } from './config/ConfigurationManager';
-import { ExtensionController } from './core/ExtensionController';
+import { ConfigurationManager } from './config/configuration-manager';
+import { ExtensionController } from './core/extension-controller';
 import { Logger } from './core/logger';
-import { SessionManager } from './session/SessionManager';
-import { VoiceControlPanel } from './ui/VoiceControlPanel';
+import { SessionManager } from './session/session-manager';
+import { VoiceControlPanel } from './ui/voice-control-panel';
 
 let controller: ExtensionController | undefined;
 

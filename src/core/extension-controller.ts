@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { CredentialManagerImpl } from '../auth/CredentialManager';
-import { EphemeralKeyServiceImpl } from '../auth/EphemeralKeyService';
-import { ConfigurationManager } from '../config/ConfigurationManager';
-import { SessionManager } from '../session/SessionManager';
-import { VoiceControlPanel } from '../ui/VoiceControlPanel';
-import { ServiceInitializable } from './ServiceInitializable';
+import { CredentialManagerImpl } from '../auth/credential-manager';
+import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
+import { ConfigurationManager } from '../config/configuration-manager';
+import { SessionManager } from '../session/session-manager';
+import { VoiceControlPanel } from '../ui/voice-control-panel';
 import { Logger } from './logger';
+import { ServiceInitializable } from './service-initializable';
 
 export class ExtensionController implements ServiceInitializable {
   private initialized = false;

@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { ServiceInitializable } from '../core/ServiceInitializable';
 import { Logger } from '../core/logger';
+import { ServiceInitializable } from '../core/service-initializable';
 import { AudioConfig, AzureOpenAIConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, GitHubConfig, ValidationResult } from '../types/configuration';
-import { AudioSection } from './sections/AudioConfigSection';
-import { AzureOpenAISection } from './sections/AzureOpenAIConfigSection';
-import { CommandsSection } from './sections/CommandsConfigSection';
-import { GitHubSection } from './sections/GitHubConfigSection';
-import { ConfigurationValidator } from './validators/ConfigurationValidator';
+import { AudioSection } from './sections/audio-config-section';
+import { AzureOpenAISection } from './sections/azure-openai-config-section';
+import { CommandsSection } from './sections/commands-config-section';
+import { GitHubSection } from './sections/github-config-section';
+import { ConfigurationValidator } from './validators/configuration-validator';
 
 /**
  * Central configuration manager. Responsibilities:
