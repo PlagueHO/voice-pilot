@@ -136,9 +136,12 @@ voice-pilot/
 ### TypeScript and Code Quality
 
 - Use TypeScript 5.0+ with ES2022 target for modern JavaScript features
+- **Module System**: Use CommonJS (`"module": "commonjs"`) - required for VS Code extension compatibility
+- **MANDATORY**: Use ES module syntax (`import`/`export`) in ALL TypeScript source files - never use `require()` or `module.exports` in `.ts` files
 - Enable strict mode; avoid `any` types; prefer interfaces over types for object shapes
 - Use modern async/await patterns; avoid generators and callbacks
 - Implement feature-based folder structure with single responsibility modules
+- **Import/Export**: Use ES module syntax (`import`/`export`) in TypeScript source, compiled to CommonJS output
 
 ### Azure and External Service Integration
 
@@ -259,12 +262,19 @@ interface ServiceInitializable {
 **Target Configuration**: Extension targets ES2022 for Node.js 22+ (VS Code 1.104+)
 
 - **Target**: ES2022 (Node.js 22+ support in VS Code 1.104+)
+- **Module System**: CommonJS (`"module": "commonjs"`) - VS Code Extension Host requirement
+- **CRITICAL**: ALWAYS use ES module syntax (`import`/`export`) in TypeScript source files - this is compiled to CommonJS automatically
 - **Output**: Only compiled `.js` files go to `out/` directory
 - **Source**: Only `.ts` files in `src/` directory
 - **No legacy polyfills**: Modern async/await, class fields, all ES2022+ features
+- **Interoperability**: `esModuleInterop: true` enables mixing CommonJS and ES module imports
 
 ```typescript
-// Use modern patterns - no __generator or __awaiter functions
+// Use modern ES module syntax - ALWAYS in TypeScript files
+import { ServiceInitializable } from './service-initializable';
+import { Logger } from './logger';
+
+// ES module export - no __generator or __awaiter functions
 export class ExampleService implements ServiceInitializable {
   private initialized = false;
 
@@ -274,6 +284,10 @@ export class ExampleService implements ServiceInitializable {
     this.initialized = true;
   }
 }
+
+// Named exports
+export { Logger };
+export type { ServiceInitializable };
 ```
 
 ### Azure Integration Patterns
