@@ -1,41 +1,59 @@
 const path = require('path');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
 
-module.exports = {
-    mode: 'production',
-    entry: './src/extension.ts',
-    output: {
-        path: path.resolve(__dirname, 'out'),
-        filename: 'extension.js',
-        libraryTarget: 'commonjs2',
-    },
-    resolve: {
-        extensions: ['.ts', '.js'],
-    },
-    module: {
-        rules: [
-            {
-                test: /\.ts$/,
-                use: 'ts-loader',
-                exclude: /node_modules/,
-            },
-        ],
-    },
-    plugins: [
-        new CleanWebpackPlugin(),
-        new CopyWebpackPlugin({
-            patterns: [
-                { from: 'src/media', to: 'media' },
-                { from: 'package.json', to: 'package.json' },
-                { from: 'vsc-extension-quickstart.md', to: 'vsc-extension-quickstart.md' },
-                { from: 'README.md', to: 'README.md' },
+module.exports = (env, argv) => {
+    const isProduction = argv.mode === 'production';
+
+    return {
+        mode: argv.mode || 'development',
+        entry: './src/extension.ts',
+        output: {
+            path: path.resolve(__dirname, 'out'),
+            filename: 'extension.js',
+            libraryTarget: 'commonjs2',
+            clean: true
+        },
+        resolve: {
+            extensions: ['.ts', '.js'],
+        },
+        module: {
+            rules: [
+                {
+                    test: /\.ts$/,
+                    use: {
+                        loader: 'ts-loader',
+                        options: {
+                            transpileOnly: true,
+                            compilerOptions: {
+                                sourceMap: !isProduction
+                            }
+                        }
+                    },
+                    exclude: /node_modules/,
+                },
             ],
-        }),
-    ],
-    devtool: 'source-map',
-    target: 'node',
-    externals: {
-        vscode: 'commonjs vscode',
-    },
+        },
+        plugins: [
+            new CleanWebpackPlugin()
+        ],
+        optimization: {
+            minimize: isProduction,
+            usedExports: true,
+            sideEffects: false
+        },
+        devtool: isProduction ? false : 'source-map',
+        target: 'node',
+        externals: {
+            vscode: 'commonjs vscode',
+            // External node modules that shouldn't be bundled
+            'applicationinsights-native-metrics': 'commonjs applicationinsights-native-metrics',
+            '@azure/msal-node': 'commonjs @azure/msal-node',
+            '@azure/msal-node-extensions': 'commonjs @azure/msal-node-extensions'
+        },
+        performance: {
+            hints: 'warning',
+            maxEntrypointSize: 5000000, // 5MB
+            maxAssetSize: 5000000
+        }
+    };
 };

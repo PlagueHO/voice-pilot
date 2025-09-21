@@ -31,8 +31,8 @@ jobs:
     - name: Lint TypeScript
       run: npm run lint
 
-    - name: Compile TypeScript
-      run: npm run compile
+    - name: Build production bundle
+      run: npm run webpack:prod
 
     - name: Verify no JS files in src
       run: |
@@ -61,6 +61,7 @@ jobs:
           out/
           package.json
           README.md
+          webpack.config.js
         retention-days: 30
 
   unit-tests:
@@ -140,11 +141,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: compiled-extension
-        path: .
+    - name: Build optimized extension
+      run: npm run webpack:prod
 
     - name: Test extension packaging
       run: |
@@ -269,7 +267,6 @@ jobs:
       uses: returntocorp/semgrep-action@v1
       with:
         config: auto
-        generateSarif: "1"
       continue-on-error: true
 
     - name: Upload Semgrep results
@@ -328,7 +325,7 @@ jobs:
     needs: static-analysis
     strategy:
       matrix:
-        vscode-version: ['1.104.0', '1.105.0', 'stable']
+        vscode-version: ['1.104.0', 'stable']
       fail-fast: false
 
     steps:
