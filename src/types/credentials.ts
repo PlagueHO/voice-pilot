@@ -5,7 +5,6 @@ import { ServiceInitializable } from '../core/ServiceInitializable';
  */
 export enum CredentialType {
   AzureOpenAI = 'azure-openai',
-  AzureSpeech = 'azure-speech',
   GitHub = 'github'
 }
 
@@ -61,9 +60,7 @@ export interface CredentialManager extends ServiceInitializable {
   clearAzureOpenAIKey(): Promise<void>;
 
   // Azure Speech credentials
-  storeAzureSpeechKey(key: string): Promise<void>;
-  getAzureSpeechKey(): Promise<string | undefined>;
-  clearAzureSpeechKey(): Promise<void>;
+  // Azure Speech removed: use Azure OpenAI Realtime instead
 
   // GitHub credentials
   storeGitHubToken(token: string): Promise<void>;
@@ -87,6 +84,5 @@ export interface CredentialManager extends ServiceInitializable {
  */
 export interface CredentialValidator {
   validateAzureOpenAIKey(key: string): Promise<CredentialValidationResult>;
-  validateAzureSpeechKey(key: string): Promise<CredentialValidationResult>;
   validateGitHubToken(token: string): Promise<CredentialValidationResult>;
 }

@@ -4,7 +4,6 @@
 export interface SecretKeySchema {
   // Azure service keys
   AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey';
-  AZURE_SPEECH_API_KEY: 'voicepilot.azure-speech.apikey';
 
   // GitHub authentication
   GITHUB_PERSONAL_TOKEN: 'voicepilot.github.token';
@@ -18,7 +17,7 @@ export interface SecretKeySchema {
  */
 export const SECRET_KEYS: SecretKeySchema = {
   AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey',
-  AZURE_SPEECH_API_KEY: 'voicepilot.azure-speech.apikey',
+  // Azure Speech removed: keep only Azure OpenAI and GitHub
   GITHUB_PERSONAL_TOKEN: 'voicepilot.github.token'
 } as const;
 
@@ -43,6 +42,6 @@ export const VALIDATION_TIMEOUTS = {
  */
 export const VALIDATION_ENDPOINTS = {
   AZURE_OPENAI: 'https://api.openai.azure.com/openai/deployments',
-  AZURE_SPEECH: 'https://eastus.tts.speech.microsoft.com/cognitiveservices/voices/list',
+  // AZURE_SPEECH endpoint removed (migrated to Realtime API)
   GITHUB_API: 'https://api.github.com/user'
 } as const;

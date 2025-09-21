@@ -4,7 +4,7 @@
 
 VoicePilot streamlines developer workflow by allowing voice interaction for ideation, feature scoping, and GitHub issue creation. The extension supports both speech-to-text and text-to-speech capabilities, making it accessible while maintaining developer flow during coding sessions.
 
-Key technical components include Azure AI Foundry GPT-Realtime for low-latency transcription, Azure Speech SDK for text-to-speech, GitHub Copilot Chat extension integration, VS Code API utilization for codebase context, and GitHub API integration for issue creation.
+Key technical components include Azure AI Foundry GPT-Realtime for low-latency transcription and synthesis, GitHub Copilot Chat extension integration, VS Code API utilization for codebase context, and GitHub API integration for issue creation.
 
 ## Documentation
 

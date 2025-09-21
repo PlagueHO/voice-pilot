@@ -4,6 +4,10 @@
   "description": "A conversational coding assistant for VS Code that integrates with GPT-Realtime for voice interaction.",
   "version": "0.1.0",
   "publisher": "your-publisher-name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PlagueHO/voice-pilot.git"
+  },
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -18,6 +22,8 @@
     "test:headless": "xvfb-run -a npm test",
     "test:coverage": "nyc npm test",
     "test:perf": "node -e \"console.log(JSON.stringify({timestamp: new Date().toISOString(), testDuration: Math.random() * 1000 + 500}))\"",
+  "test:unit": "npm run compile && mocha --ui bdd \"out/test/unit/**/*.js\" --timeout 3000",
+  "test:all": "npm run test:unit && npm test",
     "security:audit": "npm audit --audit-level=moderate",
     "security:check": "npm run security:audit && echo 'Security check completed'",
     "package": "vsce package",
@@ -64,16 +70,7 @@
           ],
           "description": "Azure region for OpenAI service"
         },
-        "voicepilot.azureSpeech.region": {
-          "type": "string",
-          "default": "eastus",
-          "description": "Azure Speech service region"
-        },
-        "voicepilot.azureSpeech.voice": {
-          "type": "string",
-          "default": "en-US-JennyNeural",
-          "description": "Azure Speech synthesis voice name"
-        },
+
         "voicepilot.audio.inputDevice": {
           "type": "string",
           "default": "default",
@@ -161,11 +158,10 @@
     }
   },
   "dependencies": {
-    "@azure/identity": "^4.0.1",
-    "axios": "^1.7.7",
-    "microsoft-cognitiveservices-speech-sdk": "^1.45.0",
-    "openai": "^4.71.1",
-    "ws": "^8.18.0"
+  "@azure/identity": "^4.0.1",
+  "axios": "^1.7.7",
+  "openai": "^4.71.1",
+  "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",

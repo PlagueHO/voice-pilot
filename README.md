@@ -28,8 +28,8 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 ## Key Features
 
 - **Hands/Eyes Free Operation**: Complete voice-only interaction for accessibility and situational needs
-- **Voice Input**: Use Azure AI Foundry's GPT-Realtime or Azure Speech SDK for real-time transcription
-- **Text-to-Speech**: Read Copilot responses aloud using Azure TTS for audio-only workflows
+- **Voice Input**: Use Azure AI Foundry's GPT-Realtime for real-time transcription
+- **Text-to-Speech**: Use Azure OpenAI Realtime audio (gpt-realtime) for synthesized audio output
 - **Copilot Integration**: Leverage GitHub Copilot's existing system context and MCP server access for informed planning
 - **Specification Writing**: Voice-driven creation of requirements, architecture docs, and technical specifications
 - **Project Planning**: Conversational ideation, feature scoping, and task breakdown
@@ -45,10 +45,9 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
     - UI: Status bar button, chat panel, transcript log
 2. **Speech-to-Text (STT)**
     - Primary: Azure AI Foundry GPT-Realtime (for low-latency transcription)
-    - Fallback: Azure Speech SDK or Whisper
     - Integration: Microphone capture via Node.js or Electron module
 3. **Text-to-Speech (TTS)**
-    - Primary: Azure TTS SDK or REST API
+    - Primary: Azure OpenAI Realtime audio (gpt-realtime) for synthesized audio output
     - Optional: OS-native TTS for fallback
 4. **Copilot Integration (AI Manager Agent)**
     - Orchestrate GitHub Copilot Agent through Chat extension APIs

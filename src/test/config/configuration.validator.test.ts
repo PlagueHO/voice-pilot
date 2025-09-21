@@ -1,10 +1,9 @@
 import * as assert from 'assert';
-import { suite, test } from 'mocha';
 import * as vscode from 'vscode';
 import { ConfigurationManager } from '../../config/ConfigurationManager';
 import { Logger } from '../../core/logger';
 
-suite('Configuration Validation', () => {
+describe('Configuration Validation', () => {
   async function createManager(): Promise<ConfigurationManager> {
     const logger = new Logger('CfgTest');
     const context: any = {
@@ -17,7 +16,7 @@ suite('Configuration Validation', () => {
     return mgr;
   }
 
-  test('Detects invalid endpoint format', async () => {
+  it('Detects invalid endpoint format', async () => {
     const cfg = vscode.workspace.getConfiguration('voicepilot.azureOpenAI');
     await cfg.update('endpoint', 'http://bad-endpoint', vscode.ConfigurationTarget.Global);
     const mgr = await createManager();
@@ -27,7 +26,7 @@ suite('Configuration Validation', () => {
     assert.ok(hasInvalid, 'Should flag invalid endpoint');
   });
 
-  test('Valid sensitivity range passes', async () => {
+  it('Valid sensitivity range passes', async () => {
     const commands = vscode.workspace.getConfiguration('voicepilot.commands');
     await commands.update('sensitivity', 0.9, vscode.ConfigurationTarget.Global);
     const mgr = await createManager();

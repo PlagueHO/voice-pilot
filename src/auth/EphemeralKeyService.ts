@@ -56,9 +56,8 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     if (configManager) {
       this.configManager = configManager;
     }
-    if (logger) {
-      this.logger = logger;
-    }
+    // Always ensure a logger instance exists to avoid undefined access during initialize
+    this.logger = logger ?? new Logger('EphemeralKeyService');
   }
 
   async initialize(): Promise<void> {

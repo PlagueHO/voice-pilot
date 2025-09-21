@@ -1,7 +1,7 @@
-import { AudioConfig, AzureOpenAIConfig, AzureSpeechConfig, CommandsConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, CommandsConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
 
 export interface RuleContext {
-  azureOpenAI: AzureOpenAIConfig; azureSpeech: AzureSpeechConfig; audio: AudioConfig; commands: CommandsConfig; github: GitHubConfig;
+  azureOpenAI: AzureOpenAIConfig; audio: AudioConfig; commands: CommandsConfig; github: GitHubConfig;
 }
 export type RuleResult = { errors: ValidationError[]; warnings: ValidationWarning[] };
 export type ValidationRule = (ctx: RuleContext) => RuleResult | Promise<RuleResult>;

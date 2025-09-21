@@ -8,7 +8,6 @@ export class ConfigurationValidator {
   async validateAll(): Promise<ValidationResult> {
     const ctx: RuleContext = {
       azureOpenAI: this.access.getAzureOpenAI(),
-      azureSpeech: this.access.getAzureSpeech(),
       audio: this.access.getAudio(),
       commands: this.access.getCommands(),
       github: this.access.getGitHub()

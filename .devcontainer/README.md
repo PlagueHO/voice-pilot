@@ -112,7 +112,7 @@ vsce publish
 The container includes comprehensive audio libraries:
 
 - **ALSA** - Advanced Linux Sound Architecture
-- **PortAudio** - Cross-platform audio I/O library  
+- **PortAudio** - Cross-platform audio I/O library
 - **PulseAudio** - Sound server for Linux
 - **SoX** - Sound processing toolkit
 - **FFmpeg** - Audio/video processing
@@ -160,8 +160,7 @@ az account show
 # Set environment variables for development
 export AZURE_OPENAI_ENDPOINT="your-endpoint"
 export AZURE_OPENAI_API_KEY="your-api-key"
-export AZURE_SPEECH_API_KEY="your-speech-key"
-export AZURE_SPEECH_REGION="your-region"
+# Azure Speech environment variables removed; use Azure OpenAI Realtime configuration instead
 ```
 
 ## 🔧 Advanced Configuration
@@ -181,7 +180,7 @@ Start additional services using Docker Compose profiles:
 # Start with database support
 docker-compose --profile database up
 
-# Start with caching support  
+# Start with caching support
 docker-compose --profile cache up
 
 # Start with reverse proxy

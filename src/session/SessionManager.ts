@@ -32,3 +32,6 @@ export class SessionManager implements ServiceInitializable {
 
   isSessionActive(): boolean { return this.active; }
 }
+
+// Backwards-compatible implementation name expected by existing tests
+export class SessionManagerImpl extends SessionManager { }

@@ -29,6 +29,7 @@
 			"label": "Compile Extension",
 			"type": "npm",
 			"script": "compile",
+			"icon": { "id": "gear" },
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -40,6 +41,7 @@
 			"label": "Watch Extension",
 			"type": "npm",
 			"script": "watch",
+			"icon": { "id": "watch" },
 			"isBackground": true,
 			"problemMatcher": [
 				{
@@ -54,6 +56,52 @@
 			"label": "Test Extension",
 			"type": "npm",
 			"script": "test",
+			"icon": { "id": "beaker" },
+			"group": "test",
+			"problemMatcher": []
+		},
+		// Fast unit tests (Node-only, vscode API stubbed)
+		{
+			"label": "Test Unit",
+			"type": "npm",
+			"script": "test:unit",
+			"icon": { "id": "beaker" },
+			"group": "test",
+			"problemMatcher": []
+		},
+		// Run unit then integration tests sequentially
+		{
+			"label": "Test All",
+			"type": "npm",
+			"script": "test:all",
+			"icon": { "id": "beaker" },
+			"group": "test",
+			"problemMatcher": []
+		},
+		// Headless integration tests (xvfb)
+		{
+			"label": "Test Headless",
+			"type": "npm",
+			"script": "test:headless",
+			"icon": { "id": "beaker" },
+			"group": "test",
+			"problemMatcher": []
+		},
+		// Coverage over integration path (can be adapted to unit-only later)
+		{
+			"label": "Test Coverage",
+			"type": "npm",
+			"script": "test:coverage",
+			"icon": { "id": "graph" },
+			"group": "test",
+			"problemMatcher": []
+		},
+		// Performance / timing probe
+		{
+			"label": "Test Performance",
+			"type": "npm",
+			"script": "test:perf",
+			"icon": { "id": "pulse" },
 			"group": "test",
 			"problemMatcher": []
 		},
@@ -62,6 +110,7 @@
 			"label": "Lint Extension",
 			"type": "npm",
 			"script": "lint",
+			"icon": { "id": "check" },
 			"problemMatcher": ["$eslint-stylish"]
 		},
 		// Package VSIX using vsce
@@ -69,6 +118,7 @@
 			"label": "Package Extension",
 			"type": "npm",
 			"script": "package",
+			"icon": { "id": "package" },
 			"problemMatcher": []
 		}
 	]

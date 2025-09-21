@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
 import { ServiceInitializable } from '../core/ServiceInitializable';
 import { Logger } from '../core/logger';
-import { AudioConfig, AzureOpenAIConfig, AzureSpeechConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, GitHubConfig, ValidationResult } from '../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, GitHubConfig, ValidationResult } from '../types/configuration';
 import { AudioSection } from './sections/AudioConfigSection';
 import { AzureOpenAISection } from './sections/AzureOpenAIConfigSection';
-import { AzureSpeechSection } from './sections/AzureSpeechConfigSection';
 import { CommandsSection } from './sections/CommandsConfigSection';
 import { GitHubSection } from './sections/GitHubConfigSection';
 import { ConfigurationValidator } from './validators/ConfigurationValidator';
@@ -26,7 +25,6 @@ export class ConfigurationManager implements ServiceInitializable {
 
   // Section singletons
   private azureOpenAISection: AzureOpenAISection;
-  private azureSpeechSection: AzureSpeechSection;
   private audioSection: AudioSection;
   private commandsSection: CommandsSection;
   private gitHubSection: GitHubSection;
@@ -45,14 +43,12 @@ export class ConfigurationManager implements ServiceInitializable {
     }
   this.context = context as vscode.ExtensionContext;
   this.logger = logger as Logger;
-    this.azureOpenAISection = new AzureOpenAISection();
-    this.azureSpeechSection = new AzureSpeechSection();
+  this.azureOpenAISection = new AzureOpenAISection();
     this.audioSection = new AudioSection();
     this.commandsSection = new CommandsSection();
     this.gitHubSection = new GitHubSection();
     this.validator = new ConfigurationValidator(this.logger, {
       getAzureOpenAI: () => this.getAzureOpenAIConfig(),
-      getAzureSpeech: () => this.getAzureSpeechConfig(),
       getAudio: () => this.getAudioConfig(),
       getCommands: () => this.getCommandsConfig(),
       getGitHub: () => this.getGitHubConfig()
@@ -91,7 +87,7 @@ export class ConfigurationManager implements ServiceInitializable {
 
   // Accessors --------------------------------------------------------------
   getAzureOpenAIConfig(): AzureOpenAIConfig { return this.cached('azureOpenAI', () => this.azureOpenAISection.read()); }
-  getAzureSpeechConfig(): AzureSpeechConfig { return this.cached('azureSpeech', () => this.azureSpeechSection.read()); }
+  // AzureSpeech config removed; callers should use Azure OpenAI realtime settings
   getAudioConfig(): AudioConfig { return this.cached('audio', () => this.audioSection.read()); }
   getCommandsConfig(): CommandsConfig { return this.cached('commands', () => this.commandsSection.read()); }
   getGitHubConfig(): GitHubConfig { return this.cached('github', () => this.gitHubSection.read()); }
@@ -123,7 +119,7 @@ export class ConfigurationManager implements ServiceInitializable {
   private refreshAll() {
     this.cache.clear();
     this.getAzureOpenAIConfig();
-    this.getAzureSpeechConfig();
+  // removed: getAzureSpeechConfig
     this.getAudioConfig();
     this.getCommandsConfig();
     this.getGitHubConfig();
@@ -163,7 +159,7 @@ export class ConfigurationManager implements ServiceInitializable {
     if (!newVal) {newVal = {};}
     const keys = new Set([...Object.keys(oldVal), ...Object.keys(newVal)]);
     const criticalKeys = new Set([
-      'azureOpenAI.endpoint','azureOpenAI.deploymentName','azureOpenAI.region','azureSpeech.region','azureSpeech.voice'
+      'azureOpenAI.endpoint','azureOpenAI.deploymentName','azureOpenAI.region'
     ]);
     const changes: ConfigurationChange[] = [];
     for (const k of keys) {
@@ -185,7 +181,6 @@ export class ConfigurationManager implements ServiceInitializable {
     const base: string[] = [];
     switch (section) {
       case 'azureOpenAI':
-      case 'azureSpeech':
         base.push('azureService');
         break;
       case 'audio':

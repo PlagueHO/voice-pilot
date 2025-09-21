@@ -117,52 +117,8 @@ export class CredentialManagerImpl implements CredentialManager {
   }
 
   // Azure Speech credential operations
-  async storeAzureSpeechKey(key: string): Promise<void> {
-    this.ensureInitialized();
-
-    // Validate key format before storage
-    const validation = await this.validator.validateAzureSpeechKey(key);
-    if (!validation.isValid) {
-      const error = validation.errors[0];
-      this.logger.error('Invalid Azure Speech key format', { code: error.code });
-      throw new Error(`Invalid Azure Speech key: ${error.message}`);
-    }
-
-    try {
-      await this.context.secrets.store(SECRET_KEYS.AZURE_SPEECH_API_KEY, key);
-      this.logger.info('Azure Speech key stored successfully');
-    } catch (error: any) {
-      this.logger.error('Failed to store Azure Speech key', { error: error.message });
-      throw new Error('Failed to store credential securely');
-    }
-  }
-
-  async getAzureSpeechKey(): Promise<string | undefined> {
-    this.ensureInitialized();
-
-    try {
-      const key = await this.context.secrets.get(SECRET_KEYS.AZURE_SPEECH_API_KEY);
-      if (key) {
-        this.logger.debug('Azure Speech key retrieved');
-      }
-      return key;
-    } catch (error: any) {
-      this.logger.error('Failed to retrieve Azure Speech key', { error: error.message });
-      return undefined;
-    }
-  }
-
-  async clearAzureSpeechKey(): Promise<void> {
-    this.ensureInitialized();
-
-    try {
-      await this.context.secrets.delete(SECRET_KEYS.AZURE_SPEECH_API_KEY);
-      this.logger.info('Azure Speech key cleared successfully');
-    } catch (error: any) {
-      this.logger.error('Failed to clear Azure Speech key', { error: error.message });
-      throw new Error('Failed to clear credential');
-    }
-  }
+  // Azure Speech credential operations removed: using Azure OpenAI Realtime
+  // model and keyless authentication via @azure/identity instead.
 
   // GitHub credential operations
   async storeGitHubToken(token: string): Promise<void> {
@@ -219,8 +175,6 @@ export class CredentialManagerImpl implements CredentialManager {
     switch (type) {
       case CredentialType.AzureOpenAI:
         return this.validator.validateAzureOpenAIKey(value);
-      case CredentialType.AzureSpeech:
-        return this.validator.validateAzureSpeechKey(value);
       case CredentialType.GitHub:
         return this.validator.validateGitHubToken(value);
       default:
@@ -236,7 +190,6 @@ export class CredentialManagerImpl implements CredentialManager {
     // Check each credential type
     const credentialChecks = [
       { type: CredentialType.AzureOpenAI, key: SECRET_KEYS.AZURE_OPENAI_API_KEY },
-      { type: CredentialType.AzureSpeech, key: SECRET_KEYS.AZURE_SPEECH_API_KEY },
       { type: CredentialType.GitHub, key: SECRET_KEYS.GITHUB_PERSONAL_TOKEN }
     ];
 
@@ -279,7 +232,6 @@ export class CredentialManagerImpl implements CredentialManager {
     // Clear all known credentials
     const clearOperations = [
       { name: 'Azure OpenAI', operation: () => this.clearAzureOpenAIKey() },
-      { name: 'Azure Speech', operation: () => this.clearAzureSpeechKey() },
       { name: 'GitHub', operation: () => this.clearGitHubToken() }
     ];
 
@@ -389,10 +341,6 @@ export class CredentialManagerImpl implements CredentialManager {
     switch (credentialType) {
       case CredentialType.AzureOpenAI:
         userMessage = 'Azure OpenAI credentials are required but not configured.';
-        actionButton = 'Configure Azure Credentials';
-        break;
-      case CredentialType.AzureSpeech:
-        userMessage = 'Azure Speech credentials are required but not configured.';
         actionButton = 'Configure Azure Credentials';
         break;
       case CredentialType.GitHub:

@@ -1,10 +1,9 @@
 import * as assert from 'assert';
-import { suite, test } from 'mocha';
 import * as vscode from 'vscode';
 import { ConfigurationManager } from '../../config/ConfigurationManager';
 import { Logger } from '../../core/logger';
 
-suite('Configuration Manager', () => {
+describe('Configuration Manager', () => {
   async function setup(): Promise<ConfigurationManager> {
     const logger = new Logger('CfgMgrTest');
     const context: vscode.ExtensionContext = {
@@ -32,7 +31,7 @@ suite('Configuration Manager', () => {
     return mgr;
   }
 
-  test('Change handler receives updates', async () => {
+  it('Change handler receives updates', async () => {
     const mgr = await setup();
     let received = false;
 
@@ -56,7 +55,7 @@ suite('Configuration Manager', () => {
     mgr.dispose();
   });
 
-  test('Configuration manager initializes properly', async () => {
+  it('Configuration manager initializes properly', async () => {
     const mgr = await setup();
     assert.ok(mgr.isInitialized(), 'Configuration manager should be initialized');
 

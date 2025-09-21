@@ -44,7 +44,7 @@ This specification defines the configuration management requirements for VoicePi
 ### Configuration Schema Requirements
 
 - **REQ-001**: Extension SHALL use `voicepilot.*` namespace for all settings
-- **REQ-002**: Configuration SHALL be organized into logical sections (azureOpenAI, azureSpeech, audio, github)
+- **REQ-002**: Configuration SHALL be organized into logical sections (azureOpenAI, audio, github)
 - **REQ-003**: All settings SHALL have defined JSON schema with type validation
 - **REQ-004**: Settings SHALL include descriptive titles and detailed descriptions
 - **REQ-005**: Required settings SHALL have appropriate default values or validation errors
@@ -121,15 +121,17 @@ This specification defines the configuration management requirements for VoicePi
           "enum": ["eastus2", "swedencentral"],
           "description": "Azure region for OpenAI service"
         },
-        "voicepilot.azureSpeech.region": {
+        "voicepilot.azureOpenAI.endpoint": {
           "type": "string",
-          "default": "eastus",
-          "description": "Azure Speech service region"
+          "default": "",
+          "description": "Azure OpenAI resource endpoint URL",
+          "format": "uri",
+          "pattern": "^https://.*\\.openai\\.azure\\.com/?$"
         },
-        "voicepilot.azureSpeech.voice": {
+        "voicepilot.azureOpenAI.deploymentName": {
           "type": "string",
-          "default": "en-US-JennyNeural",
-          "description": "Azure Speech synthesis voice name"
+          "default": "gpt-4o-realtime-preview",
+          "description": "Azure OpenAI Realtime model deployment name"
         },
         "voicepilot.audio.inputDevice": {
           "type": "string",
@@ -199,7 +201,6 @@ This specification defines the configuration management requirements for VoicePi
 interface ConfigurationManager extends ServiceInitializable {
   // Configuration access
   getAzureOpenAIConfig(): AzureOpenAIConfig;
-  getAzureSpeechConfig(): AzureSpeechConfig;
   getAudioConfig(): AudioConfig;
   getCommandsConfig(): CommandsConfig;
   getGitHubConfig(): GitHubConfig;
@@ -252,9 +253,10 @@ interface AzureOpenAIConfig {
   apiKey?: string; // From secret storage
 }
 
-interface AzureSpeechConfig {
-  region: string;
-  voice: string;
+interface AzureOpenAIConfig {
+  endpoint: string;
+  deploymentName: string;
+  region?: string;
   apiKey?: string; // From secret storage
 }
 

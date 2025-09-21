@@ -6,12 +6,6 @@ export interface AzureOpenAIConfig {
   apiKey?: string; // secret storage
 }
 
-export interface AzureSpeechConfig {
-  region: string;
-  voice: string;
-  apiKey?: string; // secret storage
-}
-
 export interface AudioConfig {
   inputDevice: string;
   outputDevice: string;
@@ -44,4 +38,4 @@ export interface ConfigurationChange {
 }
 export interface ConfigurationChangeHandler { (change: ConfigurationChange): Promise<void>; }
 
-export interface ConfigurationAccessors { getAzureOpenAI(): AzureOpenAIConfig; getAzureSpeech(): AzureSpeechConfig; getAudio(): AudioConfig; getCommands(): CommandsConfig; getGitHub(): GitHubConfig; }
+export interface ConfigurationAccessors { getAzureOpenAI(): AzureOpenAIConfig; getAudio(): AudioConfig; getCommands(): CommandsConfig; getGitHub(): GitHubConfig; }

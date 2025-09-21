@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { suite, suiteSetup, suiteTeardown, test } from 'mocha';
+import { suiteSetup, suiteTeardown } from 'mocha';
 import * as vscode from 'vscode';
 import { EphemeralKeyServiceImpl } from '../auth/EphemeralKeyService';
 import { ConfigurationManager } from '../config/ConfigurationManager';
@@ -7,7 +7,7 @@ import { Logger } from '../core/logger';
 import { SessionManager } from '../session/SessionManager';
 import { VoiceControlPanel } from '../ui/VoiceControlPanel';
 
-suite('Extension Lifecycle', () => {
+describe('Extension Lifecycle', () => {
   const disposables: vscode.Disposable[] = [];
   let context: vscode.ExtensionContext;
 
@@ -45,11 +45,28 @@ suite('Extension Lifecycle', () => {
     disposables.forEach(d => d.dispose());
   });
 
-  test('Services initialize and dispose in correct order', async () => {
+  it('Services initialize and dispose in correct order', async () => {
     const events: string[] = [];
     const logger = new Logger('TestLogger');
     const config = new ConfigurationManager(context, logger);
-    const keyService = new EphemeralKeyServiceImpl();
+    // Mock credential manager (minimal interface for EphemeralKeyService)
+    const credentialManager: any = {
+      isInitialized: () => true,
+      getAzureOpenAIKey: async () => 'test-key'
+    };
+    const keyService = new EphemeralKeyServiceImpl(credentialManager, config, logger);
+    // Mock fetch for authentication test inside EphemeralKeyService.initialize
+    const originalFetch = (global as any).fetch;
+    (global as any).fetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'session-test',
+        model: 'gpt-4o-realtime-preview',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        client_secret: { value: 'ephemeral-key-test', expires_at: Math.floor(Date.now() / 1000) + 60 }
+      })
+    });
     const session = new SessionManager();
     const panel = new VoiceControlPanel(context);
 
@@ -80,12 +97,14 @@ suite('Extension Lifecycle', () => {
     panel.dispose();
     session.dispose();
     keyService.dispose();
-    config.dispose();
+  config.dispose();
+  // Restore fetch
+  (global as any).fetch = originalFetch;
 
     assert.deepStrictEqual(events, ['panel', 'session', 'key', 'config'], 'Services should dispose in reverse order');
   });
 
-  test('Panel can be shown and disposed', async () => {
+  it('Panel can be shown and disposed', async () => {
     const logger = new Logger('TestLogger2');
     const panel = new VoiceControlPanel(context);
 
@@ -99,7 +118,7 @@ suite('Extension Lifecycle', () => {
     assert.strictEqual(panel.isVisible(), false, 'Panel should not be visible after dispose');
   });
 
-  test('Session manager tracks session state', async () => {
+  it('Session manager tracks session state', async () => {
     const session = new SessionManager();
 
     await session.initialize();

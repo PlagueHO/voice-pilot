@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This repository contains a VS Code extension for voice interaction with GitHub Copilot. VoicePilot enables natural, low-latency voice interaction with GitHub Copilot and the active codebase using Azure OpenAI Realtime API, Azure Speech Services, and a service-based dependency injection architecture. The extension serves as an AI manager agent that orchestrates VS Code GitHub Copilot, acting as an intelligent translator between voice interactions and Copilot's planning and specification capabilities.
+This repository contains a VS Code extension for voice interaction with GitHub Copilot. VoicePilot enables natural, low-latency, full‑duplex voice interaction using the Azure OpenAI GPT Realtime API (speech in / speech out) and a service-based dependency injection architecture. The extension acts as an AI manager agent that orchestrates GitHub Copilot, translating realtime conversational audio streams into Copilot planning/specification workflows.
 
 When working on the project interactively with an agent, please follow the guidelines below to ensure the development experience – particularly TypeScript compilation and VS Code extension debugging – continues to work smoothly.
 
@@ -10,13 +10,12 @@ When working on the project interactively with an agent, please follow the guide
 
 - **Framework**: VS Code Extension API with TypeScript
 - **Language**: TypeScript 5.0+ (ES2022 target)
-- **Voice Input**: Azure OpenAI Realtime API (WebRTC) / Azure Speech SDK
-- **Text-to-Speech**: Azure Speech Services / microsoft-cognitiveservices-speech-sdk
+- **Realtime Audio (Speech In/Out)**: Azure OpenAI GPT Realtime API (WebRTC preferred; WebSocket fallback). Models: `gpt-realtime`, `gpt-4o-realtime-preview`, `gpt-4o-mini-realtime-preview`.
 - **AI Integration**: GitHub Copilot Chat Extension APIs
 - **Authentication**: Azure Identity SDK, VS Code SecretStorage
 - **HTTP Client**: OpenAI SDK (Azure-compatible), Axios
 - **WebSocket**: ws library for realtime connections
-- **Testing**: Mocha with @vscode/test-electron
+- **Testing**: Mocha (unit: Node-only + stubbed `vscode`; integration: `@vscode/test-electron`)
 - **Build System**: TypeScript compiler, VS Code Extension packaging
 - **Infrastructure**: Azure Bicep templates
 - **Development**: VS Code Tasks system, ESLint, npm scripts
@@ -47,14 +46,15 @@ az --version
 az bicep version
 ```
 
-**Key Dependencies**: `openai`, `microsoft-cognitiveservices-speech-sdk`, `@azure/identity`, `ws`, `axios`
+**Key Dependencies**: `openai`, `@azure/identity`, `ws`, `axios`
+**Removed / Deprecated**: `microsoft-cognitiveservices-speech-sdk` (Azure Speech Services) — replaced by unified GPT Realtime audio.
 
 ## Project Structure
 
 ```text
 voice-pilot/
-├── src/                                # Source code
-│   ├── extension.ts                    # Extension entry point
+├── src/                               # Source code
+│   ├── extension.ts                   # Extension entry point
 │   ├── core/                          # Core services and patterns
 │   │   ├── ExtensionController.ts     # Central service coordinator
 │   │   ├── ServiceInitializable.ts    # Service lifecycle interface
@@ -76,7 +76,7 @@ voice-pilot/
 │   │   └── promptHandler.ts           # Voice → Copilot translation
 │   ├── session/                       # Voice session management
 │   │   └── SessionManager.ts          # Conversation state
-│   ├── ui/                           # User interface components
+│   ├── ui/                            # User interface components
 │   │   ├── VoiceControlPanel.ts       # Main sidebar panel
 │   │   ├── statusBar.ts               # Status bar integration
 │   │   └── transcriptView.ts          # Conversation history
@@ -119,14 +119,18 @@ voice-pilot/
 - **Code Smells**: Refactor to eliminate long methods, large classes, and complex conditionals
 - **Naming Conventions**: Consistent camelCase for variables/functions, PascalCase for classes/interfaces. Prioritize meaningful names and self-documenting code
 - **Prioritize Readability**: Clear naming, comments, and documentation
-- **Code Documentation**: Use JSDoc comments for all public APIs and complex logic. Prioritize readable code over excessive comments
+- **Performance**: Implement lazy loading for heavy services; use debounced updates for configuration changes
+- **Error Handling**: Implement structured error handling with proper user feedback
 
 ### Development Workflow and Architecture
 
-- Use VS Code Tasks workflow exclusively; avoid direct npm commands during agent sessions
+- Use VS Code Tasks workflow exclusively (see [VS Code Tasks Workflow](#vs-code-tasks-workflow))
 - Follow service-based dependency injection pattern with ServiceInitializable interface
 - Use F5 (Extension Development Host) for testing and debugging
 - Maintain strict initialization order: Config → Auth → Session → UI
+- Implement lazy loading for heavy services to optimize startup time
+- Use debounced updates for configuration changes
+- Follow VS Code extension performance guidelines for memory and CPU usage
 
 ### TypeScript and Code Quality
 
@@ -137,10 +141,10 @@ voice-pilot/
 
 ### Azure and External Service Integration
 
-- Use `openai` package pointed at Azure endpoints (not `@azure/openai`)
-- Implement ephemeral key pattern for Azure OpenAI Realtime API
-- Use `microsoft-cognitiveservices-speech-sdk` for text-to-speech
-- Store credentials securely using VS Code SecretStorage
+- Use `openai` package pointed at Azure endpoints (not `@azure/openai`).
+- Use Azure OpenAI GPT Realtime API for both STT and TTS (single multimodal stream) — no Azure Speech SDK.
+- Authentication: Prefer keyless (Microsoft Entra ID + `DefaultAzureCredential`). Ephemeral key pattern still supported for WebRTC token issuance.
+- Store only Azure OpenAI / session credentials in VS Code SecretStorage (Speech keys have been removed).
 
 ### Extension Development Best Practices
 
@@ -151,49 +155,96 @@ voice-pilot/
 
 ### Testing Guidelines
 
-- Use Mocha with `@vscode/test-electron` for Extension Development Host testing
-- Implement unit, integration, compatibility, and performance tests
-- Never run Mocha directly; always use VS Code test runner
-- Use headless testing with xvfb for CI environments
+The project uses **Mocha** with a **layered test strategy** to optimize feedback speed and reliability.
 
-### Performance and Error Handling
+#### Layer 1: Unit (Node-only)
 
-- Implement lazy loading for heavy services to optimize startup time
-- Use debounced updates for configuration changes
-- Implement structured error handling with proper user feedback
-- Follow VS Code extension performance guidelines for memory and CPU usage
+- Runs against compiled `out/test/unit/**/*.js`.
+- Uses a minimal stub of the `vscode` API (no Electron startup).
+- Targets pure logic: managers, services, validation, error mapping, timers (with fake or controlled time), credential & session flows.
+- Script / Task: `npm run test:unit` / `Test Unit`.
+- Goal: sub‑second feedback; run before every commit or even on save.
+
+#### Layer 2: Integration (Extension Host)
+
+- Uses `@vscode/test-electron` to launch a real VS Code instance and load the extension.
+- Verifies activation, disposal ordering, command registration, panel lifecycle, real event wiring.
+- Script / Task: `npm test` / `Test Extension`.
+
+#### Combined & Auxiliary Tasks
+
+- **`Test All`**: Executes Unit then Integration (fail fast on unit failures).
+- **`Test Headless`**: Integration under xvfb for CI containers.
+- **`Test Coverage`**: NYC instrumentation (currently over integration; can be narrowed to unit as suite grows).
+- **`Test Performance`**: Lightweight timing / perf probe (extend with real metrics as needed).
+
+#### Test Types Implemented
+
+- Unit, Integration, Performance probe, Error mapping, Lifecycle ordering.
+- (Optional future) Compatibility matrix across VS Code versions via parameterized test runs.
+
+#### Execution Guidance
+
+| Scenario | Recommended Task |
+|----------|------------------|
+| Fast inner loop (logic change) | `Test Unit` |
+| Behavior / activation change | `Test Extension` |
+| Pre-push / PR validation | `Test All` |
+| CI pipeline | Unit → Headless Integration → Coverage / Performance |
+
+#### Key Practices
+
+- Do **not** edit compiled JS under `out/`; change `.ts` sources only.
+- Provide deterministic mocks (`fetch`, timers, secret storage) for unit tests.
+- Avoid real sleeps; use fake timers or controlled tick helpers.
+- Keep unit specs <100ms and investigate integration specs >2s.
+- Always restore modified globals (e.g. `fetch`) in `afterEach`.
+- Run lint before integration to catch simple issues early.
+
+#### Development Task Workflow
+
+**Recommended Daily Workflow**:
+
+1. Start `Watch Extension` task for continuous compilation
+2. Run `Test Unit` frequently during development (sub-second feedback)
+3. Use `Lint Extension` before committing changes
+4. Run `Test All` before pushing to repository
+5. Use `Package Extension` for release preparation
 
 ### VS Code Tasks Workflow
 
-**Always use VS Code Tasks** from the Command Palette → "Tasks: Run Task" for development workflows.
+> [!IMPORTANT]
+> **PREFER use VS Code Tasks** from the Command Palette → "Tasks: Run Task" for ALL development workflows.
+> **AVOID run npm commands directly** in terminal during development sessions.
 
-**Do _not_ run commands like `npm run build` or `npm run watch` directly** in terminal during agent sessions. The VS Code task system properly manages background processes and dependencies.
+#### Complete Task Reference
 
-**Use F5 (Extension Development Host)** to test changes, not `code --extensionDevelopmentPath`.
+> **CHECK** `.\.vscode\tasks.json` for full task definitions.
 
-| Task | Purpose | When To Use |
-|------|---------|-------------|
-| `Watch Extension` | Continuous TypeScript build | Start this first, keep running |
-| `Compile Extension` | One-time build | Quick validation |
-| `Test Extension` | Run test suite | Before commits |
-| `Lint Extension` | Static analysis | Before commits |
-| `Build Bicep` | Compile infrastructure | After infra changes |
-| `Package Extension` | Create `.vsix` | Release preparation |
+| Task | Icon | Type | Purpose | When To Use |
+|------|------|------|---------|-------------|
+| `Build Bicep` | 🔷 azure | Infrastructure | Compile Bicep templates to ARM JSON | After infra file changes |
+| `Compile Extension` | ⚙️ gear | Build (default) | One-time TypeScript compilation | Quick validation / CI step |
+| `Watch Extension` | 👁️ watch | Background | Continuous TypeScript build with hot reload | Keep running during active dev |
+| `Test Unit` | 🧪 beaker | Test | Fast Node-only unit tests (stubbed `vscode`) | Inner loop development / pre-commit |
+| `Test Extension` | 🧪 beaker | Test | Integration tests (extension host) | Full behavior validation |
+| `Test All` | 🧪 beaker | Test | Unit then integration sequentially | Pre-push / PR validation |
+| `Test Headless` | 🧪 beaker | Test | Integration via xvfb (headless) | CI / container environments |
+| `Test Coverage` | 📊 graph | Test | Coverage instrumentation over tests | Coverage reporting / thresholds |
+| `Test Performance` | 💓 pulse | Test | Performance / timing probe | Track performance regressions |
+| `Lint Extension` | ✅ check | Quality | Static analysis (ESLint) | Before commits / CI gate |
+| `Package Extension` | 📦 package | Distribution | Create `.vsix` for distribution | Release preparation |
 
 ### Service Architecture Pattern
 
-VoicePilot follows a **dependency injection pattern** with strict initialization order:
+VoicePilot follows a **dependency injection pattern** with the ServiceInitializable interface:
 
 ```typescript
-// All services implement ServiceInitializable interface
 interface ServiceInitializable {
   initialize(): Promise<void>;
   dispose(): void;
   isInitialized(): boolean;
 }
-
-// Initialization chain: Config → Auth → Session → UI
-Configuration Manager → Ephemeral Key Service → Session Manager → Voice Control Panel
 ```
 
 **Critical Guidelines**:
@@ -226,24 +277,46 @@ export class ExampleService implements ServiceInitializable {
 
 ### Azure Integration Patterns
 
-**Integration Approach**: Use Azure OpenAI compatible clients with VS Code extension architecture
+#### Realtime Integration Approach
 
-- **REST API**: Use `openai` package (not `@azure/openai`) pointed at Azure endpoints
-- **Ephemeral Keys**: Short-lived tokens for Realtime API (backend service required)
-- **Speech Services**: `microsoft-cognitiveservices-speech-sdk` for TTS
+- **Transport**: WebRTC (low latency) → fallback to WebSocket (`OpenAIRealtimeWS.azure`).
+- **Session Modalities**: `['text','audio']` enabling simultaneous transcription + synthesized output.
+- **Events**: `session.update`, `conversation.item.create`, `response.create`, `response.output_text.delta`, `response.output_audio.delta`, `response.output_audio_transcript.delta`, `response.done`.
+- **Authentication Options**:
+  - Keyless: `DefaultAzureCredential` + bearer token provider (recommended).
+  - Ephemeral: short-lived token minted by backend for client WebRTC session.
 
 ```typescript
-// Standard pattern for Azure OpenAI client
-const openai = new OpenAI({
-  apiKey: config.azureOpenAI.apiKey,
-  baseURL: `${endpoint}/openai/deployments/${deployment}`
-});
+import { OpenAIRealtimeWS } from 'openai/beta/realtime/ws';
+import { AzureOpenAI } from 'openai';
+import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
 
-// Ephemeral key pattern for WebRTC Realtime
-async function getEphemeralKey() {
-  return ephemeralService.fetchKey(); // Backend-provided short-lived token
+async function initRealtime({ endpoint, deployment, apiVersion }: { endpoint: string; deployment: string; apiVersion: string; }) {
+  const credential = new DefaultAzureCredential();
+  const scope = 'https://cognitiveservices.azure.com/.default';
+  const azureADTokenProvider = getBearerTokenProvider(credential, scope);
+  const client = new AzureOpenAI({ azureADTokenProvider, endpoint, deployment, apiVersion });
+  const rt = await OpenAIRealtimeWS.azure(client);
+  rt.socket.on('open', () => {
+    rt.send({ type: 'session.update', session: { modalities: ['text','audio'], model: 'gpt-realtime' }});
+  });
+  return rt;
 }
 ```
+
+> Adapted from Azure OpenAI GPT Realtime Audio Quickstart (TypeScript). WebRTC variant supersedes WS where available.
+
+#### Realtime Audio Architecture
+
+| Layer | Responsibility |
+|-------|----------------|
+| `RealtimeAudioService` | Manages session lifecycle & duplex media/text events |
+| `audioCapture` | Captures PCM frames from microphone |
+| `PlaybackBuffer` | Jitters and plays decoded audio output frames |
+| `TranscriptAggregator` | Combines incremental transcript deltas into user-visible text |
+| `EphemeralKeyService` | (Optional) Retrieves short-lived tokens for WebRTC when not using keyless auth |
+
+Legacy `sttService.ts` and `ttsService.ts` are deprecated and scheduled for removal after full migration.
 
 ### VS Code Extension Patterns
 
@@ -364,95 +437,25 @@ export class CredentialManager {
 
 **Test Execution**:
 
-- **Local Development**: Use `F5` (Extension Development Host) or `npm test`
+- **Local Development**: Use `F5` (Extension Development Host) or VS Code Tasks
 - **CI Pipeline**: Headless testing with xvfb display for Linux environments
 - **Test Discovery**: Automatic via glob pattern `out/test/**/*.test.js`
 
-**Enhanced NPM Scripts**:
-
-```bash
-npm run test:headless    # CI-compatible headless testing
-npm run test:coverage    # Coverage reporting with nyc
-npm run test:perf        # Performance benchmarks
-```
-
 **Critical Guidelines**:
 
-- **Never run Mocha directly** – always use VS Code test runner
-- **Tests fail in containers** without proper headless setup (use xvfb)
-- **Structure**: `src/test/` → compiled to `out/test/`
-- **Isolation**: Tests run with `--disable-extensions` flag for clean environment
+- **Prefer Unit First**: Fix failures at the unit layer before running integration.
+- **Isolation**: Each test re-creates required service instances; no shared mutable singletons.
+- **No Editing Compiled Tests**: Change `.ts` sources only; never patch `out/` artifacts.
+- **Deterministic Mocks**: Replace network (`fetch`), timers, secret storage in unit tests; integration tests may still mock external HTTP.
+- **Headless CI**: Use `Test Headless` (xvfb) for integration in container environments.
+- **Performance Budget**: Keep unit tests < 100ms each; flag integration tests exceeding ~2s for review.
 
 ### Code Quality Standards
 
-**TypeScript Guidelines**: Strict typing and modern patterns
+**Code Quality Guidelines**: Follow established patterns and documentation standards
 
-- **TypeScript**: ES2022 target, strict mode enabled, no `any` types
-- **Async Patterns**: Use modern async/await, avoid generators/callbacks
-- **Imports**: Feature-based folder structure, single responsibility modules
 - **Error Handling**: Contextual logging with structured error objects
 - **Documentation**: JSDoc for public APIs, self-documenting code preferred
-
-## Error Handling and Performance
-
-### Error Handling Patterns
-
-**Extension Error Management**: Graceful error handling with user feedback
-
-```typescript
-// Error handling with logging and user notification
-export class ServiceError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly recoverable: boolean = true
-  ) {
-    super(message);
-    this.name = 'ServiceError';
-  }
-}
-
-// Error handler utility
-export async function handleServiceError(error: unknown, context: string) {
-  const logger = getLogger();
-
-  if (error instanceof ServiceError) {
-    logger.error(`${context}: ${error.message}`, { code: error.code });
-
-    if (!error.recoverable) {
-      vscode.window.showErrorMessage(`VoicePilot: ${error.message}`);
-    }
-  } else {
-    logger.error(`${context}: Unexpected error`, { error });
-    vscode.window.showErrorMessage('VoicePilot: An unexpected error occurred');
-  }
-}
-```
-
-### Performance Optimization
-
-**Extension Performance Guidelines**: Optimize for startup time and memory usage
-
-```typescript
-// Lazy loading pattern for heavy services
-class AudioService implements ServiceInitializable {
-  private audioCapture?: AudioCapture;
-
-  async getAudioCapture(): Promise<AudioCapture> {
-    if (!this.audioCapture) {
-      const { AudioCapture } = await import('./audioCapture');
-      this.audioCapture = new AudioCapture();
-      await this.audioCapture.initialize();
-    }
-    return this.audioCapture;
-  }
-}
-
-// Debounced configuration updates
-const debouncedConfigUpdate = debounce(async (config: Configuration) => {
-  await configurationManager.updateConfiguration(config);
-}, 300);
-```
 
 ## Extension Development Guidelines
 
@@ -488,18 +491,6 @@ export function registerCommands(context: vscode.ExtensionContext) {
 ```
 
 ## Useful Commands Reference
-
-| Command | Purpose |
-|---------|---------|
-| `F5` | Launch Extension Development Host |
-| `Ctrl+Shift+B` | Default build task (Compile Extension) |
-| `Command Palette → Tasks: Run Task` | Access all development tasks |
-| `npm test` | Run test suite with pretest steps |
-| `npm run test:headless` | CI-compatible headless testing |
-| `npm run test:coverage` | Run tests with coverage reporting |
-| `npm run test:perf` | Run performance benchmarks |
-| `npm run package` | Create `.vsix` for distribution |
-| `npm run package:check` | Validate extension packaging |
 
 ---
 

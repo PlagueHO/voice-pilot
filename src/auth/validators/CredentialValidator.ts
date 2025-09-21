@@ -3,7 +3,6 @@ import { CredentialValidationResult, CredentialValidator } from '../../types/cre
 import { VALIDATION_ENDPOINTS, VALIDATION_TIMEOUTS } from '../constants';
 import {
     AzureOpenAIValidationRules,
-    AzureSpeechValidationRules,
     GitHubTokenValidationRules,
     ValidationErrorCodes
 } from './ValidationRules';
@@ -71,53 +70,6 @@ export class CredentialValidatorImpl implements CredentialValidator {
         errors: [],
         metadata: {
           keyFormat: 'azure-openai-hex',
-          permissions: ['network-validation-failed']
-        }
-      };
-    }
-  }
-
-  async validateAzureSpeechKey(key: string): Promise<CredentialValidationResult> {
-    this.logger.debug('Validating Azure Speech key format');
-
-    // Format validation
-    const formatErrors = AzureSpeechValidationRules.validateFormat(key);
-    if (formatErrors.length > 0) {
-      return { isValid: false, errors: formatErrors };
-    }
-
-    // Network validation (optional, with timeout)
-    try {
-      const isValid = await this.testAzureSpeechConnection(key);
-      if (!isValid) {
-        return {
-          isValid: false,
-          errors: [{
-            code: ValidationErrorCodes.KEY_AUTHENTICATION_FAILED,
-            message: 'Azure Speech key authentication failed',
-            remediation: 'Verify key is active and has necessary permissions in Azure Portal'
-          }]
-        };
-      }
-
-      this.logger.debug('Azure Speech key validation successful');
-      return {
-        isValid: true,
-        errors: [],
-        metadata: {
-          keyFormat: 'azure-speech-hex',
-          permissions: ['speech.synthesis']
-        }
-      };
-    } catch (error: any) {
-      // Network errors don't invalidate the key format
-      this.logger.warn('Could not validate Azure Speech key due to network error', { error: error.message });
-
-      return {
-        isValid: true,
-        errors: [],
-        metadata: {
-          keyFormat: 'azure-speech-hex',
           permissions: ['network-validation-failed']
         }
       };
@@ -196,26 +148,8 @@ export class CredentialValidatorImpl implements CredentialValidator {
   }
 
   private async testAzureSpeechConnection(key: string): Promise<boolean> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), VALIDATION_TIMEOUTS.NETWORK_VALIDATION_MS);
-
-    try {
-      const response = await fetch(VALIDATION_ENDPOINTS.AZURE_SPEECH, {
-        headers: {
-          'Ocp-Apim-Subscription-Key': key,
-          'User-Agent': 'VoicePilot/1.0'
-        },
-        signal: controller.signal
-      });
-      return response.ok;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        throw new Error('Validation timeout');
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-    }
+    // Azure Speech validation removed: use Azure OpenAI Realtime validation flows instead
+    return false;
   }
 
   private async testGitHubConnection(token: string): Promise<{ isValid: boolean; permissions?: string[]; expirationDate?: Date }> {

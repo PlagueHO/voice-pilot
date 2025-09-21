@@ -17,7 +17,7 @@ This implementation plan executes the SP-002 Configuration & Settings Management
 ## 1. Requirements & Constraints
 
 - **REQ-001**: Extension SHALL use `voicepilot.*` namespace for all settings
-- **REQ-002**: Configuration SHALL be organized into logical sections (azureOpenAI, azureSpeech, audio, github)
+- **REQ-002**: Configuration SHALL be organized into logical sections (azureOpenAI, audio, github)
 - **REQ-003**: All settings SHALL have defined JSON schema with type validation
 - **SEC-001**: API keys and secrets SHALL NOT be stored in VS Code settings
 - **SEC-002**: Sensitive configuration SHALL use VS Code secret storage exclusively
@@ -41,7 +41,7 @@ This implementation plan executes the SP-002 Configuration & Settings Management
 | TASK-001 | Add configuration schema to package.json contributes.configuration section | | |
 | TASK-002 | Create typed configuration interfaces in src/types/configuration.ts | | |
 | TASK-003 | Implement core ConfigurationManager class with caching and change handling | | |
-| TASK-004 | Create configuration section classes (AzureOpenAI, AzureSpeech, Audio, Commands, GitHub) | | |
+| TASK-004 | Create configuration section classes (AzureOpenAI, Audio, Commands, GitHub) | | |
 | TASK-005 | Add configuration validation framework with ValidationResult and ValidationError types | | |
 
 ### Implementation Phase 2: Validation & Error Handling
@@ -102,7 +102,7 @@ This implementation plan executes the SP-002 Configuration & Settings Management
 - **FILE-002**: src/types/configuration.ts - Create typed configuration interfaces and validation types
 - **FILE-003**: src/config/ConfigurationManager.ts - Enhance existing stub with full implementation
 - **FILE-004**: src/config/sections/AzureOpenAIConfigSection.ts - Azure OpenAI configuration section class
-- **FILE-005**: src/config/sections/AzureSpeechConfigSection.ts - Azure Speech configuration section class
+-- **FILE-005**: (removed) src/config/sections/AzureSpeechConfigSection.ts - Azure Speech configuration section class
 - **FILE-006**: src/config/sections/AudioConfigSection.ts - Audio settings configuration section class
 - **FILE-007**: src/config/sections/CommandsConfigSection.ts - Voice commands configuration section class
 - **FILE-008**: src/config/sections/GitHubConfigSection.ts - GitHub integration configuration section class

@@ -12,7 +12,7 @@ tags: [feature, security, credentials, secret-storage, authentication]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan executes the SP-003 Secret Storage & Credential Handling specification. It establishes secure credential management using VS Code Secret Storage API, implementing type-safe interfaces for Azure OpenAI, Azure Speech, and GitHub authentication while ensuring complete security boundary isolation from configuration settings.
+This implementation plan executes the SP-003 Secret Storage & Credential Handling specification. It establishes secure credential management using VS Code Secret Storage API, implementing type-safe interfaces for Azure OpenAI (Realtime) and GitHub authentication while ensuring complete security boundary isolation from configuration settings.
 
 ## 1. Requirements & Constraints
 
@@ -70,7 +70,7 @@ This implementation plan executes the SP-003 Secret Storage & Credential Handlin
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-007 | Implement Azure OpenAI credential operations (store/get/clear) with format validation | | |
-| TASK-008 | Implement Azure Speech credential operations with region-specific validation | | |
+| TASK-008 | (removed) Azure Speech credential operations - migrated to Azure OpenAI Realtime | | |
 | TASK-009 | Implement GitHub token operations with scope and expiration validation | | |
 | TASK-010 | Create credential migration system for legacy key formats in migration method | | |
 | TASK-011 | Implement bulk operations (listStoredCredentials, clearAllCredentials) with atomic handling | | |
@@ -83,7 +83,7 @@ This implementation plan executes the SP-003 Secret Storage & Credential Handlin
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-013 | Implement Azure OpenAI key format validation with network connectivity testing | | |
-| TASK-014 | Implement Azure Speech key validation with region availability checks | | |
+| TASK-014 | (removed) Azure Speech key validation - use Azure OpenAI Realtime validation flows | | |
 | TASK-015 | Implement GitHub token validation with API permission verification | | |
 | TASK-016 | Create timeout handling for network validation operations (5-second limit) | | |
 | TASK-017 | Implement secure memory handling for credential operations with immediate cleanup | | |

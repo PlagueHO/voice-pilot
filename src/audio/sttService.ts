@@ -1,84 +1,97 @@
-import {
-    DefaultAzureCredential,
-    getBearerTokenProvider,
-} from "@azure/identity";
-import { AzureOpenAI } from "openai";
-import { OpenAIRealtimeWS } from "openai/beta/realtime/ws";
+import { Logger } from '../core/logger';
+import { AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './RealtimeAudioService';
 
+/**
+ * Speech-to-Text service using Azure OpenAI Realtime API
+ * This is a wrapper around RealtimeAudioService for backward compatibility
+ */
 export class STTService {
-    private realtimeClient: OpenAIRealtimeWS | null = null;
-    private isRecording: boolean = false;
+    private realtimeService: RealtimeAudioService;
+    private logger: Logger;
+    private transcriptCallback?: (text: string) => void;
 
     constructor(
-        private endpoint: string,
-        private deploymentName: string,
-        private apiVersion: string
-    ) {}
+        endpoint: string,
+        deploymentName: string,
+        apiVersion: string,
+        logger?: Logger
+    ) {
+        this.logger = logger || new Logger('STTService');
 
-    private async initializeClient() {
-        const credential = new DefaultAzureCredential();
-        const scope = "https://cognitiveservices.azure.com/.default";
-        const azureADTokenProvider = getBearerTokenProvider(credential, scope);
+        const config: RealtimeAudioConfig = {
+            endpoint,
+            deploymentName,
+            apiVersion
+        };
 
-        const azureOpenAIClient = new AzureOpenAI({
-            azureADTokenProvider,
-            apiVersion: this.apiVersion,
-            deployment: this.deploymentName,
-            endpoint: this.endpoint,
-        });
-
-        this.realtimeClient = await OpenAIRealtimeWS.azure(azureOpenAIClient);
+        this.realtimeService = new RealtimeAudioService(config, this.logger);
+        this.setupEventHandlers();
     }
 
-    public async startRecording() {
-        if (this.isRecording) {
-            console.log("Already recording.");
-            return;
-        }
-
-        if (!this.realtimeClient) {
-            await this.initializeClient();
-        }
-
-        this.isRecording = true;
-        this.realtimeClient!.socket.on("open", () => {
-            console.log("STT connection opened!");
-            this.realtimeClient!.send({
-                type: "session.update",
-                session: {
-                    modalities: ["text", "audio"],
-                    model: "gpt-4o-realtime-preview",
-                },
-            });
+    private setupEventHandlers(): void {
+        // Handle transcription events from the realtime service
+        this.realtimeService.onTranscript((transcript: AudioTranscript) => {
+            this.logger.debug('STT transcript received', { text: transcript.text, isFinal: transcript.isFinal });
+            this.transcriptCallback?.(transcript.text);
         });
 
-        this.realtimeClient!.socket.on("close", () => {
-            console.log("STT connection closed!");
-            this.isRecording = false;
-        });
-
-        this.realtimeClient!.on("response.text.delta", (event: any) => {
-            // Handle text output from speech recognition
-            console.log("Speech to text:", event.delta);
+        this.realtimeService.onError((error: Error) => {
+            this.logger.error('STT service error', { error: error.message });
         });
     }
 
-    public async start() {
+    public async initialize(): Promise<void> {
+        await this.realtimeService.initialize();
+        this.logger.info('STT service initialized');
+    }
+
+    public async startRecording(): Promise<void> {
+        try {
+            await this.realtimeService.startSession();
+            this.realtimeService.startRecording();
+            this.logger.info('STT recording started');
+        } catch (error: any) {
+            this.logger.error('Failed to start STT recording', { error: error.message });
+            throw error;
+        }
+    }
+
+    public async start(): Promise<void> {
         return this.startRecording();
     }
 
-    public stopRecording() {
-        if (!this.isRecording || !this.realtimeClient) {
-            console.log("Not currently recording.");
-            return;
-        }
-
-        this.realtimeClient.close();
-        this.isRecording = false;
-        console.log("Stopped recording.");
+    public stopRecording(): void {
+        this.realtimeService.stopRecording();
+        this.logger.info('STT recording stopped');
     }
 
-    public stop() {
-        return this.stopRecording();
+    public stop(): void {
+        this.stopRecording();
+    }
+
+    public stopSession(): void {
+        this.realtimeService.stopSession();
+        this.logger.info('STT session stopped');
+    }
+
+    public isRecording(): boolean {
+        return this.realtimeService.getIsRecording();
+    }
+
+    public isConnected(): boolean {
+        return this.realtimeService.getIsConnected();
+    }
+
+    public onTranscript(callback: (text: string) => void): void {
+        this.transcriptCallback = callback;
+    }
+
+    public async sendAudioData(audioData: Buffer): Promise<void> {
+        await this.realtimeService.sendAudioData(audioData);
+    }
+
+    public dispose(): void {
+        this.realtimeService.dispose();
+        this.logger.info('STT service disposed');
     }
 }

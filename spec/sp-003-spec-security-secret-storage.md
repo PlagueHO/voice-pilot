@@ -106,10 +106,7 @@ interface CredentialManager extends ServiceInitializable {
   getAzureOpenAIKey(): Promise<string | undefined>;
   clearAzureOpenAIKey(): Promise<void>;
 
-  // Azure Speech credentials
-  storeAzureSpeechKey(key: string): Promise<void>;
-  getAzureSpeechKey(): Promise<string | undefined>;
-  clearAzureSpeechKey(): Promise<void>;
+  // Azure Speech credentials removed: use Azure OpenAI Realtime key management
 
   // GitHub credentials
   storeGitHubToken(token: string): Promise<void>;
@@ -141,7 +138,7 @@ interface HealthCheckResult {
 
 enum CredentialType {
   AzureOpenAI = 'azure-openai',
-  AzureSpeech = 'azure-speech',
+  // AzureSpeech removed: use AzureOpenAI
   GitHub = 'github'
 }
 ```
@@ -152,7 +149,7 @@ enum CredentialType {
 interface SecretKeySchema {
   // Azure service keys
   AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey';
-  AZURE_SPEECH_API_KEY: 'voicepilot.azure-speech.apikey';
+  AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey';
 
   // GitHub authentication
   GITHUB_PERSONAL_TOKEN: 'voicepilot.github.token';
@@ -164,7 +161,7 @@ interface SecretKeySchema {
 // Const implementation for type safety
 const SECRET_KEYS: SecretKeySchema = {
   AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey',
-  AZURE_SPEECH_API_KEY: 'voicepilot.azure-speech.apikey',
+  AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey',
   GITHUB_PERSONAL_TOKEN: 'voicepilot.github.token'
 } as const;
 ```
@@ -174,7 +171,7 @@ const SECRET_KEYS: SecretKeySchema = {
 ```typescript
 interface CredentialValidator {
   validateAzureOpenAIKey(key: string): Promise<ValidationResult>;
-  validateAzureSpeechKey(key: string): Promise<ValidationResult>;
+  validateAzureOpenAIKey(key: string): Promise<ValidationResult>;
   validateGitHubToken(token: string): Promise<ValidationResult>;
 }
 
@@ -206,11 +203,7 @@ interface AzureOpenAIConfig {
   // apiKey removed - now retrieved via CredentialManager
 }
 
-interface AzureSpeechConfig {
-  region: string;
-  voice: string;
-  // apiKey removed - now retrieved via CredentialManager
-}
+// AzureSpeechConfig removed: use AzureOpenAIConfig for Realtime settings
 
 interface GitHubConfig {
   repository: string;
