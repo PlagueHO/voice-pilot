@@ -10,7 +10,7 @@ This guide provides a quick start for developing Visual Studio Code extensions. 
 - **Visual Studio Code**: Download and install Visual Studio Code from [code.visualstudio.com](https://code.visualstudio.com/).
 - **Yeoman and VS Code Extension Generator**: Install Yeoman and the VS Code Extension Generator globally using the following command:
 
-  ```
+  ```bash
   npm install -g yo generator-code
   ```
 
@@ -20,7 +20,7 @@ This guide provides a quick start for developing Visual Studio Code extensions. 
 
 2. **Run the Generator**: Execute the following command to start the generator:
 
-   ```
+   ```bash
    yo code
    ```
 
@@ -28,7 +28,7 @@ This guide provides a quick start for developing Visual Studio Code extensions. 
 
 4. **Navigate to Your Extension Directory**:
 
-   ```
+   ```bash
    cd VoicePilot
    ```
 
@@ -79,13 +79,13 @@ VoicePilot
 
 1. **Install the VSCE Tool**: If you haven't already, install the VSCE tool for packaging and publishing your extension:
 
-   ```
+   ```bash
    npm install -g vsce
    ```
 
 2. **Package Your Extension**: Run the following command in your extension directory:
 
-   ```
+   ```bash
    vsce package
    ```
 
