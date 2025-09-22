@@ -265,6 +265,9 @@ export class SessionManagerImpl implements SessionManager {
     session.state = SessionState.Renewing;
     this.emitSessionStateChange(sessionId, SessionState.Active, SessionState.Renewing, 'Manual renewal requested');
 
+    // Emit renewal started event
+    this.emitSessionRenewal('renewal-started', sessionId);
+
     try {
       const renewalResult = await this.keyService.renewKey();
       const latencyMs = Date.now() - startTime;
@@ -281,17 +284,22 @@ export class SessionManagerImpl implements SessionManager {
         // Schedule next renewal
         this.scheduleRenewal(sessionId, renewalResult.expiresAt!);
 
-        return {
+        const renewalReturn = {
           success: true,
           sessionId,
           newExpiresAt: renewalResult.expiresAt,
           latencyMs
         };
+
+        // Emit renewal completed event
+        this.emitSessionRenewal('renewal-completed', sessionId, renewalReturn);
+
+        return renewalReturn;
       } else {
         session.statistics.failedRenewalCount++;
         session.state = SessionState.Failed;
 
-        return {
+        const renewalReturn = {
           success: false,
           sessionId,
           latencyMs,
@@ -303,13 +311,19 @@ export class SessionManagerImpl implements SessionManager {
             timestamp: new Date()
           }
         };
+
+        // Emit renewal failed event and session error
+        this.emitSessionRenewal('renewal-failed', sessionId, renewalReturn);
+        this.emitSessionError('renewal-error', sessionId, renewalReturn.error);
+
+        return renewalReturn;
       }
     } catch (error: any) {
       session.statistics.failedRenewalCount++;
       session.state = SessionState.Failed;
       const latencyMs = Date.now() - startTime;
 
-      return {
+      const renewalReturn = {
         success: false,
         sessionId,
         latencyMs,
@@ -321,6 +335,12 @@ export class SessionManagerImpl implements SessionManager {
           timestamp: new Date()
         }
       };
+
+      // Emit renewal failed event and session error
+      this.emitSessionRenewal('renewal-failed', sessionId, renewalReturn);
+      this.emitSessionError('renewal-error', sessionId, renewalReturn.error);
+
+      return renewalReturn;
     }
   }
 

@@ -200,6 +200,7 @@ The project uses **Mocha** with a **layered test strategy** to optimize feedback
 
 - Do **not** edit compiled JS under `out/`; change `.ts` sources only.
 - Provide deterministic mocks (`fetch`, timers, secret storage) for unit tests.
+- **DO NOT mock the VS Code API in integration tests** - integration tests run in the VS Code Extension Host where the real `vscode` module is available and should be used directly.
 - Avoid real sleeps; use fake timers or controlled tick helpers.
 - Keep unit specs <100ms and investigate integration specs >2s.
 - Always restore modified globals (e.g. `fetch`) in `afterEach`.

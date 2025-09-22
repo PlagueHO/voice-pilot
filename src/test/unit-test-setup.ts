@@ -18,7 +18,7 @@ Module._resolveFilename = function (request: string, parent: any, isMain?: boole
   return originalResolveFilename.call(this, request, parent, isMain, options);
 };
 
-// Register mock in cache with minimal Module interface
+// Register mock in cache with complete Module interface
 (require.cache as any)['vscode-mock'] = {
   id: 'vscode-mock',
   filename: 'vscode-mock',
@@ -26,7 +26,10 @@ Module._resolveFilename = function (request: string, parent: any, isMain?: boole
   children: [],
   parent: null,
   paths: [],
+  isPreloading: false,
+  path: 'vscode-mock',
+  require: require,
   exports: vscode
-};
+} as NodeJS.Module;
 
 console.log('✓ VS Code mock registered for unit tests');

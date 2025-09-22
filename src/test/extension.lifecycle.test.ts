@@ -67,7 +67,7 @@ describe('Extension Lifecycle', () => {
         client_secret: { value: 'ephemeral-key-test', expires_at: Math.floor(Date.now() / 1000) + 60 }
       })
     });
-    const session = new SessionManager();
+    const session = new SessionManager(keyService, undefined, config, logger);
     const panel = new VoiceControlPanel(context);
 
     // Track disposal order
@@ -86,6 +86,10 @@ describe('Extension Lifecycle', () => {
 
     await keyService.initialize();
     assert.ok(keyService.isInitialized(), 'Key service should be initialized');
+
+    // Debug: Verify the keyService is properly set in session
+    assert.ok(session['keyService'] === keyService, 'Session should have the keyService');
+    assert.ok(session['keyService'].isInitialized(), 'Session keyService should be initialized');
 
     await session.initialize();
     assert.ok(session.isInitialized(), 'Session should be initialized');
@@ -119,16 +123,53 @@ describe('Extension Lifecycle', () => {
   });
 
   it('Session manager tracks session state', async () => {
-    const session = new SessionManager();
+    const logger = new Logger('TestLogger');
+    const config = new ConfigurationManager(context, logger);
+    // Mock credential manager for EphemeralKeyService
+    const credentialManager: any = {
+      isInitialized: () => true,
+      getAzureOpenAIKey: async () => 'test-key'
+    };
+    const keyService = new EphemeralKeyServiceImpl(credentialManager, config, logger);
+
+    // Mock fetch for authentication test
+    const originalFetch = (global as any).fetch;
+    (global as any).fetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'session-test',
+        model: 'gpt-4o-realtime-preview',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        client_secret: { value: 'ephemeral-key-test', expires_at: Math.floor(Date.now() / 1000) + 60 }
+      })
+    });
+
+    // Initialize dependencies first
+    await config.initialize();
+    await keyService.initialize();
+
+    // Verify initialization before creating SessionManager
+    assert.ok(config.isInitialized(), 'Config should be initialized');
+    assert.ok(keyService.isInitialized(), 'Key service should be initialized');
+
+    // Now create SessionManager with proper dependencies
+    const session = new SessionManager(keyService, undefined, config, logger);
+
+    // Debug: Verify the keyService is properly set in session
+    assert.ok(session['keyService'] === keyService, 'Session should have the keyService');
+    assert.ok(session['keyService'].isInitialized(), 'Session keyService should be initialized');
 
     await session.initialize();
 
     assert.strictEqual(session.isSessionActive(), false, 'Session should not be active initially');
-
-    // Test would require actual session start/stop implementation
-    // For now, just test the basic state
     assert.ok(session.isInitialized(), 'Session manager should be initialized');
 
     session.dispose();
+    keyService.dispose();
+    config.dispose();
+
+    // Restore fetch
+    (global as any).fetch = originalFetch;
   });
 });
