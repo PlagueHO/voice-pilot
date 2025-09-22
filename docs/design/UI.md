@@ -179,6 +179,15 @@ Tooltip: "VoicePilot - Start Conversation"
 │   (orange pulse indicator)          │
 │                                     │
 └─────────────────────────────────────┘
+
+### Behavior when GitHub Copilot Chat is not installed
+
+- **Degraded state:** If the `GitHub Copilot Chat` extension is not installed, VoicePilot continues to operate for local voice interactions (transcription, local planning, and simple voice-driven features) but will not be able to forward prompts or request Copilot-generated responses.
+- **UI indication:** The panel shows a clear status line `⋯ Waiting for Copilot (not installed)` and an orange warning badge on the header while Copilot-specific actions are attempted.
+- **User prompt:** When a Copilot action is required (for example, "Ask Copilot to generate code"), VoicePilot will prompt the user with a one-click install option: `Install Copilot Chat`. Choosing this action triggers the Marketplace installation flow and then prompts the user to reload VS Code.
+- **Context key:** The extension sets a context key `voicepilot.copilotAvailable` (true/false) so commands and UI elements requiring Copilot can be hidden or disabled via `when` clauses.
+- **Graceful fallback:** If the user declines installation or installation fails, VoicePilot offers an in-place fallback message explaining which features are unavailable and provides manual instructions (Marketplace link and VSIX advice) in the settings/help pane.
+
 ```
 
 #### VoicePilot Speaking
