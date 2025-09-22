@@ -16,8 +16,8 @@ This document lists all planned features in implementation phase order. It will 
 | 1 | SP-001 | Core Extension Activation & Lifecycle | architecture | Activation events, command wiring, teardown | spec-architecture-extension-lifecycle.md |  | ✅ Complete |
 | 1 | SP-002 | Configuration & Settings Management | design | Settings schema, validation, change handling | spec-design-configuration-management.md | SP-001 | ✅ Complete |
 | 1 | SP-003 | Secret Storage & Credential Handling | security | Secure storage & retrieval boundaries | spec-security-secret-storage.md | SP-001,SP-002 | ✅ Complete |
-| 1 | SP-004 | Ephemeral Key Service (Azure Realtime) | architecture | Mint & rotate ephemeral session keys | spec-architecture-ephemeral-key-service.md | SP-001,SP-002,SP-003 | ⏳ Pending |
-| 1 | SP-005 | Session Management & Renewal | design | Session lifecycle & timers | spec-design-session-management.md | SP-001,SP-004 | ⏳ Pending |
+| 1 | SP-004 | Ephemeral Key Service (Azure Realtime) | architecture | Mint & rotate ephemeral session keys | spec-architecture-ephemeral-key-service.md | SP-001,SP-002,SP-003 | ✅ Complete |
+| 1 | SP-005 | Session Management & Renewal | design | Session lifecycle & timers | spec-design-session-management.md | SP-001,SP-004 | ✅ Complete |
 | 1 | SP-006 | WebRTC Audio Transport Layer | architecture | Peer connection, SDP, reconnection | spec-architecture-webrtc-audio.md | SP-001,SP-004,SP-005 | ⏳ Pending |
 | 1 | SP-007 | Microphone Capture & Audio Pipeline | design | Capture, preprocess, stream formats | spec-design-audio-capture-pipeline.md | SP-001,SP-006 | ⏳ Pending |
 | 1 | SP-009 | Speech-to-Text Integration (Realtime STT) | tool | Transcript events & error recovery | spec-tool-realtime-stt.md | SP-006,SP-007,SP-005 | ⏳ Pending |

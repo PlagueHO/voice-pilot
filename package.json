@@ -30,7 +30,7 @@
     "test:headless": "xvfb-run -a npm test",
     "test:coverage": "nyc npm test",
     "test:perf": "node -e \"console.log(JSON.stringify({timestamp: new Date().toISOString(), testDuration: Math.random() * 1000 + 500}))\"",
-  "test:unit": "npm run compile && mocha --ui bdd \"out/test/unit/**/*.js\" --timeout 3000",
+  "test:unit": "npm run compile && mocha --ui bdd --require ./unit-test-setup.js \"out/test/unit/**/*.js\" --timeout 3000",
   "test:all": "npm run test:unit && npm test",
     "security:audit": "npm audit --audit-level=moderate",
     "security:check": "npm run security:audit && echo 'Security check completed'",

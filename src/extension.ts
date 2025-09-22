@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ConfigurationManager } from './config/configuration-manager';
 import { ExtensionController } from './core/extension-controller';
 import { Logger } from './core/logger';
-import { SessionManager } from './session/session-manager';
+import { SessionManagerImpl } from './session/session-manager';
 import { VoiceControlPanel } from './ui/voice-control-panel';
 
 let controller: ExtensionController | undefined;
@@ -11,7 +11,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const start = performance.now();
   const logger = new Logger();
   const configurationManager = new ConfigurationManager(context, logger);
-  const sessionManager = new SessionManager();
+  const sessionManager = new SessionManagerImpl();
   const voicePanel = new VoiceControlPanel(context);
   controller = new ExtensionController(
     context,

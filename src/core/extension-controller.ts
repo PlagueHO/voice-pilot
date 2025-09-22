@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { CredentialManagerImpl } from '../auth/credential-manager';
 import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
 import { ConfigurationManager } from '../config/configuration-manager';
-import { SessionManager } from '../session/session-manager';
+import { SessionManagerImpl } from '../session/session-manager';
+import { SessionTimerManagerImpl } from '../session/session-timer-manager';
 import { VoiceControlPanel } from '../ui/voice-control-panel';
 import { Logger } from './logger';
 import { ServiceInitializable } from './service-initializable';
@@ -11,11 +12,12 @@ export class ExtensionController implements ServiceInitializable {
   private initialized = false;
   private credentialManager!: CredentialManagerImpl;
   private ephemeralKeyService!: EphemeralKeyServiceImpl;
+  private sessionTimerManager!: SessionTimerManagerImpl;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly configurationManager: ConfigurationManager,
-    private readonly sessionManager: SessionManager,
+    private readonly sessionManager: SessionManagerImpl,
     private readonly voicePanel: VoiceControlPanel,
     private readonly logger: Logger
   ) {}
@@ -38,8 +40,19 @@ export class ExtensionController implements ServiceInitializable {
       this.ephemeralKeyService = new EphemeralKeyServiceImpl(this.credentialManager, this.configurationManager, this.logger);
       await this.safeInit('ephemeral key service', () => this.ephemeralKeyService.initialize(), () => this.ephemeralKeyService.dispose(), initialized, 'ephemeralKeyService');
 
-      // Initialize remaining services
+      // Initialize session timer manager
+      // Note: SessionTimerManager will be created by SessionManager internally, but we need to inject dependencies
+
+      // Initialize session manager with all required dependencies
+      // The SessionManager constructor should create its own SessionTimerManager
+      if (!this.sessionManager.isInitialized()) {
+        // Inject dependencies into session manager
+        (this.sessionManager as any).keyService = this.ephemeralKeyService;
+        (this.sessionManager as any).configManager = this.configurationManager;
+        (this.sessionManager as any).logger = this.logger;
+      }
       await this.safeInit('session manager', () => this.sessionManager.initialize(), () => this.sessionManager.dispose(), initialized, 'sessionManager');
+
       await this.safeInit('voice control panel', () => this.voicePanel.initialize(), () => this.voicePanel.dispose(), initialized, 'voicePanel');
 
       this.registerCommands();
@@ -110,7 +123,7 @@ export class ExtensionController implements ServiceInitializable {
 
   getConfigurationManager(): ConfigurationManager { return this.configurationManager; }
   getCredentialManager(): CredentialManagerImpl { return this.credentialManager; }
-  getSessionManager(): SessionManager { return this.sessionManager; }
+  getSessionManager(): SessionManagerImpl { return this.sessionManager; }
   getEphemeralKeyService(): EphemeralKeyServiceImpl { return this.ephemeralKeyService; }
   getVoiceControlPanel(): VoiceControlPanel { return this.voicePanel; }
 }

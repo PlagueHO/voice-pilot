@@ -66,4 +66,5 @@ export interface AuthService {
 export * from './configuration';
 export * from './credentials';
 export * from './ephemeral';
+export * from './session';
 
