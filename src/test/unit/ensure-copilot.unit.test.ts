@@ -4,7 +4,10 @@ import { ensureCopilotChatInstalled, isCopilotChatAvailable } from '../../helper
 
 // Utility to reset mutable vscode mock facets between tests
 function resetVscodeMocks() {
-  (vscode as any).extensions = { getExtension: () => undefined };
+  const extensionsApi = (vscode as any).extensions;
+  if (extensionsApi && typeof extensionsApi === 'object') {
+    extensionsApi.getExtension = () => undefined;
+  }
   (vscode as any).window.showInformationMessage = () => Promise.resolve(undefined);
   (vscode as any).window.showErrorMessage = () => Promise.resolve(undefined as any);
   (vscode as any).commands.executeCommand = () => Promise.resolve(undefined);

@@ -1,11 +1,23 @@
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
-import { AudioCapture, AudioCaptureConfig } from './audio-capture';
+import type {
+    AudioCaptureConfig,
+    AudioLevelChangedEvent,
+    AudioMetrics,
+    AudioProcessingConfig,
+    CaptureStartedEvent,
+    CaptureStoppedEvent,
+    MetricsUpdatedEvent,
+    ProcessingErrorEvent,
+    VoiceActivityEvent
+} from '../types/audio-capture';
+import { AudioCapture } from './audio-capture';
 import { AudioChunk, AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './realtime-audio-service';
 
 export interface AudioPipelineConfig {
     realtime: RealtimeAudioConfig;
-    capture?: AudioCaptureConfig;
+    capture?: Partial<AudioCaptureConfig>;
+    captureProcessing?: Partial<AudioProcessingConfig>;
     autoStartSession?: boolean;
     enableEchoCancellation?: boolean;
 }
@@ -14,6 +26,11 @@ export interface VoiceSessionState {
     isConnected: boolean;
     isRecording: boolean;
     isSpeaking: boolean;
+    isUserSpeaking: boolean;
+    audioLevel: number;
+    latencyEstimate?: number;
+    deviceId?: string;
+    metrics?: AudioMetrics;
     lastTranscript?: string;
     lastError?: string;
 }
@@ -33,7 +50,9 @@ export class AudioPipelineService implements ServiceInitializable {
     private sessionState: VoiceSessionState = {
         isConnected: false,
         isRecording: false,
-        isSpeaking: false
+        isSpeaking: false,
+        isUserSpeaking: false,
+        audioLevel: 0
     };
 
     // Event callbacks
@@ -63,7 +82,7 @@ export class AudioPipelineService implements ServiceInitializable {
             await this.realtimeService.initialize();
 
             // Initialize audio capture
-            await this.audioCapture.initialize();
+            await this.audioCapture.initialize(this.config.capture, this.config.captureProcessing);
 
             // Auto-start session if configured
             if (this.config.autoStartSession) {
@@ -83,7 +102,7 @@ export class AudioPipelineService implements ServiceInitializable {
     }
 
     dispose(): void {
-        this.stopSession();
+        void this.stopSession();
         this.realtimeService.dispose();
         this.audioCapture.dispose();
         this.initialized = false;
@@ -126,6 +145,42 @@ export class AudioPipelineService implements ServiceInitializable {
         });
 
         // Audio capture events
+        this.audioCapture.addEventListener('captureStarted', (event: CaptureStartedEvent) => {
+            this.sessionState.deviceId = event.data.settings.deviceId ?? event.data.trackId;
+            this.emitStateChange();
+        });
+
+        this.audioCapture.addEventListener('captureStopped', (_event: CaptureStoppedEvent) => {
+            this.sessionState.deviceId = undefined;
+            this.sessionState.audioLevel = 0;
+            this.sessionState.isUserSpeaking = false;
+            this.emitStateChange();
+        });
+
+        this.audioCapture.addEventListener('audioLevelChanged', (event: AudioLevelChangedEvent) => {
+            this.sessionState.audioLevel = event.data.level;
+            this.emitStateChange();
+        });
+
+        this.audioCapture.addEventListener('metricsUpdated', (event: MetricsUpdatedEvent) => {
+            const metrics = event.data;
+            this.sessionState.latencyEstimate = metrics.latencyEstimate;
+            this.sessionState.metrics = metrics;
+            this.emitStateChange();
+        });
+
+        this.audioCapture.addEventListener('voiceActivity', (event: VoiceActivityEvent) => {
+            this.sessionState.isUserSpeaking = event.data.isVoiceDetected;
+            this.emitStateChange();
+        });
+
+        this.audioCapture.addEventListener('processingError', (event: ProcessingErrorEvent) => {
+            this.sessionState.lastError = event.data.message;
+            const error = new Error(event.data.message);
+            this.onErrorCallback?.(error);
+            this.emitStateChange();
+        });
+
         this.audioCapture.onAudioData(async (audioData: Buffer) => {
             try {
                 if (this.sessionState.isConnected && this.sessionState.isRecording) {
@@ -163,8 +218,13 @@ export class AudioPipelineService implements ServiceInitializable {
     /**
      * Stop the current voice session
      */
-    stopSession(): void {
-        this.stopRecording();
+    async stopSession(): Promise<void> {
+        if (this.sessionState.isRecording) {
+            await this.stopRecording();
+        } else {
+            await this.audioCapture.stopCapture();
+        }
+
         this.realtimeService.stopSession();
         this.sessionState.isConnected = false;
         this.emitStateChange();
@@ -174,12 +234,12 @@ export class AudioPipelineService implements ServiceInitializable {
     /**
      * Start recording microphone input
      */
-    startRecording(): void {
+    async startRecording(): Promise<void> {
         if (!this.sessionState.isConnected) {
             throw new Error('No active voice session');
         }
 
-        this.audioCapture.startRecording();
+        await this.audioCapture.startCapture();
         this.realtimeService.startRecording();
         this.sessionState.isRecording = true;
         this.emitStateChange();
@@ -189,8 +249,8 @@ export class AudioPipelineService implements ServiceInitializable {
     /**
      * Stop recording microphone input
      */
-    stopRecording(): void {
-        this.audioCapture.stopRecording();
+    async stopRecording(): Promise<void> {
+        await this.audioCapture.stopCapture();
         this.realtimeService.stopRecording();
         this.sessionState.isRecording = false;
         this.emitStateChange();
@@ -232,11 +292,11 @@ export class AudioPipelineService implements ServiceInitializable {
     /**
      * Toggle recording state
      */
-    toggleRecording(): void {
+    async toggleRecording(): Promise<void> {
         if (this.sessionState.isRecording) {
-            this.stopRecording();
+            await this.stopRecording();
         } else {
-            this.startRecording();
+            await this.startRecording();
         }
     }
 

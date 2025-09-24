@@ -205,6 +205,7 @@ The project uses **Mocha** with a **layered test strategy** to optimize feedback
 - Keep unit specs <100ms and investigate integration specs >2s.
 - Always restore modified globals (e.g. `fetch`) in `afterEach`.
 - Run lint before integration to catch simple issues early.
+- During integration runs you may see `Timed out waiting for authentication provider 'github'` warnings. These are expected while the GitHub provider registers and can be safely ignored.
 
 #### Development Task Workflow
 

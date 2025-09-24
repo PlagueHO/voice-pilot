@@ -63,6 +63,8 @@ export interface AuthService {
     logout(): Promise<void>;
 }
 
+export * from './audio-capture';
+export * from './audio-errors';
 export * from './configuration';
 export * from './credentials';
 export * from './ephemeral';

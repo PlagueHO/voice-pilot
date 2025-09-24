@@ -30,6 +30,10 @@ export const commands = {
   executeCommand: () => Promise.resolve()
 };
 
+export const extensions = {
+  getExtension: () => undefined
+};
+
 export const Uri = {
   parse: (value: string) => ({ toString: () => value })
 };

@@ -266,16 +266,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ensureActiveSession();
 
     try {
-      // Remove current track
-      if (this.currentMicrophoneTrack) {
-        await this.audioManager.removeTrackFromTransport(this.transport, this.currentMicrophoneTrack);
-      }
-
-      // Capture new device
-      this.currentMicrophoneTrack = await this.audioManager.switchAudioDevice(deviceId);
-
-      // Add new track
-      await this.audioManager.addTrackToTransport(this.transport, this.currentMicrophoneTrack);
+      this.currentMicrophoneTrack = await this.audioManager.switchAudioDevice(deviceId, this.transport);
 
       this.logger.info('Audio device switched', { deviceId });
 
