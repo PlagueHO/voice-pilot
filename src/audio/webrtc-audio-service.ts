@@ -10,6 +10,7 @@ import {
     WebRTCErrorImpl
 } from '../types/webrtc';
 import { AudioTrackManager } from './audio-track-manager';
+import { RealtimeTurnEvent } from './turn-detection-coordinator';
 import { WebRTCConfigFactory } from './webrtc-config-factory';
 import { WebRTCErrorHandler } from './webrtc-error-handler';
 import { WebRTCTransportImpl } from './webrtc-transport';
@@ -46,6 +47,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   private onTranscriptReceivedCallback?: (transcript: string) => Promise<void>;
   private onAudioReceivedCallback?: (audioData: Buffer) => Promise<void>;
   private onErrorCallback?: (error: Error) => Promise<void>;
+  private onTurnEventCallback?: (event: RealtimeTurnEvent) => Promise<void> | void;
 
   constructor(
     ephemeralKeyService?: EphemeralKeyServiceImpl,
@@ -300,6 +302,10 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.onErrorCallback = callback;
   }
 
+  onTurnEvent(callback: (event: RealtimeTurnEvent) => Promise<void> | void): void {
+    this.onTurnEventCallback = callback;
+  }
+
   // Private implementation methods
   private setupEventHandlers(): void {
     // Transport connection state changes
@@ -383,6 +389,22 @@ export class WebRTCAudioService implements ServiceInitializable {
           }
           break;
 
+        case 'input_audio_buffer.speech_started':
+          await this.emitTurnEvent({
+            type: 'speech-start',
+            timestamp: Date.now(),
+            serverEvent: message
+          });
+          break;
+
+        case 'input_audio_buffer.speech_stopped':
+          await this.emitTurnEvent({
+            type: 'speech-stop',
+            timestamp: Date.now(),
+            serverEvent: message
+          });
+          break;
+
         case 'error':
           this.logger.error('Received error from data channel', { message });
           if ('error' in message) {
@@ -396,6 +418,20 @@ export class WebRTCAudioService implements ServiceInitializable {
       }
     } catch (error: any) {
       this.logger.error('Error handling data channel message', { error: error.message });
+    }
+  }
+
+  private async emitTurnEvent(event: RealtimeTurnEvent): Promise<void> {
+    if (!this.onTurnEventCallback) {
+      return;
+    }
+    try {
+      const result = this.onTurnEventCallback(event);
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        await result;
+      }
+    } catch (error: any) {
+      this.logger.error('Turn detection listener failed', { error: error?.message || error, type: event.type });
     }
   }
 

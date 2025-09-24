@@ -48,8 +48,39 @@ export const repoFormatRule: ValidationRule = ({ github }) => {
   return { errors, warnings };
 };
 
+export const turnDetectionRule: ValidationRule = ({ audio }) => {
+  const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
+  const td = audio.turnDetection;
+  if (!td) {
+    errors.push(err('voicepilot.audio.turnDetection','Turn detection configuration missing','TURN_DETECTION_MISSING','Reset settings to restore defaults.'));
+    return { errors, warnings };
+  }
+  if (td.threshold < 0 || td.threshold > 1) {
+    errors.push(err('voicepilot.audio.turnDetection.threshold','Turn detection threshold must be between 0.0 and 1.0','TURN_THRESHOLD_OUT_OF_RANGE','Choose a value between 0.0 and 1.0.'));
+  }
+  if (td.prefixPaddingMs < 0) {
+    errors.push(err('voicepilot.audio.turnDetection.prefixPaddingMs','Prefix padding must be >= 0 ms','PREFIX_PADDING_NEGATIVE','Increase prefix padding to at least 0 ms.'));
+  }
+  if (td.silenceDurationMs < 0) {
+    errors.push(err('voicepilot.audio.turnDetection.silenceDurationMs','Silence duration must be >= 0 ms','SILENCE_DURATION_NEGATIVE','Increase silence duration to at least 0 ms.'));
+  }
+  if (td.silenceDurationMs > 5000) {
+    warnings.push({ path: 'voicepilot.audio.turnDetection.silenceDurationMs', message: 'High silence duration may delay responses', code: 'SILENCE_DURATION_HIGH', remediation: 'Consider using a value under 5000 ms' });
+  }
+  if (td.silenceDurationMs < 150) {
+    warnings.push({ path: 'voicepilot.audio.turnDetection.silenceDurationMs', message: 'Low silence duration can cause abrupt turn endings', code: 'SILENCE_DURATION_LOW', remediation: 'Set to at least 150 ms for natural pacing.' });
+  }
+  if (td.mode !== 'semantic_vad' && td.eagerness !== 'auto') {
+    warnings.push({ path: 'voicepilot.audio.turnDetection.eagerness', message: 'Eagerness applies to semantic_vad only and will be ignored in current mode', code: 'EAGERNESS_IGNORED', remediation: 'Switch mode to semantic_vad to use eagerness.' });
+  }
+  if (td.mode === 'manual' && td.createResponse) {
+    warnings.push({ path: 'voicepilot.audio.turnDetection.createResponse', message: 'Manual mode ignores automatic response creation', code: 'MANUAL_MODE_AUTOCREATE', remediation: 'Disable createResponse or switch to server-managed mode.' });
+  }
+  return { errors, warnings };
+};
+
 // Placeholder stub rules for future expansion
 export const audioDevicesRule: ValidationRule = () => ({ errors: [], warnings: [] });
 export const networkReachabilityRule: ValidationRule = () => ({ errors: [], warnings: [] });
 
-export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, audioDevicesRule, networkReachabilityRule];
+export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, audioDevicesRule, networkReachabilityRule];

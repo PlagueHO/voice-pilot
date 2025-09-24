@@ -3,11 +3,15 @@ import { AzureOpenAI } from "openai";
 import { OpenAIRealtimeWS } from "openai/beta/realtime/ws";
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
+import { TurnDetectionConfig } from '../types/configuration';
+import { RealtimeTurnEvent } from './turn-detection-coordinator';
+import { createDefaultTurnDetectionConfig } from './turn-detection-defaults';
 
 export interface RealtimeAudioConfig {
   endpoint: string;
   deploymentName: string;
   apiVersion: string;
+  turnDetection?: TurnDetectionConfig;
 }
 
 export interface AudioTranscript {
@@ -39,16 +43,19 @@ export class RealtimeAudioService implements ServiceInitializable {
   private isRecording = false;
   private logger: Logger;
   private config: RealtimeAudioConfig;
+  private turnDetectionConfig: TurnDetectionConfig;
 
   // Event callbacks
   private onTranscriptCallback?: (transcript: AudioTranscript) => void;
   private onAudioChunkCallback?: (chunk: AudioChunk) => void;
   private onErrorCallback?: (error: Error) => void;
   private onSessionStateCallback?: (state: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
+  private onTurnEventCallback?: (event: RealtimeTurnEvent) => void;
 
   constructor(config: RealtimeAudioConfig, logger?: Logger) {
-    this.config = config;
+    this.config = { ...config };
     this.logger = logger || new Logger('RealtimeAudioService');
+    this.turnDetectionConfig = config.turnDetection ? { ...config.turnDetection } : createDefaultTurnDetectionConfig();
   }
 
   async initialize(): Promise<void> {
@@ -119,15 +126,7 @@ export class RealtimeAudioService implements ServiceInitializable {
       this.logger.info("Realtime connection opened");
       this.isConnected = true;
       this.onSessionStateCallback?.('connected');
-
-      // Initialize session with both text and audio modalities
-      this.realtimeClient!.send({
-        type: "session.update",
-        session: {
-          modalities: ["text", "audio"],
-          model: "gpt-4o-realtime-preview",
-        },
-      });
+      this.sendSessionUpdate('connection_open');
     });
 
     this.realtimeClient.socket.on("close", () => {
@@ -199,6 +198,103 @@ export class RealtimeAudioService implements ServiceInitializable {
     this.realtimeClient.on("response.done", () => {
       this.logger.debug("Response completed");
     });
+
+    this.realtimeClient.on("input_audio_buffer.speech_started", (event: any) => {
+      this.dispatchTurnEvent({
+        type: 'speech-start',
+        timestamp: Date.now(),
+        serverEvent: event
+      });
+    });
+
+    this.realtimeClient.on("input_audio_buffer.speech_stopped", (event: any) => {
+      this.dispatchTurnEvent({
+        type: 'speech-stop',
+        timestamp: Date.now(),
+        serverEvent: event
+      });
+    });
+  }
+
+  setTurnDetectionConfig(config: TurnDetectionConfig): void {
+    this.turnDetectionConfig = { ...config };
+    if (this.isConnected && this.realtimeClient) {
+      try {
+        this.sendSessionUpdate('turn_detection_config_changed');
+      } catch (error: any) {
+        this.logger.error('Failed to push turn detection update', { error: error?.message ?? String(error) });
+      }
+    }
+  }
+
+  getTurnDetectionConfig(): TurnDetectionConfig {
+    return { ...this.turnDetectionConfig };
+  }
+
+  private sendSessionUpdate(reason: string, overrides: Record<string, unknown> = {}): void {
+    if (!this.realtimeClient) {
+      throw new Error('Realtime client not initialized');
+    }
+    const sessionPayload = this.composeSessionPayload(overrides);
+    this.realtimeClient.send({
+      type: "session.update",
+      session: sessionPayload
+    });
+    this.logger.debug('Session update sent', { reason, mode: this.turnDetectionConfig.mode });
+  }
+
+  private composeSessionPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+      modalities: ["text", "audio"],
+      model: this.config.deploymentName || "gpt-4o-realtime-preview"
+    };
+    const turnDetection = this.buildTurnDetectionPayload();
+    if (turnDetection) {
+      payload.turn_detection = turnDetection;
+    }
+    return { ...payload, ...overrides };
+  }
+
+  private buildTurnDetectionPayload(): Record<string, unknown> | undefined {
+    const cfg = this.turnDetectionConfig;
+    switch (cfg.mode) {
+      case 'manual':
+        return {
+          type: 'none',
+          create_response: false,
+          interrupt_response: false
+        };
+      case 'semantic_vad':
+        return {
+          type: 'semantic_vad',
+          prefix_padding_ms: cfg.prefixPaddingMs,
+          silence_duration_ms: cfg.silenceDurationMs,
+          create_response: cfg.createResponse,
+          interrupt_response: cfg.interruptResponse,
+          eagerness: cfg.eagerness
+        };
+      case 'server_vad':
+      default:
+        return {
+          type: 'server_vad',
+          threshold: cfg.threshold,
+          prefix_padding_ms: cfg.prefixPaddingMs,
+          silence_duration_ms: cfg.silenceDurationMs,
+          create_response: cfg.createResponse,
+          interrupt_response: cfg.interruptResponse
+        };
+    }
+  }
+
+  private dispatchTurnEvent(event: RealtimeTurnEvent): void {
+    if (!this.onTurnEventCallback) {
+      return;
+    }
+    try {
+      this.onTurnEventCallback({ ...event });
+    } catch (error: any) {
+      this.logger.error('Turn detection event handler failed', { error: error?.message || error, type: event.type });
+    }
   }
 
   /**
@@ -350,6 +446,10 @@ export class RealtimeAudioService implements ServiceInitializable {
     this.onSessionStateCallback = callback;
   }
 
+  onTurnEvent(callback: (event: RealtimeTurnEvent) => void): void {
+    this.onTurnEventCallback = callback;
+  }
+
   /**
    * Update session configuration
    */
@@ -359,14 +459,8 @@ export class RealtimeAudioService implements ServiceInitializable {
     }
 
     try {
-        this.realtimeClient.send({
-        type: "session.update",
-        session: {
-          modalities: ["text", "audio"],
-          model: "gpt-4o-realtime-preview",
-          ...config
-        },
-      });      this.logger.debug('Session config updated', config);
+      this.sendSessionUpdate('manual_update', config);
+      this.logger.debug('Session config updated', config);
     } catch (error: any) {
       this.logger.error('Failed to update session config', { error: error.message });
       throw error;

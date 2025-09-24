@@ -23,10 +23,13 @@ export interface SessionUpdateEvent extends RealtimeEvent {
       model?: 'whisper-1';
     };
     turn_detection?: {
-      type: 'server_vad' | 'none';
+      type: 'server_vad' | 'semantic_vad' | 'none';
       threshold?: number;
       prefix_padding_ms?: number;
       silence_duration_ms?: number;
+      create_response?: boolean;
+      interrupt_response?: boolean;
+      eagerness?: 'low' | 'auto' | 'high';
     };
     tools?: any[];
     tool_choice?: 'auto' | 'none' | 'required' | { type: 'function'; name: string };
@@ -99,6 +102,12 @@ export interface InputAudioBufferSpeechStoppedEvent extends RealtimeEvent {
   type: 'input_audio_buffer.speech_stopped';
   audio_end_ms: number;
   item_id: string;
+}
+
+export interface ResponseInterruptedEvent extends RealtimeEvent {
+  type: 'response.interrupted';
+  response_id?: string;
+  reason?: string;
 }
 
 // Conversation events
@@ -384,6 +393,7 @@ export type AnyRealtimeEvent =
   | InputAudioBufferClearEvent
   | InputAudioBufferSpeechStartedEvent
   | InputAudioBufferSpeechStoppedEvent
+  | ResponseInterruptedEvent
   | ConversationItemCreateEvent
   | ConversationItemCreatedEvent
   | ConversationItemDeleteEvent

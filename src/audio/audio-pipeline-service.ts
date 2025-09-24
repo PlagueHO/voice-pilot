@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
 import type {
@@ -11,8 +12,11 @@ import type {
     ProcessingErrorEvent,
     VoiceActivityEvent
 } from '../types/audio-capture';
+import { TurnDetectionConfig } from '../types/configuration';
 import { AudioCapture } from './audio-capture';
 import { AudioChunk, AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './realtime-audio-service';
+import { AzureTurnDetectionCoordinator, RealtimeTurnEvent } from './turn-detection-coordinator';
+import { createDefaultTurnDetectionConfig } from './turn-detection-defaults';
 
 export interface AudioPipelineConfig {
     realtime: RealtimeAudioConfig;
@@ -45,6 +49,8 @@ export class AudioPipelineService implements ServiceInitializable {
     private audioCapture: AudioCapture;
     private logger: Logger;
     private config: AudioPipelineConfig;
+    private turnDetectionCoordinator: AzureTurnDetectionCoordinator;
+    private turnDetectionConfig: TurnDetectionConfig;
 
     // State
     private sessionState: VoiceSessionState = {
@@ -58,16 +64,21 @@ export class AudioPipelineService implements ServiceInitializable {
     // Event callbacks
     private onTranscriptCallback?: (transcript: string, isFinal: boolean) => void;
     private onAudioPlaybackCallback?: (audioData: Buffer) => void;
-    private onSessionStateCallback?: (state: VoiceSessionState) => void;
     private onErrorCallback?: (error: Error) => void;
+    private sessionStateListeners = new Set<(state: VoiceSessionState) => void>();
 
     constructor(config: AudioPipelineConfig, logger?: Logger) {
-        this.config = config;
+        this.config = {
+            ...config,
+            realtime: { ...config.realtime }
+        };
         this.logger = logger || new Logger('AudioPipelineService');
+        this.turnDetectionConfig = this.config.realtime.turnDetection ? { ...this.config.realtime.turnDetection } : createDefaultTurnDetectionConfig();
+        this.turnDetectionCoordinator = new AzureTurnDetectionCoordinator(this.turnDetectionConfig, this.logger);
 
         // Initialize components
-        this.realtimeService = new RealtimeAudioService(config.realtime, this.logger);
-        this.audioCapture = new AudioCapture(config.capture, this.logger);
+        this.realtimeService = new RealtimeAudioService({ ...this.config.realtime, turnDetection: this.turnDetectionConfig }, this.logger);
+        this.audioCapture = new AudioCapture(this.config.capture, this.logger);
 
         this.setupEventHandlers();
     }
@@ -78,6 +89,9 @@ export class AudioPipelineService implements ServiceInitializable {
         }
 
         try {
+            await this.turnDetectionCoordinator.initialize();
+            await this.turnDetectionCoordinator.configure(this.turnDetectionConfig);
+            this.realtimeService.setTurnDetectionConfig(this.turnDetectionConfig);
             // Initialize realtime service
             await this.realtimeService.initialize();
 
@@ -105,6 +119,7 @@ export class AudioPipelineService implements ServiceInitializable {
         void this.stopSession();
         this.realtimeService.dispose();
         this.audioCapture.dispose();
+        this.turnDetectionCoordinator.dispose();
         this.initialized = false;
         this.logger.info('Audio pipeline disposed');
     }
@@ -142,6 +157,10 @@ export class AudioPipelineService implements ServiceInitializable {
             this.sessionState.lastError = error.message;
             this.onErrorCallback?.(error);
             this.emitStateChange();
+        });
+
+        this.realtimeService.onTurnEvent((event) => {
+            this.handleTurnDetectionEvent(event);
         });
 
         // Audio capture events
@@ -196,6 +215,31 @@ export class AudioPipelineService implements ServiceInitializable {
             this.onErrorCallback?.(error);
             this.emitStateChange();
         });
+    }
+
+    private handleTurnDetectionEvent(event: RealtimeTurnEvent): void {
+        try {
+            this.turnDetectionCoordinator.handleServerEvent(event);
+        } catch (error: any) {
+            this.logger.error('Turn detection coordinator failed to process event', { error: error?.message || error, type: event.type });
+        }
+
+        let stateChanged = false;
+        if (event.type === 'speech-start') {
+            if (!this.sessionState.isUserSpeaking) {
+                this.sessionState.isUserSpeaking = true;
+                stateChanged = true;
+            }
+        } else if (event.type === 'speech-stop') {
+            if (this.sessionState.isUserSpeaking) {
+                this.sessionState.isUserSpeaking = false;
+                stateChanged = true;
+            }
+        }
+
+        if (stateChanged) {
+            this.emitStateChange();
+        }
     }
 
     /**
@@ -282,6 +326,20 @@ export class AudioPipelineService implements ServiceInitializable {
         this.logger.debug('Session config updated', config);
     }
 
+    async updateTurnDetection(config: TurnDetectionConfig): Promise<void> {
+        this.turnDetectionConfig = { ...config };
+        this.config.realtime.turnDetection = this.turnDetectionConfig;
+        this.realtimeService.setTurnDetectionConfig(this.turnDetectionConfig);
+        if (!this.turnDetectionCoordinator.isInitialized()) {
+            await this.turnDetectionCoordinator.initialize();
+        }
+        await this.turnDetectionCoordinator.configure(this.turnDetectionConfig);
+    }
+
+    getTurnDetectionCoordinator(): AzureTurnDetectionCoordinator {
+        return this.turnDetectionCoordinator;
+    }
+
     /**
      * Get current session state
      */
@@ -316,8 +374,13 @@ export class AudioPipelineService implements ServiceInitializable {
         this.onAudioPlaybackCallback = callback;
     }
 
-    onSessionState(callback: (state: VoiceSessionState) => void): void {
-        this.onSessionStateCallback = callback;
+    onSessionState(callback: (state: VoiceSessionState) => void): vscode.Disposable {
+        this.sessionStateListeners.add(callback);
+        return {
+            dispose: () => {
+                this.sessionStateListeners.delete(callback);
+            }
+        };
     }
 
     onError(callback: (error: Error) => void): void {
@@ -328,6 +391,13 @@ export class AudioPipelineService implements ServiceInitializable {
      * Emit session state change to listeners
      */
     private emitStateChange(): void {
-        this.onSessionStateCallback?.(this.getSessionState());
+        const snapshot = this.getSessionState();
+        for (const listener of Array.from(this.sessionStateListeners)) {
+            try {
+                listener(snapshot);
+            } catch (error: any) {
+                this.logger.error('Session state listener failed', { error: error?.message || error });
+            }
+        }
     }
 }

@@ -12,6 +12,19 @@ export interface AudioConfig {
   noiseReduction: boolean;
   echoCancellation: boolean;
   sampleRate: 16000 | 24000 | 48000;
+  turnDetection: TurnDetectionConfig;
+}
+
+export type TurnDetectionMode = 'server_vad' | 'semantic_vad' | 'manual';
+
+export interface TurnDetectionConfig {
+  mode: TurnDetectionMode;
+  threshold: number;
+  prefixPaddingMs: number;
+  silenceDurationMs: number;
+  createResponse: boolean;
+  interruptResponse: boolean;
+  eagerness: 'low' | 'auto' | 'high';
 }
 
 export interface CommandsConfig {

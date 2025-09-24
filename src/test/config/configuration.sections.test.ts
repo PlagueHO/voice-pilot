@@ -17,6 +17,11 @@ describe('Configuration Sections', () => {
     const audio = mgr.getAudioConfig();
     assert.ok(audio.inputDevice.length > 0, 'inputDevice default');
     assert.ok([16000,24000,48000].includes(audio.sampleRate), 'sampleRate enum');
+    assert.ok(audio.turnDetection, 'turnDetection default present');
+    assert.strictEqual(audio.turnDetection.mode, 'server_vad');
+    assert.strictEqual(audio.turnDetection.threshold, 0.5);
+    assert.strictEqual(audio.turnDetection.prefixPaddingMs, 300);
+    assert.strictEqual(audio.turnDetection.silenceDurationMs, 200);
   });
 
   it('Performance < 1s', async () => {

@@ -111,6 +111,55 @@
           ],
           "description": "Audio sample rate in Hz"
         },
+        "voicepilot.audio.turnDetection.mode": {
+          "type": "string",
+          "default": "server_vad",
+          "enum": [
+            "server_vad",
+            "semantic_vad",
+            "manual"
+          ],
+          "description": "Turn detection strategy for realtime sessions"
+        },
+        "voicepilot.audio.turnDetection.threshold": {
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Server VAD detection threshold (0.0-1.0)"
+        },
+        "voicepilot.audio.turnDetection.prefixPaddingMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "description": "Milliseconds of audio retained before speech start"
+        },
+        "voicepilot.audio.turnDetection.silenceDurationMs": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "description": "Milliseconds of trailing silence to detect speech stop"
+        },
+        "voicepilot.audio.turnDetection.createResponse": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically trigger response.create when server signals end of turn"
+        },
+        "voicepilot.audio.turnDetection.interruptResponse": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow user speech to interrupt assistant audio output"
+        },
+        "voicepilot.audio.turnDetection.eagerness": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "low",
+            "auto",
+            "high"
+          ],
+          "description": "Semantic VAD eagerness level when mode is semantic_vad"
+        },
         "voicepilot.commands.wakeWord": {
           "type": "string",
           "default": "voicepilot",
