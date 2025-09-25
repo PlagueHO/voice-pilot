@@ -4,13 +4,19 @@ import { OpenAIRealtimeWS } from "openai/beta/realtime/ws";
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
 import { TurnDetectionConfig } from '../types/configuration';
+import type { TranscriptionOptions } from '../types/speech-to-text';
 import { RealtimeTurnEvent } from './turn-detection-coordinator';
-import { createDefaultTurnDetectionConfig } from './turn-detection-defaults';
+import { normalizeTurnDetectionConfig } from './turn-detection-defaults';
 
 export interface RealtimeAudioConfig {
   endpoint: string;
   deploymentName: string;
   apiVersion: string;
+  model?: string;
+  transcriptionModel?: string;
+  inputAudioFormat?: 'pcm16' | 'pcm24' | 'pcm32';
+  locale?: string;
+  profanityFilter?: 'none' | 'medium' | 'high';
   turnDetection?: TurnDetectionConfig;
 }
 
@@ -44,6 +50,7 @@ export class RealtimeAudioService implements ServiceInitializable {
   private logger: Logger;
   private config: RealtimeAudioConfig;
   private turnDetectionConfig: TurnDetectionConfig;
+  private responseBootstrapIssued = false;
 
   // Event callbacks
   private onTranscriptCallback?: (transcript: AudioTranscript) => void;
@@ -51,11 +58,12 @@ export class RealtimeAudioService implements ServiceInitializable {
   private onErrorCallback?: (error: Error) => void;
   private onSessionStateCallback?: (state: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
   private onTurnEventCallback?: (event: RealtimeTurnEvent) => void;
+  private realtimeMessageHandlers = new Set<(message: { type: string; data: any }) => void>();
 
   constructor(config: RealtimeAudioConfig, logger?: Logger) {
     this.config = { ...config };
     this.logger = logger || new Logger('RealtimeAudioService');
-    this.turnDetectionConfig = config.turnDetection ? { ...config.turnDetection } : createDefaultTurnDetectionConfig();
+  this.turnDetectionConfig = normalizeTurnDetectionConfig(config.turnDetection);
   }
 
   async initialize(): Promise<void> {
@@ -126,6 +134,7 @@ export class RealtimeAudioService implements ServiceInitializable {
       this.logger.info("Realtime connection opened");
       this.isConnected = true;
       this.onSessionStateCallback?.('connected');
+      this.responseBootstrapIssued = false;
       this.sendSessionUpdate('connection_open');
     });
 
@@ -133,6 +142,7 @@ export class RealtimeAudioService implements ServiceInitializable {
       this.logger.info("Realtime connection closed");
       this.isConnected = false;
       this.isRecording = false;
+      this.responseBootstrapIssued = false;
       this.onSessionStateCallback?.('disconnected');
     });
 
@@ -150,26 +160,25 @@ export class RealtimeAudioService implements ServiceInitializable {
 
     this.realtimeClient.on("session.created", (event) => {
       this.logger.debug("Session created", { session: event.session });
+      this.emitRealtimeMessage('session.created', event);
     });
 
     // Handle text output deltas (real-time transcription)
     this.realtimeClient.on("response.text.delta", (event: any) => {
-      const transcript: AudioTranscript = {
-        text: event.delta,
-        timestamp: Date.now(),
-        isFinal: false
-      };
-      this.onTranscriptCallback?.(transcript);
+      this.emitRealtimeMessage('response.text.delta', event);
+      this.emitTranscript(event?.delta, false);
     });
 
     // Handle final text output
-    this.realtimeClient.on("response.text.done", () => {
+    this.realtimeClient.on("response.text.done", (event: any) => {
       this.logger.debug("Text output completed");
+      this.emitRealtimeMessage('response.text.done', event);
       // Could emit a final transcript marker here if needed
     });
 
     // Handle audio output deltas (synthesized speech)
     this.realtimeClient.on("response.audio.delta", (event: any) => {
+      this.emitRealtimeMessage('response.audio.delta', event);
       try {
         const buffer = Buffer.from(event.delta, "base64");
         const audioChunk: AudioChunk = {
@@ -185,21 +194,19 @@ export class RealtimeAudioService implements ServiceInitializable {
 
     // Handle audio transcript deltas (what the AI is saying)
     this.realtimeClient.on("response.audio_transcript.delta", (event: any) => {
-      const transcript: AudioTranscript = {
-        text: event.delta,
-        timestamp: Date.now(),
-        isFinal: false
-      };
-      this.onTranscriptCallback?.(transcript);
+      this.emitRealtimeMessage('response.audio_transcript.delta', event);
+      this.emitTranscript(event?.delta, false);
       this.logger.debug(`AI transcript delta: ${event.delta}`);
     });
 
     // Handle response completion
-    this.realtimeClient.on("response.done", () => {
+    this.realtimeClient.on("response.done", (event: any) => {
       this.logger.debug("Response completed");
+      this.emitRealtimeMessage('response.done', event);
     });
 
     this.realtimeClient.on("input_audio_buffer.speech_started", (event: any) => {
+      this.emitRealtimeMessage('input_audio_buffer.speech_started', event);
       this.dispatchTurnEvent({
         type: 'speech-start',
         timestamp: Date.now(),
@@ -208,6 +215,7 @@ export class RealtimeAudioService implements ServiceInitializable {
     });
 
     this.realtimeClient.on("input_audio_buffer.speech_stopped", (event: any) => {
+      this.emitRealtimeMessage('input_audio_buffer.speech_stopped', event);
       this.dispatchTurnEvent({
         type: 'speech-stop',
         timestamp: Date.now(),
@@ -216,9 +224,13 @@ export class RealtimeAudioService implements ServiceInitializable {
     });
   }
 
-  setTurnDetectionConfig(config: TurnDetectionConfig): void {
-    this.turnDetectionConfig = { ...config };
-    if (this.isConnected && this.realtimeClient) {
+  setTurnDetectionConfig(config: TurnDetectionConfig, emitUpdate = true): void {
+  const previousCreateResponse = this.turnDetectionConfig?.createResponse;
+  this.turnDetectionConfig = normalizeTurnDetectionConfig(config);
+    if (previousCreateResponse !== false && this.turnDetectionConfig.createResponse === false) {
+      this.responseBootstrapIssued = false;
+    }
+    if (emitUpdate && this.isConnected && this.realtimeClient) {
       try {
         this.sendSessionUpdate('turn_detection_config_changed');
       } catch (error: any) {
@@ -240,13 +252,20 @@ export class RealtimeAudioService implements ServiceInitializable {
       type: "session.update",
       session: sessionPayload
     });
-    this.logger.debug('Session update sent', { reason, mode: this.turnDetectionConfig.mode });
+    this.logger.debug('Session update sent', { reason, turnDetectionType: this.turnDetectionConfig.type });
+    if (this.turnDetectionConfig.createResponse === false && !this.responseBootstrapIssued) {
+      this.realtimeClient.send({ type: 'response.create' });
+      this.responseBootstrapIssued = true;
+      this.logger.debug('response.create dispatched to bootstrap transcription', { reason });
+    }
   }
 
   private composeSessionPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     const payload: Record<string, unknown> = {
       modalities: ["text", "audio"],
-      model: this.config.deploymentName || "gpt-4o-realtime-preview"
+      model: this.config.model ?? this.config.deploymentName ?? "gpt-realtime",
+      input_audio_format: this.config.inputAudioFormat ?? 'pcm16',
+      input_audio_transcription: this.composeTranscriptionPayload()
     };
     const turnDetection = this.buildTurnDetectionPayload();
     if (turnDetection) {
@@ -255,35 +274,58 @@ export class RealtimeAudioService implements ServiceInitializable {
     return { ...payload, ...overrides };
   }
 
+  private composeTranscriptionPayload(): Record<string, unknown> {
+    const transcription: Record<string, unknown> = {
+      model: this.config.transcriptionModel ?? 'whisper-1'
+    };
+    if (this.config.locale) {
+      transcription.locale = this.config.locale;
+    }
+    if (this.config.profanityFilter) {
+      transcription.profanity_filter = this.config.profanityFilter;
+    }
+    return transcription;
+  }
+
   private buildTurnDetectionPayload(): Record<string, unknown> | undefined {
     const cfg = this.turnDetectionConfig;
-    switch (cfg.mode) {
-      case 'manual':
+    switch (cfg.type) {
+      case 'none':
         return {
           type: 'none',
-          create_response: false,
-          interrupt_response: false
+          create_response: cfg.createResponse ?? false,
+          interrupt_response: cfg.interruptResponse ?? false
         };
       case 'semantic_vad':
-        return {
+        return this.stripUndefined({
           type: 'semantic_vad',
           prefix_padding_ms: cfg.prefixPaddingMs,
           silence_duration_ms: cfg.silenceDurationMs,
           create_response: cfg.createResponse,
           interrupt_response: cfg.interruptResponse,
-          eagerness: cfg.eagerness
-        };
+          eagerness: cfg.eagerness ?? 'auto'
+        });
       case 'server_vad':
       default:
-        return {
+        return this.stripUndefined({
           type: 'server_vad',
           threshold: cfg.threshold,
           prefix_padding_ms: cfg.prefixPaddingMs,
           silence_duration_ms: cfg.silenceDurationMs,
           create_response: cfg.createResponse,
           interrupt_response: cfg.interruptResponse
-        };
+        });
     }
+  }
+
+  private stripUndefined<T extends Record<string, unknown>>(payload: T): T {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (value !== undefined) {
+        result[key] = value;
+      }
+    }
+    return result as T;
   }
 
   private dispatchTurnEvent(event: RealtimeTurnEvent): void {
@@ -294,6 +336,35 @@ export class RealtimeAudioService implements ServiceInitializable {
       this.onTurnEventCallback({ ...event });
     } catch (error: any) {
       this.logger.error('Turn detection event handler failed', { error: error?.message || error, type: event.type });
+    }
+  }
+
+  private emitRealtimeMessage(type: string, data: any): void {
+    if (this.realtimeMessageHandlers.size === 0) {
+      return;
+    }
+    for (const handler of Array.from(this.realtimeMessageHandlers)) {
+      try {
+        handler({ type, data });
+      } catch (error: any) {
+        this.logger.error('Realtime message handler failed', { error: error?.message || error, type });
+      }
+    }
+  }
+
+  private emitTranscript(text: string | undefined, isFinal: boolean): void {
+    if (!text || !this.onTranscriptCallback) {
+      return;
+    }
+    const transcript: AudioTranscript = {
+      text,
+      timestamp: Date.now(),
+      isFinal
+    };
+    try {
+      this.onTranscriptCallback(transcript);
+    } catch (error: any) {
+      this.logger.error('Transcript handler failed', { error: error?.message || error, isFinal });
     }
   }
 
@@ -450,6 +521,15 @@ export class RealtimeAudioService implements ServiceInitializable {
     this.onTurnEventCallback = callback;
   }
 
+  onRealtimeMessage(handler: (message: { type: string; data: any }) => void): { dispose(): void } {
+    this.realtimeMessageHandlers.add(handler);
+    return {
+      dispose: () => {
+        this.realtimeMessageHandlers.delete(handler);
+      }
+    };
+  }
+
   /**
    * Update session configuration
    */
@@ -464,6 +544,54 @@ export class RealtimeAudioService implements ServiceInitializable {
     } catch (error: any) {
       this.logger.error('Failed to update session config', { error: error.message });
       throw error;
+    }
+  }
+
+  updateTranscriptionOptions(options: Partial<TranscriptionOptions>): void {
+    let requiresUpdate = false;
+
+    if (options.model && options.model !== this.config.model) {
+      this.config.model = options.model;
+      requiresUpdate = true;
+    }
+
+    if (options.apiVersion && options.apiVersion !== this.config.apiVersion) {
+      this.config.apiVersion = options.apiVersion;
+      requiresUpdate = true;
+    }
+
+    if (options.transcriptionModel && options.transcriptionModel !== this.config.transcriptionModel) {
+      this.config.transcriptionModel = options.transcriptionModel;
+      requiresUpdate = true;
+    }
+
+    if (options.inputAudioFormat && options.inputAudioFormat !== this.config.inputAudioFormat) {
+      this.config.inputAudioFormat = options.inputAudioFormat;
+      requiresUpdate = true;
+    }
+
+    if (options.locale && options.locale !== this.config.locale) {
+      this.config.locale = options.locale;
+      requiresUpdate = true;
+    }
+
+    if (options.profanityFilter && options.profanityFilter !== this.config.profanityFilter) {
+      this.config.profanityFilter = options.profanityFilter;
+      requiresUpdate = true;
+    }
+
+    if (options.turnDetection) {
+      this.setTurnDetectionConfig(options.turnDetection, false);
+      requiresUpdate = true;
+    }
+
+    if (typeof options.turnDetectionCreateResponse === 'boolean') {
+      this.setTurnDetectionConfig({ ...this.turnDetectionConfig, createResponse: options.turnDetectionCreateResponse }, false);
+      requiresUpdate = true;
+    }
+
+    if (requiresUpdate && this.isConnected && this.realtimeClient) {
+      this.sendSessionUpdate('transcription_options_updated');
     }
   }
 }

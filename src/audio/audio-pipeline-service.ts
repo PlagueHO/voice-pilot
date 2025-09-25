@@ -16,7 +16,7 @@ import { TurnDetectionConfig } from '../types/configuration';
 import { AudioCapture } from './audio-capture';
 import { AudioChunk, AudioTranscript, RealtimeAudioConfig, RealtimeAudioService } from './realtime-audio-service';
 import { AzureTurnDetectionCoordinator, RealtimeTurnEvent } from './turn-detection-coordinator';
-import { createDefaultTurnDetectionConfig } from './turn-detection-defaults';
+import { normalizeTurnDetectionConfig } from './turn-detection-defaults';
 
 export interface AudioPipelineConfig {
     realtime: RealtimeAudioConfig;
@@ -73,7 +73,7 @@ export class AudioPipelineService implements ServiceInitializable {
             realtime: { ...config.realtime }
         };
         this.logger = logger || new Logger('AudioPipelineService');
-        this.turnDetectionConfig = this.config.realtime.turnDetection ? { ...this.config.realtime.turnDetection } : createDefaultTurnDetectionConfig();
+        this.turnDetectionConfig = normalizeTurnDetectionConfig(this.config.realtime.turnDetection);
         this.turnDetectionCoordinator = new AzureTurnDetectionCoordinator(this.turnDetectionConfig, this.logger);
 
         // Initialize components
@@ -327,7 +327,7 @@ export class AudioPipelineService implements ServiceInitializable {
     }
 
     async updateTurnDetection(config: TurnDetectionConfig): Promise<void> {
-        this.turnDetectionConfig = { ...config };
+    this.turnDetectionConfig = normalizeTurnDetectionConfig(config);
         this.config.realtime.turnDetection = this.turnDetectionConfig;
         this.realtimeService.setTurnDetectionConfig(this.turnDetectionConfig);
         if (!this.turnDetectionCoordinator.isInitialized()) {

@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
-import { AudioConfig, AzureOpenAIConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, GitHubConfig, ValidationResult } from '../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, GitHubConfig, ValidationResult } from '../types/configuration';
 import { AudioSection } from './sections/audio-config-section';
 import { AzureOpenAISection } from './sections/azure-openai-config-section';
+import { AzureOpenAIRealtimeSection } from './sections/azure-openai-realtime-config-section';
 import { CommandsSection } from './sections/commands-config-section';
 import { GitHubSection } from './sections/github-config-section';
 import { ConfigurationValidator } from './validators/configuration-validator';
@@ -26,6 +27,7 @@ export class ConfigurationManager implements ServiceInitializable {
   // Section singletons
   private azureOpenAISection: AzureOpenAISection;
   private audioSection: AudioSection;
+  private azureRealtimeSection: AzureOpenAIRealtimeSection;
   private commandsSection: CommandsSection;
   private gitHubSection: GitHubSection;
   private validator: ConfigurationValidator;
@@ -44,11 +46,13 @@ export class ConfigurationManager implements ServiceInitializable {
   this.context = context as vscode.ExtensionContext;
   this.logger = logger as Logger;
   this.azureOpenAISection = new AzureOpenAISection();
-    this.audioSection = new AudioSection();
+  this.azureRealtimeSection = new AzureOpenAIRealtimeSection();
+  this.audioSection = new AudioSection();
     this.commandsSection = new CommandsSection();
     this.gitHubSection = new GitHubSection();
     this.validator = new ConfigurationValidator(this.logger, {
       getAzureOpenAI: () => this.getAzureOpenAIConfig(),
+      getAzureRealtime: () => this.getAzureRealtimeConfig(),
       getAudio: () => this.getAudioConfig(),
       getCommands: () => this.getCommandsConfig(),
       getGitHub: () => this.getGitHubConfig()
@@ -87,6 +91,7 @@ export class ConfigurationManager implements ServiceInitializable {
 
   // Accessors --------------------------------------------------------------
   getAzureOpenAIConfig(): AzureOpenAIConfig { return this.cached('azureOpenAI', () => this.azureOpenAISection.read()); }
+  getAzureRealtimeConfig(): AzureRealtimeConfig { return this.cached('azureRealtime', () => this.azureRealtimeSection.read()); }
   // AzureSpeech config removed; callers should use Azure OpenAI realtime settings
   getAudioConfig(): AudioConfig { return this.cached('audio', () => this.audioSection.read()); }
   getCommandsConfig(): CommandsConfig { return this.cached('commands', () => this.commandsSection.read()); }
@@ -119,6 +124,7 @@ export class ConfigurationManager implements ServiceInitializable {
   private refreshAll() {
     this.cache.clear();
     this.getAzureOpenAIConfig();
+    this.getAzureRealtimeConfig();
   // removed: getAzureSpeechConfig
     this.getAudioConfig();
     this.getCommandsConfig();
@@ -182,6 +188,10 @@ export class ConfigurationManager implements ServiceInitializable {
     switch (section) {
       case 'azureOpenAI':
         base.push('azureService');
+        break;
+      case 'azureRealtime':
+        base.push('azureService');
+        base.push('transcriptionService');
         break;
       case 'audio':
         base.push('audioService');

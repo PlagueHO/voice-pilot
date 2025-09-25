@@ -81,6 +81,63 @@
           ],
           "description": "Azure region for OpenAI service"
         },
+        "voicepilot.azureOpenAI.apiVersion": {
+          "type": "string",
+          "default": "2025-04-01-preview",
+          "description": "Azure OpenAI API version used for realtime sessions"
+        },
+        "voicepilot.azureRealtime.model": {
+          "type": "string",
+          "default": "gpt-realtime",
+          "description": "Azure OpenAI realtime model identifier"
+        },
+        "voicepilot.azureRealtime.apiVersion": {
+          "type": "string",
+          "default": "2025-08-28",
+          "description": "Realtime API version for Azure OpenAI"
+        },
+        "voicepilot.azureRealtime.transcriptionModel": {
+          "type": "string",
+          "default": "whisper-1",
+          "description": "Azure transcription model used for input_audio_transcription"
+        },
+        "voicepilot.azureRealtime.inputAudioFormat": {
+          "type": "string",
+          "default": "pcm16",
+          "enum": [
+            "pcm16",
+            "pcm24",
+            "pcm32"
+          ],
+          "description": "PCM format for microphone audio frames"
+        },
+        "voicepilot.azureRealtime.locale": {
+          "type": "string",
+          "default": "en-US",
+          "description": "Locale hint for Azure realtime transcription"
+        },
+        "voicepilot.azureRealtime.profanityFilter": {
+          "type": "string",
+          "default": "medium",
+          "enum": [
+            "none",
+            "medium",
+            "high"
+          ],
+          "description": "Profanity filter level applied to transcripts"
+        },
+        "voicepilot.azureRealtime.interimDebounceMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "description": "Debounce window in milliseconds for partial transcript updates"
+        },
+        "voicepilot.azureRealtime.maxTranscriptHistorySeconds": {
+          "type": "number",
+          "default": 120,
+          "minimum": 10,
+          "description": "Maximum seconds of transcript history retained for recovery"
+        },
         "voicepilot.audio.inputDevice": {
           "type": "string",
           "default": "default",
@@ -111,13 +168,13 @@
           ],
           "description": "Audio sample rate in Hz"
         },
-        "voicepilot.audio.turnDetection.mode": {
+        "voicepilot.audio.turnDetection.type": {
           "type": "string",
           "default": "server_vad",
           "enum": [
             "server_vad",
             "semantic_vad",
-            "manual"
+            "none"
           ],
           "description": "Turn detection strategy for realtime sessions"
         },

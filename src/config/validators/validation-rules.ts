@@ -1,7 +1,11 @@
-import { AudioConfig, AzureOpenAIConfig, CommandsConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
 
 export interface RuleContext {
-  azureOpenAI: AzureOpenAIConfig; audio: AudioConfig; commands: CommandsConfig; github: GitHubConfig;
+  azureOpenAI: AzureOpenAIConfig;
+  azureRealtime: AzureRealtimeConfig;
+  audio: AudioConfig;
+  commands: CommandsConfig;
+  github: GitHubConfig;
 }
 export type RuleResult = { errors: ValidationError[]; warnings: ValidationWarning[] };
 export type ValidationRule = (ctx: RuleContext) => RuleResult | Promise<RuleResult>;
@@ -55,26 +59,40 @@ export const turnDetectionRule: ValidationRule = ({ audio }) => {
     errors.push(err('voicepilot.audio.turnDetection','Turn detection configuration missing','TURN_DETECTION_MISSING','Reset settings to restore defaults.'));
     return { errors, warnings };
   }
-  if (td.threshold < 0 || td.threshold > 1) {
+  if (typeof td.threshold === 'number' && (td.threshold < 0 || td.threshold > 1)) {
     errors.push(err('voicepilot.audio.turnDetection.threshold','Turn detection threshold must be between 0.0 and 1.0','TURN_THRESHOLD_OUT_OF_RANGE','Choose a value between 0.0 and 1.0.'));
   }
-  if (td.prefixPaddingMs < 0) {
+  if (typeof td.prefixPaddingMs === 'number' && td.prefixPaddingMs < 0) {
     errors.push(err('voicepilot.audio.turnDetection.prefixPaddingMs','Prefix padding must be >= 0 ms','PREFIX_PADDING_NEGATIVE','Increase prefix padding to at least 0 ms.'));
   }
-  if (td.silenceDurationMs < 0) {
+  if (typeof td.silenceDurationMs === 'number' && td.silenceDurationMs < 0) {
     errors.push(err('voicepilot.audio.turnDetection.silenceDurationMs','Silence duration must be >= 0 ms','SILENCE_DURATION_NEGATIVE','Increase silence duration to at least 0 ms.'));
   }
-  if (td.silenceDurationMs > 5000) {
+  if (typeof td.silenceDurationMs === 'number' && td.silenceDurationMs > 5000) {
     warnings.push({ path: 'voicepilot.audio.turnDetection.silenceDurationMs', message: 'High silence duration may delay responses', code: 'SILENCE_DURATION_HIGH', remediation: 'Consider using a value under 5000 ms' });
   }
-  if (td.silenceDurationMs < 150) {
+  if (typeof td.silenceDurationMs === 'number' && td.silenceDurationMs < 150) {
     warnings.push({ path: 'voicepilot.audio.turnDetection.silenceDurationMs', message: 'Low silence duration can cause abrupt turn endings', code: 'SILENCE_DURATION_LOW', remediation: 'Set to at least 150 ms for natural pacing.' });
   }
-  if (td.mode !== 'semantic_vad' && td.eagerness !== 'auto') {
+  if (td.type !== 'semantic_vad' && td.eagerness && td.eagerness !== 'auto') {
     warnings.push({ path: 'voicepilot.audio.turnDetection.eagerness', message: 'Eagerness applies to semantic_vad only and will be ignored in current mode', code: 'EAGERNESS_IGNORED', remediation: 'Switch mode to semantic_vad to use eagerness.' });
   }
-  if (td.mode === 'manual' && td.createResponse) {
-    warnings.push({ path: 'voicepilot.audio.turnDetection.createResponse', message: 'Manual mode ignores automatic response creation', code: 'MANUAL_MODE_AUTOCREATE', remediation: 'Disable createResponse or switch to server-managed mode.' });
+  if (td.type === 'none' && td.createResponse) {
+    warnings.push({ path: 'voicepilot.audio.turnDetection.createResponse', message: 'Manual turn detection ignores automatic response creation', code: 'MANUAL_MODE_AUTOCREATE', remediation: 'Disable createResponse or choose a server-managed turn detection type.' });
+  }
+  return { errors, warnings };
+};
+
+export const azureRealtimeRule: ValidationRule = ({ azureRealtime }) => {
+  const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
+  if (azureRealtime.interimDebounceMs < 50 || azureRealtime.interimDebounceMs > 1000) {
+    warnings.push({ path: 'voicepilot.azureRealtime.interimDebounceMs', message: 'Interim debounce should be between 50ms and 1000ms for responsive transcripts', code: 'DEBOUNCE_RANGE', remediation: 'Set a value between 50 and 1000 milliseconds.' });
+  }
+  if (azureRealtime.maxTranscriptHistorySeconds < 30) {
+    warnings.push({ path: 'voicepilot.azureRealtime.maxTranscriptHistorySeconds', message: 'Transcript history below 30 seconds may impact reconnection recovery', code: 'TRANSCRIPT_HISTORY_LOW', remediation: 'Increase to at least 30 seconds (default 120).' });
+  }
+  if (azureRealtime.maxTranscriptHistorySeconds > 600) {
+    warnings.push({ path: 'voicepilot.azureRealtime.maxTranscriptHistorySeconds', message: 'Large transcript history (>600s) can increase memory consumption', code: 'TRANSCRIPT_HISTORY_HIGH', remediation: 'Consider keeping the cache under 600 seconds.' });
   }
   return { errors, warnings };
 };
@@ -83,4 +101,4 @@ export const turnDetectionRule: ValidationRule = ({ audio }) => {
 export const audioDevicesRule: ValidationRule = () => ({ errors: [], warnings: [] });
 export const networkReachabilityRule: ValidationRule = () => ({ errors: [], warnings: [] });
 
-export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, audioDevicesRule, networkReachabilityRule];
+export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, audioDevicesRule, networkReachabilityRule];

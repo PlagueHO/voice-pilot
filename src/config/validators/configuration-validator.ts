@@ -8,10 +8,11 @@ export class ConfigurationValidator {
   async validateAll(): Promise<ValidationResult> {
     const ctx: RuleContext = {
       azureOpenAI: this.access.getAzureOpenAI(),
+      azureRealtime: this.access.getAzureRealtime(),
       audio: this.access.getAudio(),
       commands: this.access.getCommands(),
       github: this.access.getGitHub()
-    } as any;
+    };
     const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
     for (const rule of allRules) {
       try {

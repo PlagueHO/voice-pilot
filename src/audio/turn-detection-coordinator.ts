@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
-import { TurnDetectionConfig, TurnDetectionMode } from '../types/configuration';
-import { createDefaultTurnDetectionConfig } from './turn-detection-defaults';
+import { TurnDetectionConfig } from '../types/configuration';
+import { createDefaultTurnDetectionConfig, normalizeTurnDetectionConfig } from './turn-detection-defaults';
 
 export type TurnDetectionEventType =
   | 'mode-changed'
@@ -19,7 +19,7 @@ export interface TurnDetectionDiagnostics {
 }
 
 export interface TurnDetectionState {
-  mode: TurnDetectionMode;
+  mode: TurnDetectionConfig['type'];
   lastSpeechStart?: number;
   lastSpeechStop?: number;
   pendingResponse?: boolean;
@@ -38,7 +38,7 @@ export interface TurnDetectionCoordinatorEvent {
   state: TurnDetectionState;
   event?: RealtimeTurnEvent;
   config?: TurnDetectionConfig;
-  previousMode?: TurnDetectionMode;
+  previousMode?: TurnDetectionConfig['type'];
   metadata?: Record<string, unknown>;
 }
 
@@ -53,7 +53,7 @@ export interface HybridFallbackAdapter {
 export interface TurnDetectionCoordinator extends ServiceInitializable {
   configure(params: TurnDetectionConfig): Promise<void>;
   handleServerEvent(event: RealtimeTurnEvent): void;
-  requestModeChange(mode: TurnDetectionMode): Promise<void>;
+  requestModeChange(mode: TurnDetectionConfig['type']): Promise<void>;
   getState(): TurnDetectionState;
   on(event: TurnDetectionEventType, listener: TurnDetectionEventListener): vscode.Disposable;
   registerFallbackAdapter(adapter: HybridFallbackAdapter | undefined): void;
@@ -76,10 +76,10 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
 
   constructor(initialConfig?: TurnDetectionConfig, logger?: Logger) {
     this.logger = logger ?? new Logger('TurnDetectionCoordinator');
-    const normalized = this.normalizeConfig(initialConfig ?? createDefaultTurnDetectionConfig());
+  const normalized = normalizeTurnDetectionConfig(initialConfig ?? createDefaultTurnDetectionConfig());
     this.config = normalized;
     this.state = {
-      mode: normalized.mode,
+      mode: normalized.type,
       pendingResponse: normalized.createResponse,
       diagnostics: {
         avgStartLatencyMs: 0,
@@ -113,20 +113,20 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
 
   async configure(params: TurnDetectionConfig): Promise<void> {
     this.ensureInitialized('configure');
-    const normalized = this.normalizeConfig(params);
-    const previousMode = this.config.mode;
+  const normalized = normalizeTurnDetectionConfig(params);
+    const previousMode = this.config.type;
     this.config = normalized;
-    this.state.mode = normalized.mode;
+    this.state.mode = normalized.type;
     this.state.pendingResponse = normalized.createResponse;
     this.emit('config-updated', { config: this.cloneConfig() });
-    if (previousMode !== normalized.mode) {
+    if (previousMode !== normalized.type) {
       this.syncFallbackForMode();
       this.emit('mode-changed', { config: this.cloneConfig(), previousMode });
     }
   }
 
-  async requestModeChange(mode: TurnDetectionMode): Promise<void> {
-    await this.configure({ ...this.config, mode });
+  async requestModeChange(mode: TurnDetectionConfig['type']): Promise<void> {
+    await this.configure({ ...this.config, type: mode });
   }
 
   handleServerEvent(event: RealtimeTurnEvent): void {
@@ -198,15 +198,6 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
-  private normalizeConfig(config: TurnDetectionConfig): TurnDetectionConfig {
-    const normalized: TurnDetectionConfig = { ...config };
-    normalized.threshold = this.clamp(normalized.threshold, 0, 1);
-    normalized.prefixPaddingMs = Math.max(0, Math.round(normalized.prefixPaddingMs));
-    normalized.silenceDurationMs = Math.max(0, Math.round(normalized.silenceDurationMs));
-    normalized.eagerness = normalized.mode === 'semantic_vad' ? normalized.eagerness : 'auto';
-    return normalized;
-  }
-
   private updateLatency(kind: 'start' | 'stop', event: RealtimeTurnEvent): void {
     const latency = typeof event.latencyMs === 'number' ? event.latencyMs : this.deriveLatency(event.timestamp);
     if (latency === undefined) {
@@ -247,7 +238,7 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
   }
 
   private syncFallbackForMode(): void {
-    if (this.state.mode === 'manual' && this.state.diagnostics.fallbackActive) {
+    if (this.state.mode === 'none' && this.state.diagnostics.fallbackActive) {
       this.setFallbackState(false, 'mode_switch_manual');
     }
   }
@@ -288,10 +279,4 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     return { ...this.config };
   }
 
-  private clamp(value: number, min: number, max: number): number {
-    if (Number.isNaN(value)) {
-      return min;
-    }
-    return Math.min(Math.max(value, min), max);
-  }
 }

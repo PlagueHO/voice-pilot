@@ -6,6 +6,17 @@ export interface AzureOpenAIConfig {
   apiKey?: string; // secret storage
 }
 
+export interface AzureRealtimeConfig {
+  model: string;
+  apiVersion: string;
+  transcriptionModel: string;
+  inputAudioFormat: 'pcm16' | 'pcm24' | 'pcm32';
+  locale: string;
+  profanityFilter: 'none' | 'medium' | 'high';
+  interimDebounceMs: number;
+  maxTranscriptHistorySeconds: number;
+}
+
 export interface AudioConfig {
   inputDevice: string;
   outputDevice: string;
@@ -15,16 +26,14 @@ export interface AudioConfig {
   turnDetection: TurnDetectionConfig;
 }
 
-export type TurnDetectionMode = 'server_vad' | 'semantic_vad' | 'manual';
-
 export interface TurnDetectionConfig {
-  mode: TurnDetectionMode;
-  threshold: number;
-  prefixPaddingMs: number;
-  silenceDurationMs: number;
-  createResponse: boolean;
-  interruptResponse: boolean;
-  eagerness: 'low' | 'auto' | 'high';
+  type: 'none' | 'server_vad' | 'semantic_vad';
+  threshold?: number;
+  prefixPaddingMs?: number;
+  silenceDurationMs?: number;
+  createResponse?: boolean;
+  interruptResponse?: boolean;
+  eagerness?: 'low' | 'auto' | 'high';
 }
 
 export interface CommandsConfig {
@@ -51,4 +60,10 @@ export interface ConfigurationChange {
 }
 export interface ConfigurationChangeHandler { (change: ConfigurationChange): Promise<void>; }
 
-export interface ConfigurationAccessors { getAzureOpenAI(): AzureOpenAIConfig; getAudio(): AudioConfig; getCommands(): CommandsConfig; getGitHub(): GitHubConfig; }
+export interface ConfigurationAccessors {
+  getAzureOpenAI(): AzureOpenAIConfig;
+  getAzureRealtime(): AzureRealtimeConfig;
+  getAudio(): AudioConfig;
+  getCommands(): CommandsConfig;
+  getGitHub(): GitHubConfig;
+}
