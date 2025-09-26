@@ -1,5 +1,15 @@
 import { AudioMetrics } from '../types/audio-capture';
 
+export interface ConversationInterruptionMetrics {
+    totalInterruptions: number;
+    recentLatencyMs: number;
+    averageLatencyMs: number;
+    fallbackActivations: number;
+    lastFallbackAt?: number;
+    cooldownActivations: number;
+    updatedAt: number;
+}
+
 const EPSILON = 1e-8;
 
 export function createEmptyMetrics(): AudioMetrics {
@@ -78,6 +88,55 @@ export function mergeMetrics(previous: AudioMetrics, next: Partial<AudioMetrics>
     return {
         ...previous,
         ...next,
+        updatedAt: Date.now()
+    };
+}
+
+export function createInterruptionMetrics(): ConversationInterruptionMetrics {
+    return {
+        totalInterruptions: 0,
+        recentLatencyMs: 0,
+        averageLatencyMs: 0,
+        fallbackActivations: 0,
+        cooldownActivations: 0,
+        updatedAt: Date.now()
+    };
+}
+
+export function recordInterruptionLatency(
+    metrics: ConversationInterruptionMetrics,
+    latencyMs: number
+): ConversationInterruptionMetrics {
+    const totalInterruptions = metrics.totalInterruptions + 1;
+    const averageLatencyMs =
+        metrics.averageLatencyMs + (latencyMs - metrics.averageLatencyMs) / totalInterruptions;
+    return {
+        ...metrics,
+        totalInterruptions,
+        recentLatencyMs: latencyMs,
+        averageLatencyMs,
+        updatedAt: Date.now()
+    };
+}
+
+export function incrementFallbackActivations(
+    metrics: ConversationInterruptionMetrics,
+    timestamp: number
+): ConversationInterruptionMetrics {
+    return {
+        ...metrics,
+        fallbackActivations: metrics.fallbackActivations + 1,
+        lastFallbackAt: timestamp,
+        updatedAt: Date.now()
+    };
+}
+
+export function incrementCooldownActivations(
+    metrics: ConversationInterruptionMetrics
+): ConversationInterruptionMetrics {
+    return {
+        ...metrics,
+        cooldownActivations: metrics.cooldownActivations + 1,
         updatedAt: Date.now()
     };
 }

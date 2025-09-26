@@ -11,7 +11,8 @@ export class ConfigurationValidator {
       azureRealtime: this.access.getAzureRealtime(),
       audio: this.access.getAudio(),
       commands: this.access.getCommands(),
-      github: this.access.getGitHub()
+      github: this.access.getGitHub(),
+      conversation: this.access.getConversation()
     };
     const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
     for (const rule of allRules) {

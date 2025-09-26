@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
-import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, GitHubConfig, ValidationResult } from '../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, ConversationConfig, GitHubConfig, ValidationResult } from '../types/configuration';
 import { AudioSection } from './sections/audio-config-section';
 import { AzureOpenAISection } from './sections/azure-openai-config-section';
 import { AzureOpenAIRealtimeSection } from './sections/azure-openai-realtime-config-section';
 import { CommandsSection } from './sections/commands-config-section';
+import { ConversationSection } from './sections/conversation-config-section';
 import { GitHubSection } from './sections/github-config-section';
 import { ConfigurationValidator } from './validators/configuration-validator';
 
@@ -29,6 +30,7 @@ export class ConfigurationManager implements ServiceInitializable {
   private audioSection: AudioSection;
   private azureRealtimeSection: AzureOpenAIRealtimeSection;
   private commandsSection: CommandsSection;
+  private conversationSection: ConversationSection;
   private gitHubSection: GitHubSection;
   private validator: ConfigurationValidator;
 
@@ -49,13 +51,15 @@ export class ConfigurationManager implements ServiceInitializable {
   this.azureRealtimeSection = new AzureOpenAIRealtimeSection();
   this.audioSection = new AudioSection();
     this.commandsSection = new CommandsSection();
+    this.conversationSection = new ConversationSection();
     this.gitHubSection = new GitHubSection();
     this.validator = new ConfigurationValidator(this.logger, {
       getAzureOpenAI: () => this.getAzureOpenAIConfig(),
       getAzureRealtime: () => this.getAzureRealtimeConfig(),
       getAudio: () => this.getAudioConfig(),
       getCommands: () => this.getCommandsConfig(),
-      getGitHub: () => this.getGitHubConfig()
+      getGitHub: () => this.getGitHubConfig(),
+      getConversation: () => this.getConversationConfig()
     });
   }
 
@@ -96,6 +100,7 @@ export class ConfigurationManager implements ServiceInitializable {
   getAudioConfig(): AudioConfig { return this.cached('audio', () => this.audioSection.read()); }
   getCommandsConfig(): CommandsConfig { return this.cached('commands', () => this.commandsSection.read()); }
   getGitHubConfig(): GitHubConfig { return this.cached('github', () => this.gitHubSection.read()); }
+  getConversationConfig(): ConversationConfig { return this.cached('conversation', () => this.conversationSection.read()); }
 
   getDiagnostics(): ValidationResult | undefined { return this.lastValidation; }
 
@@ -129,6 +134,7 @@ export class ConfigurationManager implements ServiceInitializable {
     this.getAudioConfig();
     this.getCommandsConfig();
     this.getGitHubConfig();
+  this.getConversationConfig();
   }
 
   private async handleConfigurationChange(e: vscode.ConfigurationChangeEvent): Promise<void> {
@@ -198,6 +204,10 @@ export class ConfigurationManager implements ServiceInitializable {
         break;
       case 'commands':
         base.push('sessionManager');
+        break;
+      case 'conversation':
+        base.push('interruptionEngine');
+        base.push('audioService');
         break;
       case 'github':
         base.push('githubService');

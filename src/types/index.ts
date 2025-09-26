@@ -1,6 +1,7 @@
 export * from './audio-capture';
 export * from './audio-errors';
 export * from './configuration';
+export * from './conversation';
 export * from './credentials';
 export * from './ephemeral';
 export * from './realtime-events';

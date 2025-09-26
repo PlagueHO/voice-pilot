@@ -63,6 +63,15 @@ export interface GitHubConfig {
   authMode: 'auto' | 'token' | 'oauth';
 }
 
+export interface ConversationConfig {
+  policyProfile: 'default' | 'assertive' | 'hands-free' | 'custom';
+  interruptionBudgetMs: number;
+  completionGraceMs: number;
+  speechStopDebounceMs: number;
+  allowBargeIn: boolean;
+  fallbackMode: 'manual' | 'hybrid';
+}
+
 export interface ValidationWarning { path: string; message: string; code: string; remediation?: string; }
 export interface ValidationError { path: string; message: string; code: string; severity: 'error' | 'warning'; remediation?: string; }
 export interface ValidationResult { isValid: boolean; errors: ValidationError[]; warnings: ValidationWarning[]; }
@@ -82,4 +91,5 @@ export interface ConfigurationAccessors {
   getAudio(): AudioConfig;
   getCommands(): CommandsConfig;
   getGitHub(): GitHubConfig;
+  getConversation(): ConversationConfig;
 }

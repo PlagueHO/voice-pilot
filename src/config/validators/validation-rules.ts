@@ -1,4 +1,4 @@
-import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConversationConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
 
 export interface RuleContext {
   azureOpenAI: AzureOpenAIConfig;
@@ -6,6 +6,7 @@ export interface RuleContext {
   audio: AudioConfig;
   commands: CommandsConfig;
   github: GitHubConfig;
+  conversation: ConversationConfig;
 }
 export type RuleResult = { errors: ValidationError[]; warnings: ValidationWarning[] };
 export type ValidationRule = (ctx: RuleContext) => RuleResult | Promise<RuleResult>;
@@ -97,8 +98,27 @@ export const azureRealtimeRule: ValidationRule = ({ azureRealtime }) => {
   return { errors, warnings };
 };
 
+export const conversationPolicyRule: ValidationRule = ({ conversation }) => {
+  const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
+  if (conversation.interruptionBudgetMs <= 0 || conversation.interruptionBudgetMs > 750) {
+    errors.push(err('voicepilot.conversation.interruptionBudgetMs','Interruption budget must be between 1 and 750 ms','INTERRUPTION_BUDGET_OUT_OF_RANGE','Adjust the budget to stay within the allowed range.'));
+  }
+  if (conversation.completionGraceMs < 0) {
+    errors.push(err('voicepilot.conversation.completionGraceMs','Completion grace must be >= 0 ms','COMPLETION_GRACE_NEGATIVE','Increase completion grace to a non-negative value.'));
+  }
+  if (conversation.speechStopDebounceMs < 150) {
+    errors.push(err('voicepilot.conversation.speechStopDebounceMs','Speech stop debounce must be at least 150 ms','DEBOUNCE_TOO_LOW','Increase the debounce window to avoid premature assistant replies.'));
+  } else if (conversation.speechStopDebounceMs > 2000) {
+    warnings.push({ path: 'voicepilot.conversation.speechStopDebounceMs', message: 'High debounce may delay assistant responses', code: 'DEBOUNCE_TOO_HIGH', remediation: 'Consider using a value under 2000 ms.' });
+  }
+  if (conversation.fallbackMode === 'manual') {
+    warnings.push({ path: 'voicepilot.conversation.fallbackMode', message: 'Manual fallback requires manual recovery when Azure VAD degrades', code: 'FALLBACK_MANUAL', remediation: 'Use hybrid fallback for automatic recovery assistance.' });
+  }
+  return { errors, warnings };
+};
+
 // Placeholder stub rules for future expansion
 export const audioDevicesRule: ValidationRule = () => ({ errors: [], warnings: [] });
 export const networkReachabilityRule: ValidationRule = () => ({ errors: [], warnings: [] });
 
-export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, audioDevicesRule, networkReachabilityRule];
+export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, audioDevicesRule, networkReachabilityRule];

@@ -236,6 +236,52 @@
           "maximum": 300,
           "description": "Command timeout in seconds"
         },
+        "voicepilot.conversation.policyProfile": {
+          "type": "string",
+          "default": "default",
+          "enum": [
+            "default",
+            "assertive",
+            "hands-free",
+            "custom"
+          ],
+          "description": "Turn-taking policy controlling interruption sensitivity"
+        },
+        "voicepilot.conversation.interruptionBudgetMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 1,
+          "maximum": 750,
+          "description": "Maximum latency budget in milliseconds to cancel assistant playback after user speech"
+        },
+        "voicepilot.conversation.allowBargeIn": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow user speech to immediately interrupt assistant playback"
+        },
+        "voicepilot.conversation.completionGraceMs": {
+          "type": "number",
+          "default": 150,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Grace period in milliseconds after assistant speech before allowing user turn"
+        },
+        "voicepilot.conversation.speechStopDebounceMs": {
+          "type": "number",
+          "default": 200,
+          "minimum": 150,
+          "maximum": 2000,
+          "description": "Debounce duration in milliseconds after user silence before triggering assistant response"
+        },
+        "voicepilot.conversation.fallbackMode": {
+          "type": "string",
+          "default": "hybrid",
+          "enum": [
+            "manual",
+            "hybrid"
+          ],
+          "description": "Fallback strategy when realtime VAD becomes unreliable"
+        },
         "voicepilot.github.repository": {
           "type": "string",
           "default": "",
