@@ -311,8 +311,8 @@
     "views": {
       "voicepilot": [
         {
-          "id": "voicepilot.sidebar",
-          "name": "VoicePilot",
+          "id": "voicepilot.voiceControl",
+          "name": "Voice Control",
           "when": "voicepilot.activated",
           "icon": "resources/icon.svg"
         }

@@ -35,6 +35,7 @@ npm install
 # Install global packages
 echo "🌐 Installing global packages..."
 npm install -g @vscode/vsce
+npm install -g @github/copilot
 
 # Create test index file if missing
 echo "🧪 Setting up test environment..."

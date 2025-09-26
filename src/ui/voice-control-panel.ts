@@ -1,23 +1,63 @@
 import * as vscode from 'vscode';
-import { ServiceInitializable } from '../core/service-initializable';
-import { TurnEventDiagnostics } from '../types/conversation';
+import type { ServiceInitializable } from '../core/service-initializable';
+import type { TurnEventDiagnostics } from '../types/conversation';
+import { renderVoiceControlPanelHtml } from './templates/voice-control-panel.html';
+import {
+    createInitialPanelState,
+    deriveMicrophoneStatusFromState,
+    ensureEntryId,
+    isSessionActive,
+    MicrophoneStatus,
+    PanelActionMessage,
+    PanelFeedbackMessage,
+    PanelInboundMessage,
+    PanelOutboundMessage,
+    PanelStatus,
+    TranscriptEntry,
+    UserFacingError,
+    VoiceControlPanelState,
+    withTranscriptAppend,
+    withTranscriptCommit
+} from './voice-control-state';
 
-interface StatusUpdateOptions {
-  diagnostics?: TurnEventDiagnostics;
-  mode?: string;
-  fallback?: boolean;
-  detail?: string;
+type PanelAction = PanelActionMessage['action'];
+export type PanelActionHandler = (action: PanelAction) => Promise<void> | void;
+type PanelFeedbackHandler = (message: PanelFeedbackMessage) => void;
+
+interface SessionUpdatePayload {
+  sessionId?: string | null;
+  status?: PanelStatus;
+  statusLabel?: string;
+  statusMode?: string | null;
+  statusDetail?: string | null;
+  fallbackActive?: boolean;
+  sessionStartedAt?: string | null;
+  elapsedSeconds?: number | null;
+  renewalCountdownSeconds?: number | null;
+  diagnostics?: TurnEventDiagnostics | null;
+  error?: UserFacingError | null;
 }
 
-export class VoiceControlPanel implements ServiceInitializable {
+interface TurnStatusUpdateOptions {
+  mode?: string | null;
+  fallback?: boolean;
+  detail?: string | null;
+  status?: PanelStatus;
+  error?: UserFacingError | null;
+}
+
+export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewViewProvider {
+  public static readonly viewType = 'voicepilot.voiceControl';
+
+  private readonly actionHandlers = new Set<PanelActionHandler>();
+  private readonly feedbackHandlers = new Set<PanelFeedbackHandler>();
+  private readonly pendingMessages: PanelOutboundMessage[] = [];
+
   private initialized = false;
-  private panel: vscode.WebviewPanel | undefined;
-  private currentStatus = 'Idle';
-  private currentDiagnostics: TurnEventDiagnostics | undefined;
-  private currentMode: string | undefined;
-  private fallbackActive = false;
-  private fallbackReason: string | undefined;
-  private currentDetail: string | undefined;
+  private visible = false;
+  private registration?: vscode.Disposable;
+  private currentView?: vscode.WebviewView;
+  private state: VoiceControlPanelState = createInitialPanelState();
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -25,236 +65,508 @@ export class VoiceControlPanel implements ServiceInitializable {
     if (this.initialized) {
       return;
     }
+
+    this.registration = vscode.window.registerWebviewViewProvider(
+      VoiceControlPanel.viewType,
+      this,
+      {
+        webviewOptions: {
+          retainContextWhenHidden: true
+        }
+      }
+    );
+    this.context.subscriptions.push(this.registration);
     this.initialized = true;
+  }
+
+  dispose(): void {
+    this.registration?.dispose();
+    this.registration = undefined;
+    this.currentView = undefined;
+    this.pendingMessages.length = 0;
+    this.actionHandlers.clear();
+    this.feedbackHandlers.clear();
+    this.initialized = false;
+    this.visible = false;
   }
 
   isInitialized(): boolean {
     return this.initialized;
   }
 
-  dispose(): void {
-    if (this.panel) {
-      this.panel.dispose();
-      this.panel = undefined;
-    }
-    this.initialized = false;
-  }
-
-  async show(): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('VoiceControlPanel not initialized');
-    }
-
-    if (!this.panel) {
-      this.panel = vscode.window.createWebviewPanel(
-        'voicepilotConversation',
-        'VoicePilot Conversation',
-        vscode.ViewColumn.One,
-        { enableScripts: true }
-      );
-
-      this.panel.onDidDispose(() => {
-        this.panel = undefined;
-      });
-
-      this.panel.webview.html = this.render();
-    }
-
-    this.panel.reveal(vscode.ViewColumn.One);
-    this.postStatusUpdate();
-  }
-
-  updateTurnStatus(status: string, options?: StatusUpdateOptions): void {
-    this.currentStatus = status;
-    if (options?.diagnostics !== undefined) {
-      this.currentDiagnostics = options.diagnostics;
-    }
-    if (options?.mode !== undefined) {
-      this.currentMode = options.mode;
-    }
-    if (options?.fallback !== undefined) {
-      this.fallbackActive = options.fallback;
-    }
-    if (options?.detail !== undefined) {
-      this.currentDetail = options.detail;
-    }
-
-    this.postStatusUpdate();
-  }
-
-  updateDiagnostics(diagnostics: TurnEventDiagnostics | undefined): void {
-    this.currentDiagnostics = diagnostics;
-    this.postStatusUpdate();
-  }
-
-  setFallbackState(active: boolean, reason?: string): void {
-    this.fallbackActive = active;
-    this.fallbackReason = reason;
-    this.postStatusUpdate();
-  }
-
   isVisible(): boolean {
-    return !!this.panel;
+    return this.visible;
   }
 
-  private postStatusUpdate(): void {
-    if (!this.panel) {
+  async show(preserveFocus = false): Promise<void> {
+    await this.reveal(preserveFocus);
+  }
+
+  async reveal(preserveFocus = false): Promise<void> {
+    this.visible = true;
+
+    if (this.currentView) {
+      try {
+        this.currentView.show?.(preserveFocus);
+      } catch (error) {
+        console.warn('VoicePilot: Failed to reveal voice control panel view', error);
+      }
       return;
     }
 
-    void this.panel.webview.postMessage({
-      type: 'status',
-      status: this.currentStatus,
-      mode: this.currentMode,
-      fallback: this.fallbackActive,
-      fallbackReason: this.fallbackReason,
-      detail: this.currentDetail,
-      diagnostics: this.currentDiagnostics
+    try {
+      await vscode.commands.executeCommand('workbench.view.extension.voicepilot');
+    } catch (error) {
+      console.warn('VoicePilot: Failed to execute reveal command for panel', error);
+    }
+  }
+
+  onAction(handler: PanelActionHandler): vscode.Disposable {
+    this.actionHandlers.add(handler);
+    return new vscode.Disposable(() => this.actionHandlers.delete(handler));
+  }
+
+  onFeedback(handler: PanelFeedbackHandler): vscode.Disposable {
+    this.feedbackHandlers.add(handler);
+    return new vscode.Disposable(() => this.feedbackHandlers.delete(handler));
+  }
+
+  acknowledgeAction(): void {
+    if (!this.state.pendingAction) {
+      return;
+    }
+    this.state = {
+      ...this.state,
+      pendingAction: null
+    };
+    this.sendSessionUpdate();
+    this.flushPendingMessages();
+  }
+
+  updateSession(update: SessionUpdatePayload): void {
+    const nextStatus = update.status ?? this.state.status;
+    const nextLabel = update.statusLabel ?? this.deriveStatusLabel(nextStatus);
+
+    const nextState: VoiceControlPanelState = {
+      ...this.state,
+      sessionId:
+        update.sessionId === null ? undefined : update.sessionId ?? this.state.sessionId,
+      sessionStartedAt:
+        update.sessionStartedAt === null
+          ? undefined
+          : update.sessionStartedAt ?? this.state.sessionStartedAt,
+      elapsedSeconds:
+        update.elapsedSeconds === null
+          ? undefined
+          : update.elapsedSeconds ?? this.state.elapsedSeconds,
+      renewalCountdownSeconds:
+        update.renewalCountdownSeconds === null
+          ? undefined
+          : update.renewalCountdownSeconds ?? this.state.renewalCountdownSeconds,
+      status: nextStatus,
+      statusLabel: nextLabel,
+      statusMode:
+        update.statusMode === null ? undefined : update.statusMode ?? this.state.statusMode,
+      statusDetail:
+        update.statusDetail === null ? undefined : update.statusDetail ?? this.state.statusDetail,
+      fallbackActive:
+        typeof update.fallbackActive === 'boolean'
+          ? update.fallbackActive
+          : this.state.fallbackActive,
+      diagnostics:
+        update.diagnostics === null ? undefined : update.diagnostics ?? this.state.diagnostics,
+      errorBanner:
+        update.error === undefined
+          ? this.state.errorBanner
+          : update.error ?? undefined,
+      pendingAction: null
+    };
+
+    if (nextState.status !== 'error' && !nextState.errorBanner) {
+      nextState.errorBanner = undefined;
+    }
+
+    if (!isSessionActive(nextState)) {
+      nextState.fallbackActive = false;
+      if (nextState.statusMode === 'Fallback Mode') {
+        nextState.statusMode = undefined;
+      }
+    }
+
+  const previousMic = this.state.microphoneStatus;
+  this.state = nextState;
+  this.refreshMicrophoneState(previousMic);
+    this.sendSessionUpdate();
+    this.flushPendingMessages();
+  }
+
+  setStatus(status: PanelStatus, error?: UserFacingError | null): void {
+    this.updateSession({
+      status,
+      statusLabel: this.deriveStatusLabel(status),
+      error: error ?? (status === 'error' ? this.state.errorBanner : null)
     });
   }
 
-  private render(): string {
-    const nonce = this.getNonce();
-    const diagnosticsList = this.currentDiagnostics
-      ? this.formatDiagnostics(this.currentDiagnostics)
-      : '<li>Waiting for telemetry…</li>';
-    const modeLabel = this.currentMode ? `Mode: ${this.currentMode}` : 'Mode: —';
-    const statusClass = this.fallbackActive ? 'status warn' : 'status';
-    const fallbackBadge = this.fallbackActive
-      ? `<span class="badge">${this.fallbackReason ?? 'Server fallback active'}</span>`
-      : '';
-    const detailBlock = this.currentDetail
-      ? `<div id="detail" class="meta detail">${this.currentDetail}</div>`
-      : '<div id="detail" class="meta detail"></div>';
+  setErrorBanner(error?: UserFacingError | null): void {
+    const status = error ? 'error' : this.state.status === 'error' ? 'ready' : this.state.status;
+    const label = error ? 'Needs Attention' : this.state.status === 'error' ? this.deriveStatusLabel(status) : this.state.statusLabel;
 
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
-  <title>VoicePilot</title>
-  <style>
-    body { font-family: var(--vscode-font-family); color: var(--vscode-editor-foreground); background: var(--vscode-editor-background); margin: 0; padding: 16px; }
-    h2 { margin-top: 0; }
-    .status { font-size: 1.4rem; font-weight: 600; margin: 12px 0; }
-    .status.warn { color: var(--vscode-notificationsWarningIcon-foreground); }
-    .meta { color: var(--vscode-descriptionForeground); margin-top: 4px; }
-    .meta.detail { margin-top: 8px; min-height: 18px; }
-    .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: var(--vscode-notificationsWarningIcon-foreground); color: var(--vscode-editor-background); font-size: 0.75rem; }
-    ul { padding-left: 16px; }
-    li { margin-bottom: 4px; }
-  </style>
-</head>
-<body>
-  <h2>VoicePilot</h2>
-  <div id="mode" class="meta">${modeLabel}</div>
-  <div id="status" class="${statusClass}">${this.currentStatus}</div>
-  <div id="fallback" class="meta">${fallbackBadge}</div>
-  ${detailBlock}
-  <h3>Diagnostics</h3>
-  <ul id="diagnostics">${diagnosticsList}</ul>
-  <script nonce="${nonce}">
-    const statusEl = document.getElementById('status');
-    const modeEl = document.getElementById('mode');
-    const fallbackEl = document.getElementById('fallback');
-    const detailEl = document.getElementById('detail');
-    const diagnosticsEl = document.getElementById('diagnostics');
+    this.updateSession({
+      status,
+      statusLabel: label,
+      error: error ?? null
+    });
+  }
 
-    window.addEventListener('message', event => {
-      const message = event.data;
-      if (!message || message.type !== 'status') {
-        return;
-      }
+  appendTranscript(entry: TranscriptEntry): void {
+    const normalizedEntry: TranscriptEntry = {
+      ...entry,
+      entryId: ensureEntryId(entry),
+      timestamp: entry.timestamp ?? new Date().toISOString()
+    };
 
-      if (typeof message.status === 'string') {
-        statusEl.textContent = message.status;
-      }
+    const { state, truncated } = withTranscriptAppend(this.state, normalizedEntry);
+    this.state = state;
 
-      if (typeof message.fallback === 'boolean') {
-        statusEl.classList.toggle('warn', message.fallback);
-        if (message.fallback) {
-          const badgeText = message.fallbackReason || 'Server fallback active';
-          fallbackEl.innerHTML = '<span class="badge">' + badgeText + '</span>';
-        } else {
-          fallbackEl.innerHTML = '';
-        }
-      }
-
-      if (typeof message.mode === 'string' && message.mode.length > 0) {
-        modeEl.textContent = 'Mode: ' + message.mode;
-      } else {
-        modeEl.textContent = 'Mode: —';
-      }
-
-      if (typeof message.detail === 'string' && message.detail.length > 0) {
-        detailEl.textContent = message.detail;
-      } else {
-        detailEl.textContent = '';
-      }
-
-      renderDiagnostics(message.diagnostics);
+    this.enqueueMessage({
+      type: 'transcript.append',
+      entry: normalizedEntry
     });
 
-    function renderDiagnostics(diag) {
-      if (!diag) {
-        diagnosticsEl.innerHTML = '<li>Waiting for telemetry…</li>';
-        return;
-      }
-
-      const items = [];
-      if (typeof diag.interruptionLatencyMs === 'number') {
-        items.push('Interruption latency: ' + diag.interruptionLatencyMs.toFixed(0) + ' ms');
-      }
-      if (typeof diag.interruptionCount === 'number') {
-        items.push('Interruptions observed: ' + diag.interruptionCount);
-      }
-      if (typeof diag.cooldownActive === 'boolean') {
-        items.push('Cooldown active: ' + (diag.cooldownActive ? 'Yes' : 'No'));
-      }
-      if (typeof diag.fallbackActive === 'boolean') {
-        items.push('Fallback active: ' + (diag.fallbackActive ? 'Yes' : 'No'));
-      }
-
-      if (items.length === 0) {
-        diagnosticsEl.innerHTML = '<li>No diagnostics available.</li>';
-        return;
-      }
-
-      diagnosticsEl.innerHTML = items.map(text => '<li>' + text + '</li>').join('');
+    if (truncated) {
+      this.enqueueMessage({ type: 'transcript.truncated' });
     }
 
-    renderDiagnostics(${this.currentDiagnostics ? JSON.stringify(this.currentDiagnostics) : 'undefined'});
-  </script>
-</body>
-</html>`;
+    this.flushPendingMessages();
   }
 
-  private formatDiagnostics(diag: TurnEventDiagnostics): string {
-    const entries: string[] = [];
-    if (typeof diag.interruptionLatencyMs === 'number') {
-      entries.push(`<li>Interruption latency: ${diag.interruptionLatencyMs.toFixed(0)} ms</li>`);
-    }
-    if (typeof diag.interruptionCount === 'number') {
-      entries.push(`<li>Interruptions observed: ${diag.interruptionCount}</li>`);
-    }
-    if (typeof diag.cooldownActive === 'boolean') {
-      entries.push(`<li>Cooldown active: ${diag.cooldownActive ? 'Yes' : 'No'}</li>`);
-    }
-    if (typeof diag.fallbackActive === 'boolean') {
-      entries.push(`<li>Fallback active: ${diag.fallbackActive ? 'Yes' : 'No'}</li>`);
-    }
-    if (entries.length === 0) {
-      entries.push('<li>No diagnostics available.</li>');
-    }
-    return entries.join('');
+  commitTranscriptEntry(entryId: string, content: string, confidence?: number): void {
+    this.state = withTranscriptCommit(this.state, entryId, content, confidence);
+    this.enqueueMessage({
+      type: 'transcript.commit',
+      entryId,
+      content,
+      confidence
+    });
+    this.flushPendingMessages();
   }
 
-  private getNonce(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  setMicrophoneStatus(status: MicrophoneStatus): void {
+    this.state = {
+      ...this.state,
+      microphoneStatus: status
+    };
+    this.sendAudioStatus();
+    this.flushPendingMessages();
+  }
+
+  setCopilotAvailable(available: boolean): void {
+    if (this.state.copilotAvailable === available) {
+      return;
+    }
+    this.state = {
+      ...this.state,
+      copilotAvailable: available
+    };
+    this.sendCopilotAvailability();
+    this.flushPendingMessages();
+  }
+
+  setFallbackState(active: boolean, reason?: string): void {
+    const priorMode = this.state.statusMode;
+    const priorDetail = this.state.statusDetail;
+
+    const detail = reason ? `Fallback: ${reason}` : priorDetail;
+    const statusMode = active ? 'Fallback Mode' : priorMode === 'Fallback Mode' ? undefined : priorMode;
+    const statusDetail = active ? detail : priorMode === 'Fallback Mode' ? undefined : priorDetail;
+
+    this.state = {
+      ...this.state,
+      fallbackActive: active,
+      statusMode,
+      statusDetail
+    };
+
+    this.sendSessionUpdate();
+    this.flushPendingMessages();
+  }
+
+  updateDiagnostics(diagnostics?: TurnEventDiagnostics | null): void {
+    this.state = {
+      ...this.state,
+      diagnostics: diagnostics ?? undefined
+    };
+    this.sendSessionUpdate();
+    this.flushPendingMessages();
+  }
+
+  updateTurnStatus(label: string, options: TurnStatusUpdateOptions = {}): void {
+    const normalizedLabel = label?.trim() ?? this.state.statusLabel;
+    const derivedStatus = options.status ?? this.mapLabelToStatus(normalizedLabel) ?? this.state.status;
+    const errorBanner = options.error === undefined ? this.state.errorBanner : options.error ?? undefined;
+
+    const statusMode =
+      options.mode === null
+        ? undefined
+        : typeof options.mode === 'string'
+          ? options.mode
+          : this.state.statusMode;
+
+    const statusDetail =
+      options.detail === null
+        ? undefined
+        : typeof options.detail === 'string'
+          ? options.detail
+          : this.state.statusDetail;
+
+    const fallbackActive =
+      typeof options.fallback === 'boolean' ? options.fallback : this.state.fallbackActive;
+
+    const nextState: VoiceControlPanelState = {
+      ...this.state,
+      status: derivedStatus,
+      statusLabel: normalizedLabel,
+      statusMode,
+      statusDetail,
+      fallbackActive,
+      errorBanner,
+      pendingAction: null
+    };
+
+    if (nextState.status !== 'error' && !nextState.errorBanner) {
+      nextState.errorBanner = undefined;
+    }
+
+  const previousMic = this.state.microphoneStatus;
+  this.state = nextState;
+  this.refreshMicrophoneState(previousMic);
+    this.sendSessionUpdate();
+    this.flushPendingMessages();
+  }
+
+  resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.currentView = webviewView;
+    this.visible = webviewView.visible || this.visible;
+
+    const webview = webviewView.webview;
+    webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this.context.extensionUri]
+    };
+
+    webview.html = renderVoiceControlPanelHtml({
+      webview,
+      extensionUri: this.context.extensionUri,
+      state: this.state,
+      nonce: this.createNonce()
+    });
+
+    const messageSubscription = webview.onDidReceiveMessage(message => {
+      this.handleInboundMessage(message as PanelInboundMessage);
+    });
+
+    const visibilitySubscription = webviewView.onDidChangeVisibility(() => {
+      this.visible = webviewView.visible;
+      if (webviewView.visible) {
+        this.flushPendingMessages();
+      }
+    });
+
+    webviewView.onDidDispose(() => {
+      messageSubscription.dispose();
+      visibilitySubscription.dispose();
+      if (this.currentView === webviewView) {
+        this.currentView = undefined;
+      }
+      this.visible = false;
+    });
+
+    this.sendInitializeMessage();
+    this.sendSessionUpdate();
+    this.sendAudioStatus();
+    this.sendCopilotAvailability();
+    this.flushPendingMessages();
+  }
+
+  private handleInboundMessage(message: PanelInboundMessage): void {
+    if (!message || typeof message.type !== 'string') {
+      return;
+    }
+
+    switch (message.type) {
+      case 'panel.action':
+        void this.dispatchAction(message);
+        break;
+      case 'panel.feedback':
+        this.feedbackHandlers.forEach(handler => {
+          try {
+            handler(message);
+          } catch (error) {
+            console.warn('VoicePilot: Feedback handler failed', error);
+          }
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+  private async dispatchAction(message: PanelActionMessage): Promise<void> {
+    if (!this.actionHandlers.size) {
+      return;
+    }
+
+    const { action } = message;
+    this.state = {
+      ...this.state,
+      pendingAction: action
+    };
+    this.sendSessionUpdate();
+    this.flushPendingMessages();
+
+    const handlers = Array.from(this.actionHandlers);
+    try {
+      await Promise.all(handlers.map(handler => Promise.resolve(handler(action))));
+      this.acknowledgeAction();
+    } catch (error: unknown) {
+      const messageText = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+      this.setErrorBanner({
+        code: 'panel-action-failed',
+        summary: 'Action failed to complete',
+        remediation: messageText
+      });
+    }
+  }
+
+  private sendInitializeMessage(): void {
+    this.enqueueMessage({
+      type: 'panel.initialize',
+      state: this.state
+    });
+  }
+
+  private sendSessionUpdate(): void {
+    this.enqueueMessage({
+      type: 'session.update',
+      sessionId: this.state.sessionId,
+      status: this.state.status,
+      statusLabel: this.state.statusLabel,
+      statusMode: this.state.statusMode,
+      statusDetail: this.state.statusDetail,
+      fallbackActive: this.state.fallbackActive,
+      sessionStartedAt: this.state.sessionStartedAt,
+      elapsedSeconds: this.state.elapsedSeconds,
+      renewalCountdownSeconds: this.state.renewalCountdownSeconds,
+      diagnostics: this.state.diagnostics,
+      error: this.state.errorBanner ?? undefined
+    });
+  }
+
+  private sendAudioStatus(): void {
+    this.enqueueMessage({
+      type: 'audio.status',
+      microphoneStatus: this.state.microphoneStatus
+    });
+  }
+
+  private sendCopilotAvailability(): void {
+    this.enqueueMessage({
+      type: 'copilot.availability',
+      available: this.state.copilotAvailable
+    });
+  }
+
+  private enqueueMessage(message: PanelOutboundMessage): void {
+    this.pendingMessages.push(message);
+    this.flushPendingMessages();
+  }
+
+  private flushPendingMessages(): void {
+    if (!this.currentView) {
+      return;
+    }
+
+    const webview = this.currentView.webview;
+    while (this.pendingMessages.length > 0) {
+      const next = this.pendingMessages.shift()!;
+      void webview.postMessage(next);
+    }
+  }
+
+  private refreshMicrophoneState(previousStatus: MicrophoneStatus): void {
+    const derived = deriveMicrophoneStatusFromState(this.state);
+    if (derived === this.state.microphoneStatus) {
+      return;
+    }
+
+    const autoManaged: MicrophoneStatus[] = ['idle', 'capturing', 'muted'];
+    if (!autoManaged.includes(previousStatus)) {
+      return;
+    }
+
+    this.state = {
+      ...this.state,
+      microphoneStatus: derived
+    };
+    this.sendAudioStatus();
+  }
+
+  private deriveStatusLabel(status: PanelStatus): string {
+    switch (status) {
+      case 'listening':
+        return 'Listening';
+      case 'thinking':
+        return 'Thinking';
+      case 'speaking':
+        return 'Speaking';
+      case 'error':
+        return 'Needs Attention';
+      case 'copilot-unavailable':
+        return 'Copilot Unavailable';
+      case 'ready':
+      default:
+        return 'Ready';
+    }
+  }
+
+  private mapLabelToStatus(label: string): PanelStatus | undefined {
+    const normalized = label.trim().toLowerCase();
+    switch (normalized) {
+      case 'ready':
+      case 'idle':
+      case 'standby':
+        return 'ready';
+      case 'listening':
+      case 'capturing':
+        return 'listening';
+      case 'thinking':
+      case 'processing':
+      case 'waiting for copilot':
+      case 'preparing':
+        return 'thinking';
+      case 'speaking':
+      case 'responding':
+        return 'speaking';
+      case 'copilot unavailable':
+      case 'copilot offline':
+        return 'copilot-unavailable';
+      case 'needs attention':
+      case 'interrupted':
+      case 'error':
+        return 'error';
+      default:
+        return undefined;
+    }
+  }
+
+  private createNonce(): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let nonce = '';
-    for (let i = 0; i < 16; i++) {
-      nonce += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < 32; i += 1) {
+      nonce += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return nonce;
   }
 }
+

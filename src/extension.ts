@@ -25,6 +25,7 @@ export async function activate(context: vscode.ExtensionContext) {
   try {
     // Prompt user to install Copilot Chat optionally; continue regardless
     const copilotInstalled = isCopilotChatAvailable() || (await ensureCopilotChatInstalled());
+    voicePanel.setCopilotAvailable(!!copilotInstalled);
     await vscode.commands.executeCommand('setContext', 'voicepilot.copilotAvailable', !!copilotInstalled);
     await controller.initialize();
     await vscode.commands.executeCommand('setContext', 'voicepilot.activated', true);
