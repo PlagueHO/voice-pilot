@@ -155,6 +155,7 @@ export interface SessionRenewalEvent {
   timestamp: Date;
   result?: RenewalResult;
   error?: SessionError;
+  diagnostics?: SessionDiagnostics;
 }
 
 export interface SessionErrorEvent {
@@ -172,6 +173,7 @@ export interface SessionStateEvent {
   previousState: SessionState;
   newState: SessionState;
   reason: string;
+  diagnostics?: SessionDiagnostics;
 }
 
 // Timer Integration Interfaces

@@ -4,6 +4,7 @@ export * from './configuration';
 export * from './conversation';
 export * from './credentials';
 export * from './ephemeral';
+export * from './presence';
 export * from './realtime-events';
 export * from './session';
 export * from './speech-to-text';

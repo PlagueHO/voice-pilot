@@ -23,8 +23,8 @@ This document lists all planned features in implementation phase order. It will 
 | 1 | SP-009 | Speech-to-Text Integration (Realtime STT) | tool | Transcript events & error recovery | spec-tool-realtime-stt.md | SP-006,SP-007,SP-005 | ✅ Complete |
 | 1 | SP-010 | Text-to-Speech Output (Azure Speech) | tool | Streaming synthesis & interruption | sp-010-spec-tool-text-to-speech.md | SP-001,SP-007 | ✅ Complete |
 | 1 | SP-012 | Conversation State Machine | architecture | Formal state diagram & transitions | spec-architecture-conversation-state-machine.md | SP-009,SP-010,SP-005 | ✅ Complete |
-| 1 | SP-013 | UI Sidebar Panel & Layout | design | Panel structure & interaction model | spec-design-ui-sidebar-panel.md | SP-001,SP-005,SP-007 | ⏳ Pending |
-| 1 | SP-014 | Status / Presence Indicators | design | Indicator semantics & update rules | spec-design-status-indicators.md | SP-005,SP-012 | ⏳ Pending |
+| 1 | SP-013 | UI Sidebar Panel & Layout | design | Panel structure & interaction model | spec-design-ui-sidebar-panel.md | SP-001,SP-005,SP-007 | ✅ Complete |
+| 1 | SP-014 | Status / Presence Indicators | design | Indicator semantics & update rules | spec-design-status-indicators.md | SP-005,SP-012 | ✅ Complete |
 | 1 | SP-027 | Privacy & Data Handling Policy | security | Retention & masking rules | spec-security-privacy-data-handling.md | SP-003,SP-009 | ⏳ Pending |
 | 1 | SP-028 | Error Handling & Recovery Framework | architecture | Error taxonomy & retry hooks | spec-architecture-error-handling.md | SP-004,SP-005,SP-006,SP-007 | ⏳ Pending |
 | 1 | SP-031 | Security Role & Permission Model (Azure) | infrastructure | RBAC & least privilege roles | spec-infrastructure-security-roles.md |  | ⏳ Pending |

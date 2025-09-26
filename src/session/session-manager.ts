@@ -46,6 +46,7 @@ export class SessionManagerImpl implements SessionManager {
   private logger!: Logger;
   private eventHandlers = new Map<string, Set<Function>>();
   private conversationHooks?: ConversationLifecycleHooks;
+  private lastErrors = new Map<string, SessionError>();
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
@@ -453,37 +454,7 @@ export class SessionManagerImpl implements SessionManager {
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
-
-    const timerStatus = this.timerManager.getTimerStatus(sessionId);
-    const keyInfo = this.keyService.getCurrentKey();
-    const nextEvent = this.timerManager.getNextScheduledEvent(sessionId);
-
-    let credentialStatus: 'valid' | 'expired' | 'missing' | 'invalid' = 'missing';
-    if (keyInfo) {
-      credentialStatus = keyInfo.isValid ? 'valid' : 'expired';
-    }
-
-    let connectionStatus: 'healthy' | 'degraded' | 'failed' = 'healthy';
-    if (session.connectionInfo.webrtcState === 'failed') {
-      connectionStatus = 'failed';
-    } else if (session.connectionInfo.webrtcState === 'connecting' || session.statistics.failedRenewalCount > 0) {
-      connectionStatus = 'degraded';
-    }
-
-    return {
-      sessionId,
-      state: session.state,
-      timerStatus,
-      credentialStatus,
-      connectionStatus,
-      uptime: Date.now() - session.startedAt.getTime(),
-      nextScheduledEvent: nextEvent ? {
-        type: nextEvent.type,
-        sessionId: nextEvent.sessionId,
-        scheduledAt: nextEvent.scheduledAt,
-        timeRemainingMs: nextEvent.timeRemainingMs
-      } : undefined
-    };
+    return this.buildSessionDiagnostics(session);
   }
 
   async testSessionHealth(sessionId: string): Promise<SessionHealthResult> {
@@ -550,6 +521,57 @@ export class SessionManagerImpl implements SessionManager {
 
     const renewalTime = expiresAt.getTime() - (session.config.renewalMarginSeconds * 1000);
     this.timerManager.startRenewalTimer(sessionId, renewalTime);
+  }
+
+  private buildSessionDiagnostics(session: SessionInfo): SessionDiagnostics {
+    const sessionId = session.sessionId;
+    const timerStatus = this.timerManager.getTimerStatus(sessionId);
+    const keyInfo = this.keyService.getCurrentKey();
+    const nextEvent = this.timerManager.getNextScheduledEvent(sessionId);
+
+    let credentialStatus: 'valid' | 'expired' | 'missing' | 'invalid' = 'missing';
+    if (keyInfo) {
+      credentialStatus = keyInfo.isValid ? 'valid' : 'expired';
+    }
+
+    let connectionStatus: 'healthy' | 'degraded' | 'failed' = 'healthy';
+    if (session.connectionInfo.webrtcState === 'failed') {
+      connectionStatus = 'failed';
+    } else if (session.connectionInfo.webrtcState === 'connecting' || session.statistics.failedRenewalCount > 0) {
+      connectionStatus = 'degraded';
+    }
+
+    return {
+      sessionId,
+      state: session.state,
+      timerStatus,
+      credentialStatus,
+      connectionStatus,
+      lastError: this.lastErrors.get(sessionId),
+      uptime: Date.now() - session.startedAt.getTime(),
+      nextScheduledEvent: nextEvent ? {
+        type: nextEvent.type,
+        sessionId: nextEvent.sessionId,
+        scheduledAt: nextEvent.scheduledAt,
+        timeRemainingMs: nextEvent.timeRemainingMs
+      } : undefined
+    };
+  }
+
+  private captureDiagnosticsSnapshot(sessionId: string): SessionDiagnostics | undefined {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return undefined;
+    }
+    try {
+      return this.buildSessionDiagnostics(session);
+    } catch (error: any) {
+      this.logger.debug('Failed to capture diagnostics snapshot', {
+        sessionId,
+        error: error?.message ?? error
+      });
+      return undefined;
+    }
   }
 
   private async handleRenewalRequired(sessionId: string): Promise<void> {
@@ -819,6 +841,10 @@ export class SessionManagerImpl implements SessionManager {
       sessionInfo
     };
 
+    if (type === 'ended') {
+      this.lastErrors.delete(sessionInfo.sessionId);
+    }
+
     for (const handler of handlers) {
       try {
         (handler as SessionEventHandler)(event);
@@ -832,12 +858,23 @@ export class SessionManagerImpl implements SessionManager {
     const handlers = this.eventHandlers.get('session-renewed');
     if (!handlers) { return; }
 
+    if (type === 'renewal-completed') {
+      this.lastErrors.delete(sessionId);
+    }
+
+    if (error) {
+      this.lastErrors.set(sessionId, error);
+    }
+
+    const diagnostics = this.captureDiagnosticsSnapshot(sessionId);
+
     const event: SessionRenewalEvent = {
       type,
       sessionId,
       timestamp: new Date(),
       result,
-      error
+      error,
+      diagnostics
     };
 
     for (const handler of handlers) {
@@ -852,6 +889,8 @@ export class SessionManagerImpl implements SessionManager {
   private emitSessionError(type: 'authentication-error' | 'connection-error' | 'timeout-error' | 'renewal-error', sessionId: string, error: SessionError, retryAttempt?: number): void {
     const handlers = this.eventHandlers.get('session-error');
     if (!handlers) { return; }
+
+    this.lastErrors.set(sessionId, error);
 
     const event: SessionErrorEvent = {
       type,
@@ -874,13 +913,21 @@ export class SessionManagerImpl implements SessionManager {
     const handlers = this.eventHandlers.get('session-state-changed');
     if (!handlers) { return; }
 
+    if (newState === SessionState.Active || newState === SessionState.Starting || newState === SessionState.Renewing) {
+      this.lastErrors.delete(sessionId);
+    }
+
+    const diagnostics = this.captureDiagnosticsSnapshot(sessionId);
+
+    // PresenceIndicatorService consumes diagnostics to determine suspended/offline behaviour (SP-014 SES-001..SES-003)
     const event: SessionStateEvent = {
       type: 'state-changed',
       sessionId,
       timestamp: new Date(),
       previousState,
       newState,
-      reason
+      reason,
+      diagnostics
     };
 
     for (const handler of handlers) {

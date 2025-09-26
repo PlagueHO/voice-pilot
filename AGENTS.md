@@ -198,6 +198,19 @@ The project uses **Mocha** with a **layered test strategy** to optimize feedback
 | Pre-push / PR validation | `Test All` |
 | CI pipeline | Unit → Headless Integration → Coverage / Performance |
 
+#### Automated Task Reference (from `.vscode/tasks.json`)
+
+| Task | Command | Purpose |
+|------|---------|---------|
+| Test Unit | `npm run test:unit` | Node unit suite with stubbed `vscode`. |
+| Test Extension | `npm test` | Extension-host integration coverage. |
+| Test All | `npm run test:all` | Unit then integration guard before PR. |
+| Test Headless | `npm run test:headless` | Integration under xvfb for CI. |
+| Test Coverage | `npm run test:coverage` | NYC-instrumented coverage sweep. |
+| Test Performance | `npm run test:perf` | Latency and hot-path probe. |
+| Lint Extension | `npm run lint` | ESLint stylish gate. |
+| Compile / Watch | `npm run compile` / `npm run watch` | One-shot build / incremental emit. |
+
 #### Key Practices
 
 - Do **not** edit compiled JS under `out/`; change `.ts` sources only.
