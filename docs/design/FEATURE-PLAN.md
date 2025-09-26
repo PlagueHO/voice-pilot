@@ -21,8 +21,8 @@ This document lists all planned features in implementation phase order. It will 
 | 1 | SP-006 | WebRTC Audio Transport Layer | architecture | Peer connection, SDP, reconnection | spec-architecture-webrtc-audio.md | SP-001,SP-004,SP-005 | ✅ Complete |
 | 1 | SP-007 | Microphone Capture & Audio Pipeline | design | Capture, preprocess, stream formats | spec-design-audio-capture-pipeline.md | SP-001,SP-006 | ✅ Complete |
 | 1 | SP-009 | Speech-to-Text Integration (Realtime STT) | tool | Transcript events & error recovery | spec-tool-realtime-stt.md | SP-006,SP-007,SP-005 | ✅ Complete |
-| 1 | SP-010 | Text-to-Speech Output (Azure Speech) | tool | Streaming synthesis & interruption | sp-010-spec-tool-text-to-speech.md | SP-001,SP-007 | ⚒️ In Progress |
-| 1 | SP-012 | Conversation State Machine | architecture | Formal state diagram & transitions | spec-architecture-conversation-state-machine.md | SP-009,SP-010,SP-005 | ⏳ Pending |
+| 1 | SP-010 | Text-to-Speech Output (Azure Speech) | tool | Streaming synthesis & interruption | sp-010-spec-tool-text-to-speech.md | SP-001,SP-007 | ✅ Complete |
+| 1 | SP-012 | Conversation State Machine | architecture | Formal state diagram & transitions | spec-architecture-conversation-state-machine.md | SP-009,SP-010,SP-005 | ✅ Complete |
 | 1 | SP-013 | UI Sidebar Panel & Layout | design | Panel structure & interaction model | spec-design-ui-sidebar-panel.md | SP-001,SP-005,SP-007 | ⏳ Pending |
 | 1 | SP-014 | Status / Presence Indicators | design | Indicator semantics & update rules | spec-design-status-indicators.md | SP-005,SP-012 | ⏳ Pending |
 | 1 | SP-027 | Privacy & Data Handling Policy | security | Retention & masking rules | spec-security-privacy-data-handling.md | SP-003,SP-009 | ⏳ Pending |
@@ -38,8 +38,8 @@ This document lists all planned features in implementation phase order. It will 
 | 1 | SP-050 | Data Contracts (Message Passing) | architecture | Host ↔ webview schemas & versioning | spec-architecture-message-contracts.md | SP-005,SP-006,SP-007,SP-009,SP-010 | ⏳ Pending |
 | 1 | SP-053 | Resource Cleanup & Disposal Semantics | design | Deterministic teardown rules | spec-design-resource-cleanup.md | SP-005,SP-006,SP-007,SP-012 | ⏳ Pending |
 | 1 | SP-056 | Security Threat Model & Mitigations | security | Threat enumeration & controls | spec-security-threat-model.md | SP-003,SP-004,SP-005,SP-006,SP-027,SP-050 | ⏳ Pending |
-| 2 | SP-008 | Voice Activity Detection (VAD) | algorithm | Speech detection thresholds & debounce | spec-algorithm-voice-activity-detection.md | SP-007,SP-035 | ⏳ Pending |
-| 2 | SP-011 | Interruption & Turn-Taking Engine | design | Speaking ↔ listening transitions | spec-design-interruption-management.md | SP-008,SP-009,SP-010,SP-012 | ⏳ Pending |
+| 2 | SP-008 | Voice Activity Detection (VAD) | algorithm | Speech detection thresholds & debounce | spec-algorithm-voice-activity-detection.md | SP-007,SP-035 | ✅ Complete |
+| 2 | SP-011 | Interruption & Turn-Taking Engine | design | Speaking ↔ listening transitions | spec-design-interruption-management.md | SP-008,SP-009,SP-010,SP-012 | ✅ Complete |
 | 2 | SP-015 | Audio Feedback & Sound Design | design | Sound taxonomy & triggers | spec-design-audio-feedback.md | SP-007,SP-010 | ⏳ Pending |
 | 2 | SP-017 | Intent Processing & Classification | algorithm | Map transcripts to intents | spec-algorithm-intent-processing.md | SP-009,SP-012 | ⏳ Pending |
 | 2 | SP-018 | Language Model Adapter (Copilot) | architecture | Model selection & prompting | spec-architecture-language-model-adapter.md | SP-017,SP-001 | ⏳ Pending |
