@@ -25,6 +25,13 @@ import {
 } from '../types/session';
 import { SessionTimerManagerImpl } from './session-timer-manager';
 
+export interface ConversationLifecycleHooks {
+  onSessionReady?(session: SessionInfo): Promise<void> | void;
+  onSessionEnding?(session: SessionInfo): Promise<void> | void;
+  onSessionSuspending?(session: SessionInfo, reason: string): Promise<void> | void;
+  onSessionResumed?(session: SessionInfo): Promise<void> | void;
+}
+
 /**
  * Comprehensive session management implementation for VoicePilot voice interactions.
  * Handles session lifecycle, automatic credential renewal, timer-based operations,
@@ -38,6 +45,7 @@ export class SessionManagerImpl implements SessionManager {
   private configManager!: ConfigurationManager;
   private logger!: Logger;
   private eventHandlers = new Map<string, Set<Function>>();
+  private conversationHooks?: ConversationLifecycleHooks;
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
@@ -85,6 +93,17 @@ export class SessionManagerImpl implements SessionManager {
 
     this.initialized = true;
     this.logger.info('SessionManager initialized successfully');
+  }
+
+  registerConversationHooks(hooks: ConversationLifecycleHooks): vscode.Disposable {
+    this.conversationHooks = hooks;
+    return {
+      dispose: () => {
+        if (this.conversationHooks === hooks) {
+          this.conversationHooks = undefined;
+        }
+      }
+    };
   }
 
   isInitialized(): boolean {
@@ -183,6 +202,8 @@ export class SessionManagerImpl implements SessionManager {
         expiresAt: keyResult.expiresAt?.toISOString()
       });
 
+      await this.invokeConversationHook('onSessionReady', sessionInfo);
+
       return sessionInfo;
 
     } catch (error: any) {
@@ -211,6 +232,7 @@ export class SessionManagerImpl implements SessionManager {
     }
 
     session.state = SessionState.Ending;
+  await this.invokeConversationHook('onSessionEnding', session);
 
     try {
       // Clear all timers for this session
@@ -264,6 +286,7 @@ export class SessionManagerImpl implements SessionManager {
     const startTime = Date.now();
     session.state = SessionState.Renewing;
     this.emitSessionStateChange(sessionId, SessionState.Active, SessionState.Renewing, 'Manual renewal requested');
+  await this.invokeConversationHook('onSessionSuspending', session, 'manual-renewal');
 
     // Emit renewal started event
     this.emitSessionRenewal('renewal-started', sessionId);
@@ -293,6 +316,7 @@ export class SessionManagerImpl implements SessionManager {
 
         // Emit renewal completed event
         this.emitSessionRenewal('renewal-completed', sessionId, renewalReturn);
+        await this.invokeConversationHook('onSessionResumed', session);
 
         return renewalReturn;
       } else {
@@ -315,6 +339,7 @@ export class SessionManagerImpl implements SessionManager {
         // Emit renewal failed event and session error
         this.emitSessionRenewal('renewal-failed', sessionId, renewalReturn);
         this.emitSessionError('renewal-error', sessionId, renewalReturn.error);
+  await this.invokeConversationHook('onSessionEnding', session);
 
         return renewalReturn;
       }
@@ -339,6 +364,7 @@ export class SessionManagerImpl implements SessionManager {
       // Emit renewal failed event and session error
       this.emitSessionRenewal('renewal-failed', sessionId, renewalReturn);
       this.emitSessionError('renewal-error', sessionId, renewalReturn.error);
+  await this.invokeConversationHook('onSessionEnding', session);
 
       return renewalReturn;
     }
@@ -534,6 +560,7 @@ export class SessionManagerImpl implements SessionManager {
 
     session.state = SessionState.Renewing;
     this.emitSessionStateChange(sessionId, SessionState.Active, SessionState.Renewing, 'Automatic renewal triggered');
+  await this.invokeConversationHook('onSessionSuspending', session, 'auto-renewal');
 
     const renewalStart = Date.now();
 
@@ -566,6 +593,8 @@ export class SessionManagerImpl implements SessionManager {
           newExpiresAt: renewalResult.expiresAt?.toISOString()
         });
 
+        await this.invokeConversationHook('onSessionResumed', session);
+
       } else {
         session.statistics.failedRenewalCount++;
         session.state = SessionState.Failed;
@@ -587,6 +616,8 @@ export class SessionManagerImpl implements SessionManager {
           sessionId,
           error: renewalResult.error?.message
         });
+
+        await this.invokeConversationHook('onSessionEnding', session);
       }
 
     } catch (error: any) {
@@ -603,6 +634,7 @@ export class SessionManagerImpl implements SessionManager {
       });
 
       this.logger.error('Session renewal exception', { sessionId, error: error.message });
+      await this.invokeConversationHook('onSessionEnding', session);
     }
   }
 
@@ -760,6 +792,7 @@ export class SessionManagerImpl implements SessionManager {
       duration: session.statistics.totalDurationMs,
       renewals: session.statistics.renewalCount
     });
+    void this.invokeConversationHook('onSessionEnding', session);
   }
 
   private addEventHandler(eventType: string, handler: Function): vscode.Disposable {
@@ -862,6 +895,24 @@ export class SessionManagerImpl implements SessionManager {
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error('SessionManager not initialized. Call initialize() first.');
+    }
+  }
+
+  private async invokeConversationHook(
+    hook: keyof ConversationLifecycleHooks,
+    ...args: unknown[]
+  ): Promise<void> {
+    const fn = this.conversationHooks?.[hook];
+    if (!fn) {
+      return;
+    }
+    try {
+      await Promise.resolve((fn as (...fnArgs: unknown[]) => unknown)(...args));
+    } catch (error: any) {
+      this.logger.warn('Conversation lifecycle hook failed', {
+        hook,
+        error: error?.message ?? error
+      });
     }
   }
 }

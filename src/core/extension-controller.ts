@@ -2,6 +2,13 @@ import * as vscode from 'vscode';
 import { CredentialManagerImpl } from '../auth/credential-manager';
 import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
 import { ConfigurationManager } from '../config/configuration-manager';
+import ConversationStateMachine, {
+    StateChangeEvent as ConversationStateChangeEvent,
+    TurnContext as ConversationTurnContext,
+    TurnEvent as ConversationTurnEvent,
+    CopilotResponseEvent
+} from '../conversation/conversation-state-machine';
+import { ChatIntegration } from '../copilot/chat-integration';
 import { InterruptionEngineImpl } from '../session/interruption-engine';
 import { SessionManagerImpl } from '../session/session-manager';
 import { SessionTimerManagerImpl } from '../session/session-timer-manager';
@@ -17,7 +24,10 @@ export class ExtensionController implements ServiceInitializable {
   private ephemeralKeyService!: EphemeralKeyServiceImpl;
   private sessionTimerManager!: SessionTimerManagerImpl;
   private readonly interruptionEngine: InterruptionEngineImpl;
+  private readonly conversationMachine: ConversationStateMachine;
+  private readonly chatIntegration: ChatIntegration;
   private readonly controllerDisposables: vscode.Disposable[] = [];
+  private readonly dispatchedUserTurnIds = new Set<string>();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -28,6 +38,8 @@ export class ExtensionController implements ServiceInitializable {
     interruptionEngine?: InterruptionEngineImpl
   ) {
     this.interruptionEngine = interruptionEngine ?? new InterruptionEngineImpl({ logger: this.logger });
+    this.conversationMachine = new ConversationStateMachine({ logger: this.logger });
+    this.chatIntegration = new ChatIntegration(this.logger);
   }
 
   async initialize(): Promise<void> {
@@ -62,6 +74,14 @@ export class ExtensionController implements ServiceInitializable {
       await this.safeInit('session manager', () => this.sessionManager.initialize(), () => this.sessionManager.dispose(), initialized, 'sessionManager');
 
       await this.safeInit(
+        'conversation state machine',
+        () => this.conversationMachine.initialize(),
+        () => this.conversationMachine.dispose(),
+        initialized,
+        'conversationStateMachine'
+      );
+
+      await this.safeInit(
         'interruption engine',
         async () => {
           await this.interruptionEngine.initialize();
@@ -72,6 +92,8 @@ export class ExtensionController implements ServiceInitializable {
         initialized,
         'interruptionEngine'
       );
+
+      this.registerConversationIntegration();
 
       await this.safeInit('voice control panel', () => this.voicePanel.initialize(), () => this.voicePanel.dispose(), initialized, 'voicePanel');
 
@@ -98,6 +120,8 @@ export class ExtensionController implements ServiceInitializable {
   dispose(): void {
     const steps: Array<[string, () => void]> = [
       ['controller observers', () => this.disposeControllerDisposables()],
+      ['conversation state machine', () => this.conversationMachine.dispose()],
+      ['chat integration', () => this.chatIntegration.dispose()],
       ['voice panel', () => this.voicePanel.dispose()],
       ['session manager', () => this.sessionManager.dispose()],
       ['interruption engine', () => this.interruptionEngine.dispose()],
@@ -152,6 +176,61 @@ export class ExtensionController implements ServiceInitializable {
   getVoiceControlPanel(): VoiceControlPanel { return this.voicePanel; }
   getInterruptionEngine(): InterruptionEngineImpl { return this.interruptionEngine; }
 
+  private registerConversationIntegration(): void {
+    const hooksDisposable = this.sessionManager.registerConversationHooks({
+      onSessionReady: async session => {
+        await this.conversationMachine.attachSession(session);
+        await this.conversationMachine.startConversation({ sessionId: session.sessionId });
+      },
+      onSessionEnding: async () => {
+        await this.conversationMachine.endConversation('session-ended');
+      },
+      onSessionSuspending: async (_session, reason) => {
+        this.conversationMachine.suspend(reason);
+      },
+      onSessionResumed: async () => {
+        this.conversationMachine.resume();
+      }
+    });
+    this.controllerDisposables.push(hooksDisposable);
+
+    const stateSubscription = this.conversationMachine.onStateChanged(event => {
+      void this.handleConversationStateChange(event);
+    });
+    const stateDisposable: vscode.Disposable = { dispose: () => stateSubscription.dispose() };
+    this.controllerDisposables.push(stateDisposable);
+
+    const turnSubscription = this.conversationMachine.onTurnEvent(event => {
+      void this.handleConversationTurnEvent(event);
+    });
+    const turnDisposable: vscode.Disposable = { dispose: () => turnSubscription.dispose() };
+    this.controllerDisposables.push(turnDisposable);
+
+    const copilotSubscription = this.chatIntegration.onResponse(event => {
+      void this.handleCopilotResponse(event);
+    });
+    this.controllerDisposables.push(copilotSubscription);
+
+    this.interruptionEngine.updateHooks({
+      requestAssistantResponse: async () => {
+        await this.requestAssistantResponse();
+      },
+      cancelAssistantPlayback: async context => {
+        await this.handleAssistantPlaybackCancellation(context);
+      },
+      onFallbackChanged: (active, reason) => {
+        this.handleFallbackChanged(active, reason);
+      }
+    });
+
+    void vscode.commands
+      .executeCommand('setContext', 'voicepilot.conversationState', this.conversationMachine.getState().state)
+      .then(undefined, (error: unknown) => {
+        const message = error instanceof Error ? error.message : error;
+        this.logger.warn('Failed to set initial conversation state context', { error: message });
+      });
+  }
+
   private async applyConversationPolicy(): Promise<void> {
     try {
       const conversationConfig = this.configurationManager.getConversationConfig();
@@ -195,17 +274,19 @@ export class ExtensionController implements ServiceInitializable {
       }
     });
     const eventDisposable = this.interruptionEngine.onEvent(async event => {
+      this.conversationMachine.ingestInterruptionEvent(event);
       try {
-        await vscode.commands.executeCommand('setContext', 'voicepilot.conversationState', event.state);
+        await vscode.commands.executeCommand('setContext', 'voicepilot.interruptionState', event.state);
       } catch (error: any) {
         this.logger.warn('Failed to update conversation state context', { error: error?.message ?? error });
       }
+      this.voicePanel.updateDiagnostics(event.diagnostics);
     });
     this.context.subscriptions.push(configDisposable, eventDisposable);
     this.controllerDisposables.push(configDisposable, eventDisposable);
 
     void vscode.commands
-      .executeCommand('setContext', 'voicepilot.conversationState', this.interruptionEngine.getConversationState())
+      .executeCommand('setContext', 'voicepilot.interruptionState', this.interruptionEngine.getConversationState())
       .then(undefined, (error: unknown) => {
         const message = error instanceof Error ? error.message : error;
         this.logger.warn('Failed to set initial conversation state', { error: message });
@@ -222,4 +303,175 @@ export class ExtensionController implements ServiceInitializable {
       }
     }
   }
+
+  private async handleConversationStateChange(event: ConversationStateChangeEvent): Promise<void> {
+    const label = this.mapStateToLabel(event.transition.to);
+    const mode = this.mapModeLabel(event.transition.to, event.turnContext);
+    const detail = this.mapStateDetail(event);
+    const fallback = Boolean(event.metadata.circuitOpen);
+
+    this.voicePanel.updateTurnStatus(label, {
+      mode,
+      fallback,
+      detail
+    });
+
+    if (event.transition.to === 'idle') {
+      this.dispatchedUserTurnIds.clear();
+    }
+
+    try {
+      await vscode.commands.executeCommand('setContext', 'voicepilot.conversationState', event.transition.to);
+    } catch (error: any) {
+      this.logger.warn('Failed to update conversation state context', { error: error?.message ?? error });
+    }
+  }
+
+  private async handleConversationTurnEvent(event: ConversationTurnEvent): Promise<void> {
+    if (!event.turnContext) {
+      return;
+    }
+    if (event.type === 'turn-completed' && event.turnContext.turnRole === 'user') {
+      this.lastCompletedUserTurn = event.turnContext;
+      await this.dispatchPromptFromTurn(event.turnContext);
+    }
+    if (event.type === 'turn-interrupted' && event.turnContext.turnRole === 'assistant') {
+      this.dispatchedUserTurnIds.delete(event.turnContext.turnId);
+    }
+  }
+
+  private async dispatchPromptFromTurn(turn: ConversationTurnContext): Promise<void> {
+    if (this.dispatchedUserTurnIds.has(turn.turnId)) {
+      return;
+    }
+    const transcript = turn.transcript?.trim();
+    if (!transcript) {
+      return;
+    }
+
+    this.dispatchedUserTurnIds.add(turn.turnId);
+    const sessionId = this.sessionManager.getCurrentSession()?.sessionId ?? turn.metadata.sessionId?.toString();
+
+    try {
+      await this.chatIntegration.sendPrompt(transcript, {
+        conversationId: sessionId,
+        turnId: turn.turnId,
+        metadata: turn.metadata
+      });
+      this.logger.debug('Copilot prompt dispatched', {
+        turnId: turn.turnId,
+        transcriptLength: transcript.length
+      });
+    } catch (error: any) {
+      this.dispatchedUserTurnIds.delete(turn.turnId);
+      const message = error?.message ?? error;
+      this.logger.error('Failed to dispatch Copilot prompt', {
+        turnId: turn.turnId,
+        error: message
+      });
+      await this.handleCopilotResponse({
+        requestId: `failure-${turn.turnId}`,
+        status: 'failed',
+        timestamp: new Date().toISOString(),
+        error: {
+          message: typeof message === 'string' ? message : 'Prompt dispatch failed',
+          retryable: true
+        },
+        context: { turnId: turn.turnId }
+      });
+    }
+  }
+
+  private async handleCopilotResponse(event: CopilotResponseEvent): Promise<void> {
+    try {
+      await this.conversationMachine.notifyCopilot(event);
+    } catch (error: any) {
+      this.logger.error('Conversation machine failed to process Copilot response', {
+        requestId: event.requestId,
+        error: error?.message ?? error
+      });
+    }
+  }
+
+  private async requestAssistantResponse(): Promise<void> {
+    if (this.lastCompletedUserTurn) {
+      await this.dispatchPromptFromTurn(this.lastCompletedUserTurn);
+      return;
+    }
+    const state = this.conversationMachine.getState();
+    if (state.turnContext && state.turnContext.turnRole === 'user') {
+      await this.dispatchPromptFromTurn(state.turnContext);
+    }
+  }
+
+  private async handleAssistantPlaybackCancellation(context: { reason: string; source: string }): Promise<void> {
+    this.conversationMachine.handleUserInterrupt('system', `${context.source}:${context.reason}`);
+  }
+
+  private handleFallbackChanged(active: boolean, reason: string): void {
+    this.voicePanel.setFallbackState(active, reason);
+  }
+
+  private mapStateToLabel(state: string): string {
+    switch (state) {
+      case 'idle':
+        return 'Ready';
+      case 'preparing':
+        return 'Preparing';
+      case 'listening':
+        return 'Listening';
+      case 'processing':
+        return 'Thinking';
+      case 'waitingForCopilot':
+        return 'Waiting for Copilot';
+      case 'speaking':
+        return 'Speaking';
+      case 'interrupted':
+        return 'Interrupted';
+      case 'suspended':
+        return 'Paused';
+      case 'faulted':
+        return 'Needs Attention';
+      case 'terminating':
+        return 'Ending Conversation';
+      default:
+        return state.charAt(0).toUpperCase() + state.slice(1);
+    }
+  }
+
+  private mapModeLabel(state: string, turn?: ConversationTurnContext): string | undefined {
+    if (turn) {
+      if (turn.turnRole === 'user') {
+        return 'User turn';
+      }
+      if (turn.turnRole === 'assistant') {
+        return 'VoicePilot speaking';
+      }
+    }
+    if (state === 'waitingForCopilot') {
+      return 'Copilot response pending';
+    }
+    if (state === 'processing') {
+      return 'Processing request';
+    }
+    return undefined;
+  }
+
+  private mapStateDetail(event: ConversationStateChangeEvent): string | undefined {
+    if (event.metadata.reason) {
+      return event.metadata.reason;
+    }
+    if (event.transition.to === 'suspended' && event.metadata.suspensionReason) {
+      return `Suspended: ${event.metadata.suspensionReason}`;
+    }
+    if (event.transition.to === 'faulted') {
+      return 'Conversation paused due to repeated errors';
+    }
+    if (event.transition.to === 'waitingForCopilot') {
+      return 'Awaiting Copilot reply';
+    }
+    return undefined;
+  }
+
+  private lastCompletedUserTurn?: ConversationTurnContext;
 }

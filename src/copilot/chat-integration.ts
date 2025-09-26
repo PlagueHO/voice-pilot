@@ -1,32 +1,85 @@
-// Note: @vscode/copilot-chat is not a published package, this is a placeholder implementation
-// import { CopilotChatClient } from '@vscode/copilot-chat';
+import { randomUUID } from 'crypto';
+import * as vscode from 'vscode';
+import type { CopilotResponseEvent } from '../conversation/conversation-state-machine';
+import { Logger } from '../core/logger';
+
+export interface CopilotPromptOptions {
+    conversationId?: string;
+    turnId?: string;
+    metadata?: Record<string, unknown>;
+}
 
 export class ChatIntegration {
-    // private client: CopilotChatClient;
+    private readonly responseEmitter = new vscode.EventEmitter<CopilotResponseEvent>();
+    private readonly logger: Logger;
 
-    constructor() {
-        // Placeholder implementation until @vscode/copilot-chat becomes available
-        console.log(
-            "ChatIntegration initialized with placeholder implementation"
-        );
+    constructor(logger?: Logger) {
+        this.logger = logger ?? new Logger('ChatIntegration');
+        this.logger.info('ChatIntegration initialized (placeholder)');
     }
 
-    // Method to send a prompt to Copilot and receive a response
-    public async sendPrompt(prompt: string): Promise<string> {
+    public onResponse(handler: (event: CopilotResponseEvent) => void): vscode.Disposable {
+        return this.responseEmitter.event(handler);
+    }
+
+    public dispose(): void {
+        this.responseEmitter.dispose();
+    }
+
+    public async sendPrompt(prompt: string, options?: CopilotPromptOptions): Promise<string> {
+        const requestId = randomUUID();
+        const timestamp = new Date().toISOString();
+        this.responseEmitter.fire({
+            requestId,
+            status: 'pending',
+            timestamp,
+            context: {
+                conversationId: options?.conversationId,
+                turnId: options?.turnId,
+                metadata: options?.metadata,
+                promptLength: prompt.length
+            }
+        });
+
         try {
-            // Placeholder implementation
-            console.log("Sending prompt to Copilot:", prompt);
-            return `Placeholder response to: ${prompt}`;
-        } catch (error) {
-            console.error("Error sending prompt to Copilot:", error);
-            throw new Error("Failed to get response from Copilot");
-        }
-    }
+            this.logger.debug('Dispatching prompt to Copilot placeholder', {
+                requestId,
+                promptPreview: prompt.slice(0, 40),
+                promptLength: prompt.length
+            });
 
-    // Method to handle incoming messages from Copilot
-    public onMessage(callback: (message: string) => void): void {
-        // Placeholder implementation
-        console.log("Setting up message handler (placeholder)");
-        // callback could be called here with test data if needed
+            // Placeholder implementation until official Copilot Chat APIs are available
+            const response = `Placeholder response to: ${prompt.slice(0, 60)}`;
+
+            this.responseEmitter.fire({
+                requestId,
+                status: 'completed',
+                timestamp: new Date().toISOString(),
+                content: response,
+                context: {
+                    conversationId: options?.conversationId,
+                    turnId: options?.turnId
+                }
+            });
+
+            return response;
+        } catch (error: any) {
+            const message = error?.message ?? 'Unknown Copilot error';
+            this.logger.error('Copilot prompt failed', { requestId, message });
+            this.responseEmitter.fire({
+                requestId,
+                status: 'failed',
+                timestamp: new Date().toISOString(),
+                error: {
+                    message,
+                    retryable: false
+                },
+                context: {
+                    conversationId: options?.conversationId,
+                    turnId: options?.turnId
+                }
+            });
+            throw new Error('Failed to get response from Copilot');
+        }
     }
 }
