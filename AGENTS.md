@@ -6,11 +6,13 @@ This repository contains a VS Code extension for voice interaction with GitHub C
 
 When working on the project interactively with an agent, please follow the guidelines below to ensure the development experience – particularly TypeScript compilation and VS Code extension debugging – continues to work smoothly.
 
+> Tip: Keep the [Technical Reference Index](docs/design/TECHNICAL-REFERENCE-INDEX.md) handy for authoritative links to Azure and important technical documentation.
+
 ## Tech Stack
 
 - **Framework**: VS Code Extension API with TypeScript
 - **Language**: TypeScript 5.0+ (ES2022 target)
-- **Realtime Audio (Speech In/Out)**: Azure OpenAI GPT Realtime API (WebRTC preferred; WebSocket fallback). Models: `gpt-realtime`, `gpt-4o-realtime-preview`, `gpt-4o-mini-realtime-preview`.
+- **Realtime Audio (Speech In/Out)**: Azure OpenAI GPT Realtime API (WebRTC preferred; WebSocket fallback). Models: `gpt-realtime`.
 - **AI Integration**: GitHub Copilot Chat Extension APIs
 - **Authentication**: Azure Identity SDK, VS Code SecretStorage
 - **HTTP Client**: OpenAI SDK (Azure-compatible), Axios

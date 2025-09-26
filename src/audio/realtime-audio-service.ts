@@ -18,6 +18,9 @@ export interface RealtimeAudioConfig {
   locale?: string;
   profanityFilter?: 'none' | 'medium' | 'high';
   turnDetection?: TurnDetectionConfig;
+  outputAudioFormat?: 'pcm16' | 'pcm24' | 'pcm32';
+  voice?: string;
+  modalities?: Array<'text' | 'audio' | 'input_audio'>;
 }
 
 export interface AudioTranscript {
@@ -163,6 +166,14 @@ export class RealtimeAudioService implements ServiceInitializable {
       this.emitRealtimeMessage('session.created', event);
     });
 
+    this.realtimeClient.on("conversation.item.created", (event: any) => {
+      this.emitRealtimeMessage('conversation.item.created', event);
+    });
+
+    this.realtimeClient.on("conversation.item.truncated", (event: any) => {
+      this.emitRealtimeMessage('conversation.item.truncated', event);
+    });
+
     // Handle text output deltas (real-time transcription)
     this.realtimeClient.on("response.text.delta", (event: any) => {
       this.emitRealtimeMessage('response.text.delta', event);
@@ -192,11 +203,32 @@ export class RealtimeAudioService implements ServiceInitializable {
       }
     });
 
+  this.realtimeClient.on("response.output_audio.delta" as any, (event: any) => {
+      this.emitRealtimeMessage('response.output_audio.delta', event);
+      try {
+        const buffer = Buffer.from(event.delta, "base64");
+        const audioChunk: AudioChunk = {
+          data: buffer,
+          timestamp: Date.now()
+        };
+        this.onAudioChunkCallback?.(audioChunk);
+        this.logger.debug(`Received ${buffer.length} bytes of output audio data`);
+      } catch (error: any) {
+        this.logger.error('Failed to process output audio delta', { error: error.message });
+      }
+    });
+
     // Handle audio transcript deltas (what the AI is saying)
     this.realtimeClient.on("response.audio_transcript.delta", (event: any) => {
       this.emitRealtimeMessage('response.audio_transcript.delta', event);
       this.emitTranscript(event?.delta, false);
       this.logger.debug(`AI transcript delta: ${event.delta}`);
+    });
+
+  this.realtimeClient.on("response.error" as any, (event: any) => {
+      this.emitRealtimeMessage('response.error', event);
+      this.logger.error('Realtime response error', { error: event.error });
+      this.onErrorCallback?.(new Error(event.error?.message ?? 'Unknown realtime response error'));
     });
 
     // Handle response completion
@@ -262,11 +294,17 @@ export class RealtimeAudioService implements ServiceInitializable {
 
   private composeSessionPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     const payload: Record<string, unknown> = {
-      modalities: ["text", "audio"],
+      modalities: this.config.modalities ?? ["text", "audio"],
       model: this.config.model ?? this.config.deploymentName ?? "gpt-realtime",
       input_audio_format: this.config.inputAudioFormat ?? 'pcm16',
       input_audio_transcription: this.composeTranscriptionPayload()
     };
+    if (this.config.voice) {
+      payload.voice = this.config.voice;
+    }
+    if (this.config.outputAudioFormat) {
+      payload.output_audio_format = this.config.outputAudioFormat;
+    }
     const turnDetection = this.buildTurnDetectionPayload();
     if (turnDetection) {
       payload.turn_detection = turnDetection;
@@ -533,7 +571,7 @@ export class RealtimeAudioService implements ServiceInitializable {
   /**
    * Update session configuration
    */
-  async updateSessionConfig(config: Partial<{ instructions: string; voice: string; temperature: number }>): Promise<void> {
+  async updateSessionConfig(config: Record<string, unknown>): Promise<void> {
     if (!this.isConnected || !this.realtimeClient) {
       throw new Error('No active session');
     }
@@ -593,5 +631,38 @@ export class RealtimeAudioService implements ServiceInitializable {
     if (requiresUpdate && this.isConnected && this.realtimeClient) {
       this.sendSessionUpdate('transcription_options_updated');
     }
+  }
+
+  async cancelResponse(responseId?: string): Promise<void> {
+    if (!this.isConnected || !this.realtimeClient) {
+      throw new Error('No active session');
+    }
+    this.realtimeClient.send({ type: 'response.cancel', response_id: responseId });
+    this.logger.debug('response.cancel dispatched', { responseId });
+  }
+
+  async clearOutputAudioBuffer(): Promise<void> {
+    if (!this.isConnected || !this.realtimeClient) {
+      throw new Error('No active session');
+    }
+    this.realtimeClient.send({ type: 'output_audio_buffer.clear' });
+    this.logger.debug('output_audio_buffer.clear dispatched');
+  }
+
+  async truncateConversation(itemId: string | undefined): Promise<void> {
+    if (!this.isConnected || !this.realtimeClient) {
+      throw new Error('No active session');
+    }
+    if (!itemId) {
+      this.logger.warn('truncateConversation called without itemId');
+      return;
+    }
+    this.realtimeClient.send({
+      type: 'conversation.item.truncate',
+      item_id: itemId,
+      content_index: 0,
+      audio_end_ms: 0
+    } as any);
+    this.logger.debug('conversation.item.truncate dispatched', { itemId });
   }
 }

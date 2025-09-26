@@ -6,6 +6,7 @@ export * from './ephemeral';
 export * from './realtime-events';
 export * from './session';
 export * from './speech-to-text';
+export * from './tts';
 export * from './webrtc';
 
 // Service integration types - only non-conflicting exports

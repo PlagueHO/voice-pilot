@@ -11,7 +11,7 @@ tags: [feature, azure, authentication, realtime, security, architecture]
 
 # Introduction
 
-![Status: Completed](https://img.shields.io/badge/status-Completed-green)
+![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
 This implementation plan details the development of the Ephemeral Key Service (SP-004) for VoicePilot's Azure OpenAI Realtime API integration. The service will mint and manage short-lived session tokens, ensuring secure WebRTC-based real-time audio communication while maintaining strict security boundaries between extension host and webview contexts.
 

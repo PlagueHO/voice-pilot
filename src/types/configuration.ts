@@ -24,6 +24,22 @@ export interface AudioConfig {
   echoCancellation: boolean;
   sampleRate: 16000 | 24000 | 48000;
   turnDetection: TurnDetectionConfig;
+  tts: TtsConfig;
+}
+
+export interface TtsConfig {
+  transport: 'webrtc' | 'websocket';
+  apiVersion: string;
+  fallbackMode: 'text-only' | 'retry';
+  maxInitialLatencyMs: number;
+  voice: {
+    name: string;
+    locale: string;
+    style?: string;
+    gender?: 'female' | 'male' | 'unspecified';
+    providerVoiceId?: string;
+    description?: string;
+  };
 }
 
 export interface TurnDetectionConfig {
