@@ -1,6 +1,8 @@
+import { randomUUID } from 'crypto';
 import * as vscode from 'vscode';
 import { ConfigurationManager } from '../config/configuration-manager';
 import { Logger } from '../core/logger';
+import { withRecovery } from '../helpers/error/envelope';
 import { AzureOpenAIConfig } from '../types/configuration';
 import {
     AuthenticationError,
@@ -16,6 +18,7 @@ import {
     KeyRenewalHandler,
     RealtimeSessionInfo
 } from '../types/ephemeral';
+import type { RecoveryExecutionOptions, RecoveryExecutor, RecoveryPlan, VoicePilotError } from '../types/error/voice-pilot-error';
 import { CredentialManagerImpl } from './credential-manager';
 
 /**
@@ -31,6 +34,8 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
   private credentialManager!: CredentialManagerImpl;
   private configManager!: ConfigurationManager;
   private logger!: Logger;
+  private recoveryExecutor?: RecoveryExecutor;
+  private defaultRecoveryPlan?: RecoveryPlan;
 
   // Event handlers
   private keyRenewalHandlers: Set<KeyRenewalHandler> = new Set();
@@ -48,7 +53,9 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
   constructor(
     credentialManager?: CredentialManagerImpl,
     configManager?: ConfigurationManager,
-    logger?: Logger
+    logger?: Logger,
+    recoveryExecutor?: RecoveryExecutor,
+    recoveryPlan?: RecoveryPlan
   ) {
     if (credentialManager) {
       this.credentialManager = credentialManager;
@@ -58,6 +65,19 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     }
     // Always ensure a logger instance exists to avoid undefined access during initialize
     this.logger = logger ?? new Logger('EphemeralKeyService');
+    if (recoveryExecutor) {
+      this.recoveryExecutor = recoveryExecutor;
+    }
+    if (recoveryPlan) {
+      this.defaultRecoveryPlan = recoveryPlan;
+    }
+  }
+
+  setRecoveryExecutor(executor: RecoveryExecutor, defaultPlan?: RecoveryPlan): void {
+    this.recoveryExecutor = executor;
+    if (defaultPlan) {
+      this.defaultRecoveryPlan = defaultPlan;
+    }
   }
 
   async initialize(): Promise<void> {
@@ -120,6 +140,57 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
   }
 
   // Primary authentication operations
+  private async executeAuthOperation<T>(operation: () => Promise<T>, context: {
+    code: string;
+    message: string;
+    remediation: string;
+    operation: string;
+    severity?: RecoveryExecutionOptions['severity'];
+    userImpact?: RecoveryExecutionOptions['userImpact'];
+    metadata?: Record<string, unknown>;
+    retry?: RecoveryExecutionOptions['retry'];
+    recoveryPlan?: RecoveryPlan;
+    telemetryContext?: RecoveryExecutionOptions['telemetryContext'];
+    sessionId?: string;
+  }): Promise<T> {
+    if (!this.recoveryExecutor) {
+      return operation();
+    }
+
+    return withRecovery(operation, {
+      executor: this.recoveryExecutor,
+      faultDomain: 'auth',
+      code: context.code,
+      message: context.message,
+      remediation: context.remediation,
+      operation: context.operation,
+      correlationId: randomUUID(),
+      severity: context.severity ?? 'error',
+      userImpact: context.userImpact ?? 'blocked',
+      metadata: context.metadata,
+      retry: context.retry,
+      recoveryPlan: context.recoveryPlan ?? this.defaultRecoveryPlan,
+      telemetryContext: context.telemetryContext,
+      sessionId: context.sessionId,
+      onRetryScheduled: plan => {
+        this.logger.warn('Authentication retry scheduled', {
+          code: context.code,
+          attempt: plan.attempt,
+          maxAttempts: plan.maxAttempts,
+          nextAttemptAt: plan.nextAttemptAt?.toISOString()
+        });
+      },
+      onRecoveryComplete: outcome => {
+        if (!outcome.success && outcome.error) {
+          this.logger.error('Authentication recovery failed', {
+            code: context.code,
+            message: outcome.error.message
+          });
+        }
+      }
+    });
+  }
+
   async requestEphemeralKey(): Promise<EphemeralKeyResult> {
     this.ensureInitialized();
 
@@ -139,8 +210,27 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         };
       }
 
-      // Create session using Azure Sessions API
-      const sessionResponse = await this.createAzureSession(config, apiKey);
+      const sessionResponse = await this.executeAuthOperation(
+        () => this.createAzureSession(config, apiKey),
+        {
+          code: 'AUTH_EPHEMERAL_SESSION_CREATE_FAILED',
+          message: 'Failed to create Azure OpenAI realtime session',
+          remediation: 'Verify Azure OpenAI endpoint, deployment name, and credentials.',
+          operation: 'requestEphemeralKey',
+          metadata: {
+            endpoint: config.endpoint,
+            region: config.region,
+            deployment: config.deploymentName
+          },
+          retry: {
+            policy: 'exponential',
+            maxAttempts: this.config.maxRetryAttempts,
+            initialDelayMs: this.config.retryBackoffMs,
+            multiplier: 2,
+            jitter: 0.2
+          }
+        }
+      );
 
       const ephemeralKey = sessionResponse.client_secret.value;
       const expiresAt = new Date(sessionResponse.client_secret.expires_at * 1000);
@@ -251,11 +341,30 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
 
       if (apiKey) {
         // Notify Azure to end session
-        const response = await fetch(
-          `${config.endpoint}/openai/realtimeapi/sessions/${sessionId}?api-version=${config.apiVersion || '2025-04-01-preview'}`,
+        const response = await this.executeAuthOperation(
+          () => fetch(
+            `${config.endpoint}/openai/realtimeapi/sessions/${sessionId}?api-version=${config.apiVersion || '2025-04-01-preview'}`,
+            {
+              method: 'DELETE',
+              headers: { 'api-key': apiKey }
+            }
+          ),
           {
-            method: 'DELETE',
-            headers: { 'api-key': apiKey }
+            code: 'AUTH_SESSION_TERMINATION_FAILED',
+            message: 'Failed to terminate Azure realtime session',
+            remediation: 'Validate network connectivity and Azure session state before retrying.',
+            operation: 'endSession',
+            severity: 'warning',
+            userImpact: 'degraded',
+            metadata: {
+              sessionId,
+              endpoint: config.endpoint
+            },
+            retry: {
+              policy: 'immediate',
+              maxAttempts: 2,
+              initialDelayMs: 250
+            }
           }
         );
 
@@ -483,6 +592,19 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
   }
 
   private mapAzureError(error: any): AuthenticationError {
+    if ((error as VoicePilotError)?.code && (error as VoicePilotError)?.remediation) {
+      const voiceError = error as VoicePilotError;
+      const retryable = voiceError.retryPlan ? voiceError.retryPlan.policy !== 'none' && voiceError.retryPlan.attempt < voiceError.retryPlan.maxAttempts : true;
+      return {
+        code: voiceError.code,
+        message: voiceError.message,
+        isRetryable: retryable,
+        remediation: voiceError.remediation,
+        azureErrorDetails: voiceError.metadata,
+        voicePilotError: voiceError
+      };
+    }
+
     // Map Azure-specific errors to standardized error format
     if (error.message?.includes('401')) {
       return {

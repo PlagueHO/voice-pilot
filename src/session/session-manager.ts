@@ -1,9 +1,12 @@
+import { randomUUID } from 'crypto';
 import * as vscode from 'vscode';
 import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
 import { ConfigurationManager } from '../config/configuration-manager';
 import { Logger } from '../core/logger';
+import { createVoicePilotError, withRecovery } from '../helpers/error/envelope';
 import { PrivacyController } from '../services/privacy/privacy-controller';
 import { EphemeralKeyInfo, EphemeralKeyResult } from '../types/ephemeral';
+import type { RecoveryExecutionOptions, RecoveryExecutor, RecoveryPlan, RecoveryRegistrar } from '../types/error/voice-pilot-error';
 import type { PurgeCommand, PurgeReason } from '../types/privacy';
 import {
     HealthCheck,
@@ -50,19 +53,25 @@ export class SessionManagerImpl implements SessionManager {
   private conversationHooks?: ConversationLifecycleHooks;
   private lastErrors = new Map<string, SessionError>();
   private privacyController?: PrivacyController;
+  private recoveryExecutor?: RecoveryExecutor;
+  private defaultRecoveryPlan?: RecoveryPlan;
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
     timerManager?: SessionTimerManagerImpl,
     configManager?: ConfigurationManager,
     logger?: Logger,
-    privacyController?: PrivacyController
+    privacyController?: PrivacyController,
+    recoveryExecutor?: RecoveryExecutor,
+    recoveryPlan?: RecoveryPlan
   ) {
     if (keyService) { this.keyService = keyService; }
     if (timerManager) { this.timerManager = timerManager; }
     if (configManager) { this.configManager = configManager; }
     if (logger) { this.logger = logger; }
     if (privacyController) { this.privacyController = privacyController; }
+    if (recoveryExecutor) { this.recoveryExecutor = recoveryExecutor; }
+    if (recoveryPlan) { this.defaultRecoveryPlan = recoveryPlan; }
   }
 
   async initialize(): Promise<void> {
@@ -114,6 +123,13 @@ export class SessionManagerImpl implements SessionManager {
 
   setPrivacyController(controller: PrivacyController): void {
     this.privacyController = controller;
+  }
+
+  setRecoveryExecutor(executor: RecoveryExecutor, plan?: RecoveryPlan): void {
+    this.recoveryExecutor = executor;
+    if (plan) {
+      this.defaultRecoveryPlan = plan;
+    }
   }
 
   isInitialized(): boolean {
@@ -184,11 +200,41 @@ export class SessionManagerImpl implements SessionManager {
     this.emitSessionEvent('started', sessionInfo);
 
     try {
-      // Request initial ephemeral key
-      const keyResult = await this.keyService.requestEphemeralKey();
-      if (!keyResult.success) {
-        throw new Error(`Failed to obtain session credentials: ${keyResult.error?.message}`);
-      }
+      const keyResult = await this.executeSessionOperation(
+        async () => {
+          const baseMessage = 'Failed to obtain session credentials';
+          try {
+            const result = await this.keyService.requestEphemeralKey();
+            if (!result.success) {
+              const detail = result.error?.message?.trim();
+              throw new Error(detail ? `${baseMessage}: ${detail}` : baseMessage);
+            }
+            return result;
+          } catch (error: any) {
+            const detail = (error?.message ?? String(error)).trim();
+            if (detail && detail.includes(baseMessage)) {
+              throw new Error(detail);
+            }
+            throw new Error(detail ? `${baseMessage}: ${detail}` : baseMessage);
+          }
+        },
+        {
+          code: 'SESSION_CREDENTIAL_ACQUISITION_FAILED',
+          message: 'Failed to obtain session credentials',
+          remediation: 'Check Azure credentials, network connectivity, and retry.',
+          operation: 'startSession:requestEphemeralKey',
+          metadata: {
+            sessionId,
+            activeSessions: activeSessions.length
+          },
+          retry: {
+            policy: 'exponential',
+            maxAttempts: 3,
+            initialDelayMs: 500,
+            multiplier: 2
+          }
+        }
+      );
 
       // Update session with credential information
       sessionInfo.expiresAt = keyResult.expiresAt;
@@ -305,7 +351,63 @@ export class SessionManagerImpl implements SessionManager {
     this.emitSessionRenewal('renewal-started', sessionId);
 
     try {
-      const renewalResult = await this.keyService.renewKey();
+      const renewalResult = await this.executeSessionOperation(
+        async () => {
+          const baseMessage = 'Failed to renew session credentials';
+          try {
+            const result = await this.keyService.renewKey();
+            if (!result.success) {
+              const detail = result.error?.message?.trim();
+              const failureError = new Error(detail ? `${baseMessage}: ${detail}` : baseMessage);
+              (failureError as any).sessionRenewalContext = {
+                reason: 'failure',
+                metadata: {
+                  isRetryable: result.error?.isRetryable ?? false,
+                  remediation: result.error?.remediation ?? 'Check Azure service status',
+                  providerCode: result.error?.code,
+                  originalMessage: result.error?.message
+                }
+              };
+              throw failureError;
+            }
+            return result;
+          } catch (error: any) {
+            if ((error as any)?.sessionRenewalContext?.reason === 'failure') {
+              throw error;
+            }
+            const detail = (error?.message ?? String(error)).trim();
+            const formatted = detail && detail.includes(baseMessage)
+              ? detail
+              : (detail ? `${baseMessage}: ${detail}` : baseMessage);
+            const exceptionError = new Error(formatted);
+            (exceptionError as any).sessionRenewalContext = {
+              reason: 'exception',
+              metadata: {
+                isRetryable: true,
+                remediation: 'Check network connectivity and retry',
+                originalMessage: detail
+              }
+            };
+            if (error instanceof Error && !(exceptionError as any).cause) {
+              (exceptionError as any).cause = error;
+            }
+            throw exceptionError;
+          }
+        },
+        {
+          code: 'SESSION_RENEWAL_FAILED',
+          message: 'Failed to renew session credentials',
+          remediation: 'Verify network connectivity and Azure service status before retrying.',
+          operation: 'renewSession:requestEphemeralKey',
+          metadata: { sessionId },
+          retry: {
+            policy: 'exponential',
+            maxAttempts: 3,
+            initialDelayMs: 500,
+            multiplier: 2
+          }
+        }
+      );
       const latencyMs = Date.now() - startTime;
 
       if (renewalResult.success) {
@@ -352,7 +454,7 @@ export class SessionManagerImpl implements SessionManager {
         // Emit renewal failed event and session error
         this.emitSessionRenewal('renewal-failed', sessionId, renewalReturn);
         this.emitSessionError('renewal-error', sessionId, renewalReturn.error);
-  await this.invokeConversationHook('onSessionEnding', session);
+    await this.invokeConversationHook('onSessionEnding', session);
 
         return renewalReturn;
       }
@@ -361,23 +463,44 @@ export class SessionManagerImpl implements SessionManager {
       session.state = SessionState.Failed;
       const latencyMs = Date.now() - startTime;
 
+      const contextInfo = (error?.sessionRenewalContext ?? {}) as {
+        reason?: 'failure' | 'exception';
+        metadata?: {
+          isRetryable?: boolean;
+          remediation?: string;
+          providerCode?: string;
+          originalMessage?: string;
+        };
+      };
+      const cause = (error as any)?.cause;
+      const isException = contextInfo.reason === 'exception' || Boolean(cause);
+      const isFailure = !isException;
+      const metadata = contextInfo.metadata ?? {};
+      const remediationFallback = isFailure ? 'Check Azure service status' : 'Check network connectivity and retry';
+
       const renewalReturn = {
         success: false,
         sessionId,
         latencyMs,
         error: {
-          code: 'RENEWAL_EXCEPTION',
-          message: error.message,
-          isRetryable: true,
-          remediation: 'Check network connectivity and retry',
-          timestamp: new Date()
+          code: isFailure ? 'RENEWAL_FAILED' : 'RENEWAL_EXCEPTION',
+          message: error?.message ?? 'Failed to renew session credentials',
+          isRetryable: metadata.isRetryable ?? true,
+          remediation: metadata.remediation ?? remediationFallback,
+          timestamp: new Date(),
+          context: metadata.providerCode || metadata.originalMessage
+            ? {
+                providerCode: metadata.providerCode,
+                originalMessage: metadata.originalMessage
+              }
+            : undefined
         }
       };
 
       // Emit renewal failed event and session error
       this.emitSessionRenewal('renewal-failed', sessionId, renewalReturn);
       this.emitSessionError('renewal-error', sessionId, renewalReturn.error);
-  await this.invokeConversationHook('onSessionEnding', session);
+    await this.invokeConversationHook('onSessionEnding', session);
 
       return renewalReturn;
     }
@@ -437,6 +560,124 @@ export class SessionManagerImpl implements SessionManager {
 
   getSessionConfig(sessionId: string): SessionConfig | undefined {
     return this.sessions.get(sessionId)?.config;
+  }
+
+  registerRecoveryActions(registrar: RecoveryRegistrar): void {
+    registrar.addStep({
+      id: 'SESSION_FORCE_TERMINATION',
+      description: 'Force end the active session to recover from failure.',
+      execute: async () => {
+        const start = Date.now();
+        try {
+          await this.endSession();
+          return { success: true, durationMs: Date.now() - start };
+        } catch (error: any) {
+          return {
+            success: false,
+            durationMs: Date.now() - start,
+            error: createVoicePilotError({
+              faultDomain: 'session',
+              code: 'SESSION_FORCE_TERMINATION_FAILED',
+              message: error?.message ?? 'Failed to force end session',
+              remediation: 'Review session state and retry termination.',
+              metadata: { error }
+            })
+          };
+        }
+      },
+      compensatingAction: async () => {
+        this.logger.warn('Attempting compensating action: clearing session timers');
+        this.timerManager?.dispose();
+        this.timerManager = new SessionTimerManagerImpl(
+          this.logger,
+          this.handleRenewalRequired.bind(this),
+          this.handleTimeoutExpired.bind(this),
+          this.handleHeartbeatCheck.bind(this)
+        );
+      }
+    });
+
+    registrar.addStep({
+      id: 'SESSION_PURGE_PRIVACY',
+      description: 'Purge cached session privacy data to avoid stale state.',
+      execute: async () => {
+        const start = Date.now();
+        try {
+          await this.purgePrivacyData('error-recovery');
+          return { success: true, durationMs: Date.now() - start };
+        } catch (error: any) {
+          return {
+            success: false,
+            durationMs: Date.now() - start,
+            error: createVoicePilotError({
+              faultDomain: 'session',
+              code: 'SESSION_PRIVACY_PURGE_FAILED',
+              message: error?.message ?? 'Failed to purge session privacy data',
+              remediation: 'Manually clear VoicePilot privacy cache.',
+              metadata: { error }
+            })
+          };
+        }
+      }
+    });
+
+    registrar.addFallback('degraded-features', async () => {
+      this.logger.warn('Entering degraded session mode due to repeated failures.');
+      try {
+        await vscode.commands.executeCommand('setContext', 'voicepilot.session.degraded', true);
+      } catch (error: any) {
+        this.logger.warn('Failed to set degraded session context', { error: error?.message ?? error });
+      }
+    });
+
+    registrar.setNotification({ notifyUser: true, suppressionWindowMs: 60_000 });
+  }
+
+  private async executeSessionOperation<T>(operation: () => Promise<T>, context: {
+    code: string;
+    message: string;
+    remediation: string;
+    operation: string;
+    metadata?: Record<string, unknown>;
+    severity?: RecoveryExecutionOptions['severity'];
+    userImpact?: RecoveryExecutionOptions['userImpact'];
+    retry?: RecoveryExecutionOptions['retry'];
+    recoveryPlan?: RecoveryPlan;
+  }): Promise<T> {
+    if (!this.recoveryExecutor) {
+      return operation();
+    }
+
+    return withRecovery(operation, {
+      executor: this.recoveryExecutor,
+      faultDomain: 'session',
+      code: context.code,
+      message: context.message,
+      remediation: context.remediation,
+      operation: context.operation,
+      correlationId: randomUUID(),
+      severity: context.severity ?? 'error',
+      userImpact: context.userImpact ?? 'degraded',
+      metadata: context.metadata,
+      retry: context.retry,
+      recoveryPlan: context.recoveryPlan ?? this.defaultRecoveryPlan,
+      onRetryScheduled: plan => {
+        this.logger.warn('Session operation retry scheduled', {
+          operation: context.operation,
+          attempt: plan.attempt,
+          maxAttempts: plan.maxAttempts,
+          nextAttemptAt: plan.nextAttemptAt?.toISOString()
+        });
+      },
+      onRecoveryComplete: outcome => {
+        if (!outcome.success && outcome.error) {
+          this.logger.error('Session recovery failed', {
+            operation: context.operation,
+            message: outcome.error.message
+          });
+        }
+      }
+    });
   }
 
   // Event handling

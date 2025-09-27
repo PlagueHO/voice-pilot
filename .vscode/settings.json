@@ -17,9 +17,13 @@
 
     // Editor settings for development
     "editor.insertSpaces": true,
-    "editor.tabSize": 4,
+    "editor.tabSize": 2,
     "editor.detectIndentation": false,
     "editor.trimAutoWhitespace": true,
+    "[typescript]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2
+    },
     "editor.formatOnSave": false,
     "editor.formatOnPaste": true,
     "editor.codeActionsOnSave": {

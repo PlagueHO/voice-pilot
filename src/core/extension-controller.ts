@@ -3,19 +3,27 @@ import { CredentialManagerImpl } from '../auth/credential-manager';
 import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
 import { ConfigurationManager } from '../config/configuration-manager';
 import ConversationStateMachine, {
-    StateChangeEvent as ConversationStateChangeEvent,
-    TurnContext as ConversationTurnContext,
-    TurnEvent as ConversationTurnEvent,
-    CopilotResponseEvent
+  StateChangeEvent as ConversationStateChangeEvent,
+  TurnContext as ConversationTurnContext,
+  TurnEvent as ConversationTurnEvent,
+  CopilotResponseEvent
 } from '../conversation/conversation-state-machine';
 import { TranscriptPrivacyAggregator } from '../conversation/transcript-privacy-aggregator';
 import { ChatIntegration } from '../copilot/chat-integration';
+import { createVoicePilotError } from '../helpers/error/envelope';
+import { sanitizeForLog } from '../helpers/error/redaction';
+import { ErrorEventBusImpl } from '../services/error/error-event-bus';
+import { RecoveryOrchestrator } from '../services/error/recovery-orchestrator';
+import { RecoveryRegistrationCenter } from '../services/error/recovery-registrar';
 import { PrivacyController } from '../services/privacy/privacy-controller';
 import { InterruptionEngineImpl } from '../session/interruption-engine';
 import { SessionManagerImpl } from '../session/session-manager';
 import { SessionTimerManagerImpl } from '../session/session-timer-manager';
 import { ConversationConfig } from '../types/configuration';
 import { InterruptionPolicyConfig } from '../types/conversation';
+import type { RecoveryPlan, VoicePilotError } from '../types/error/voice-pilot-error';
+import { ErrorPresenter } from '../ui/error-presentation-adapter';
+import { StatusBar } from '../ui/status-bar';
 import { VoiceControlPanel } from '../ui/voice-control-panel';
 import { Logger } from './logger';
 import { ServiceInitializable } from './service-initializable';
@@ -31,6 +39,13 @@ export class ExtensionController implements ServiceInitializable {
   private readonly transcriptAggregator: TranscriptPrivacyAggregator;
   private readonly controllerDisposables: vscode.Disposable[] = [];
   private readonly dispatchedUserTurnIds = new Set<string>();
+  private readonly errorEventBus: ErrorEventBusImpl;
+  private readonly recoveryRegistry: RecoveryRegistrationCenter;
+  private readonly recoveryOrchestrator: RecoveryOrchestrator;
+  private readonly statusBar: StatusBar;
+  private readonly errorPresenter: ErrorPresenter;
+  private authRecoveryPlan?: RecoveryPlan;
+  private sessionRecoveryPlan?: RecoveryPlan;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -45,6 +60,15 @@ export class ExtensionController implements ServiceInitializable {
     this.conversationMachine = new ConversationStateMachine({ logger: this.logger });
     this.chatIntegration = new ChatIntegration(this.logger);
     this.transcriptAggregator = new TranscriptPrivacyAggregator(this.voicePanel, this.privacyController, this.logger);
+    this.errorEventBus = new ErrorEventBusImpl(this.logger);
+    this.recoveryRegistry = new RecoveryRegistrationCenter();
+    this.recoveryOrchestrator = new RecoveryOrchestrator({
+      eventBus: this.errorEventBus,
+      logger: this.logger,
+      registry: this.recoveryRegistry
+    });
+    this.statusBar = new StatusBar();
+    this.errorPresenter = new ErrorPresenter(this.voicePanel, this.statusBar);
   }
 
   async initialize(): Promise<void> {
@@ -63,6 +87,9 @@ export class ExtensionController implements ServiceInitializable {
 
       await this.safeInit('privacy controller', () => this.privacyController.initialize(), () => this.privacyController.dispose(), initialized, 'privacyController');
 
+      await this.safeInit('error event bus', () => this.errorEventBus.initialize(), () => this.errorEventBus.dispose(), initialized, 'errorEventBus');
+      await this.safeInit('recovery orchestrator', () => this.recoveryOrchestrator.initialize(), () => this.recoveryOrchestrator.dispose(), initialized, 'recoveryOrchestrator');
+
       try {
         await this.privacyController.issuePurge({
           type: 'privacy.purge',
@@ -76,19 +103,25 @@ export class ExtensionController implements ServiceInitializable {
       }
 
       // Initialize ephemeral key service with dependencies
-      this.ephemeralKeyService = new EphemeralKeyServiceImpl(this.credentialManager, this.configurationManager, this.logger);
+      this.ephemeralKeyService = new EphemeralKeyServiceImpl(
+        this.credentialManager,
+        this.configurationManager,
+        this.logger,
+        this.recoveryOrchestrator
+      );
       await this.safeInit('ephemeral key service', () => this.ephemeralKeyService.initialize(), () => this.ephemeralKeyService.dispose(), initialized, 'ephemeralKeyService');
 
-      // Initialize session timer manager
-      // Note: SessionTimerManager will be created by SessionManager internally, but we need to inject dependencies
+      this.registerRecoveryPlans();
+      this.registerErrorObservers();
 
-      // Initialize session manager with all required dependencies
-      // The SessionManager constructor should create its own SessionTimerManager
       if (!this.sessionManager.isInitialized()) {
         // Inject dependencies into session manager
         (this.sessionManager as any).keyService = this.ephemeralKeyService;
         (this.sessionManager as any).configManager = this.configurationManager;
         (this.sessionManager as any).logger = this.logger;
+        if ((this.sessionManager as any).setRecoveryExecutor) {
+          (this.sessionManager as any).setRecoveryExecutor(this.recoveryOrchestrator, this.sessionRecoveryPlan);
+        }
       }
       await this.safeInit('session manager', () => this.sessionManager.initialize(), () => this.sessionManager.dispose(), initialized, 'sessionManager');
 
@@ -141,8 +174,8 @@ export class ExtensionController implements ServiceInitializable {
       ['controller observers', () => this.disposeControllerDisposables()],
       ['conversation state machine', () => this.conversationMachine.dispose()],
       ['chat integration', () => this.chatIntegration.dispose()],
-  ['transcript aggregator', () => this.transcriptAggregator.dispose()],
-  ['privacy controller', () => this.privacyController.dispose()],
+      ['transcript aggregator', () => this.transcriptAggregator.dispose()],
+      ['privacy controller', () => this.privacyController.dispose()],
       ['voice panel', () => this.voicePanel.dispose()],
       ['session manager', () => this.sessionManager.dispose()],
       ['interruption engine', () => this.interruptionEngine.dispose()],
@@ -186,8 +219,8 @@ export class ExtensionController implements ServiceInitializable {
       })
     );
 
-  this.safeContextPush(...disposables);
-  this.controllerDisposables.push(...disposables);
+    this.safeContextPush(...disposables);
+    this.controllerDisposables.push(...disposables);
   }
 
   getConfigurationManager(): ConfigurationManager { return this.configurationManager; }
@@ -197,6 +230,136 @@ export class ExtensionController implements ServiceInitializable {
   getVoiceControlPanel(): VoiceControlPanel { return this.voicePanel; }
   getInterruptionEngine(): InterruptionEngineImpl { return this.interruptionEngine; }
   getPrivacyController(): PrivacyController { return this.privacyController; }
+
+  private registerRecoveryPlans(): void {
+    this.recoveryRegistry.clearAll();
+
+    this.recoveryRegistry.register(
+      'auth',
+      registrar => {
+        registrar.addStep({
+          id: 'AUTH_REVOKE_EPHEMERAL_KEY',
+          description: 'Revoke the cached ephemeral key to force a fresh authentication flow.',
+          execute: async () => {
+            const started = Date.now();
+            try {
+              await this.ephemeralKeyService.revokeCurrentKey();
+              return { success: true, durationMs: Date.now() - started };
+            } catch (error: any) {
+              return {
+                success: false,
+                durationMs: Date.now() - started,
+                error: createVoicePilotError({
+                  faultDomain: 'auth',
+                  code: 'AUTH_REVOKE_KEY_FAILED',
+                  message: error?.message ?? 'Failed to revoke Azure ephemeral session key',
+                  remediation: 'Retry authentication and confirm Azure OpenAI availability.',
+                  metadata: { error: error?.message ?? String(error) }
+                })
+              };
+            }
+          }
+        });
+
+        registrar.addStep({
+          id: 'AUTH_SELF_TEST',
+          description: 'Run Azure authentication self-test to verify credentials and connectivity.',
+          execute: async () => {
+            const started = Date.now();
+            try {
+              const result = await this.ephemeralKeyService.testAuthentication();
+              if (!result.success) {
+                throw new Error(result.error ?? 'Authentication self-test failed');
+              }
+              return { success: true, durationMs: Date.now() - started };
+            } catch (error: any) {
+              return {
+                success: false,
+                durationMs: Date.now() - started,
+                error: createVoicePilotError({
+                  faultDomain: 'auth',
+                  code: 'AUTH_SELF_TEST_FAILED',
+                  message: error?.message ?? 'Authentication self-test failed',
+                  remediation: 'Verify Azure credentials, network access, and retry.',
+                  metadata: { error: error?.message ?? String(error) }
+                })
+              };
+            }
+          }
+        });
+
+        registrar.addFallback('manual-intervention', async () => {
+          const selection = await vscode.window.showErrorMessage(
+            'VoicePilot authentication is in a degraded state. Review Azure credentials?',
+            'Open Settings',
+            'Dismiss'
+          );
+          if (selection === 'Open Settings') {
+            await vscode.commands.executeCommand('voicepilot.openSettings');
+          }
+        });
+
+        registrar.setNotification({ notifyUser: true, suppressionWindowMs: 120_000 });
+      },
+      { fallbackMode: 'manual-intervention' }
+    );
+
+    this.authRecoveryPlan = this.recoveryRegistry.get('auth');
+    this.ephemeralKeyService.setRecoveryExecutor(this.recoveryOrchestrator, this.authRecoveryPlan);
+
+    this.recoveryRegistry.register(
+      'session',
+      registrar => {
+        this.sessionManager.registerRecoveryActions(registrar);
+      },
+      { fallbackMode: 'degraded-features' }
+    );
+
+    this.sessionRecoveryPlan = this.recoveryRegistry.get('session');
+    this.sessionManager.setRecoveryExecutor(this.recoveryOrchestrator, this.sessionRecoveryPlan);
+  }
+
+  private registerErrorObservers(): void {
+    const subscription = this.errorEventBus.subscribe(async (error: VoicePilotError) => {
+      const sanitized = sanitizeForLog(error);
+      switch (error.severity) {
+        case 'critical':
+        case 'error':
+          this.logger.error('VoicePilot error', sanitized);
+          break;
+        case 'warning':
+          this.logger.warn('VoicePilot warning', sanitized);
+          break;
+        default:
+          this.logger.info('VoicePilot event', sanitized);
+          break;
+      }
+
+      const metadata = error.metadata as { notificationSuppressed?: boolean } | undefined;
+      if (metadata?.notificationSuppressed) {
+        return;
+      }
+
+      if (error.severity === 'info') {
+        await this.errorPresenter.clearSuppressedNotifications(error.faultDomain);
+        return;
+      }
+
+      if (error.recoveryPlan?.notifyUser === false) {
+        return;
+      }
+
+      await this.errorPresenter.showStatusBarBadge(error);
+
+      if (error.severity === 'critical' || error.userImpact === 'blocked') {
+        await this.errorPresenter.showPanelBanner(error);
+      }
+
+      await this.errorPresenter.appendTranscriptNotice(error);
+    });
+
+    this.controllerDisposables.push(subscription);
+  }
 
   private registerConversationIntegration(): void {
     const hooksDisposable = this.sessionManager.registerConversationHooks({
@@ -310,8 +473,9 @@ export class ExtensionController implements ServiceInitializable {
       }
       this.voicePanel.updateDiagnostics(event.diagnostics);
     });
-  this.safeContextPush(configDisposable, eventDisposable);
-  this.controllerDisposables.push(configDisposable, eventDisposable);
+
+    this.safeContextPush(configDisposable, eventDisposable);
+    this.controllerDisposables.push(configDisposable, eventDisposable);
 
     void vscode.commands
       .executeCommand('setContext', 'voicepilot.interruptionState', this.interruptionEngine.getConversationState())

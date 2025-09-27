@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ServiceInitializable } from '../core/service-initializable';
+import type { VoicePilotError } from './error/voice-pilot-error';
 
 // Core service interface
 export interface EphemeralKeyService extends ServiceInitializable {
@@ -66,6 +67,7 @@ export interface AuthenticationError {
   isRetryable: boolean;
   remediation: string;
   azureErrorDetails?: any;
+  voicePilotError?: VoicePilotError;
 }
 
 // Azure Sessions API contracts

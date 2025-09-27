@@ -113,6 +113,19 @@
 			"icon": { "id": "check" },
 			"problemMatcher": ["$eslint-stylish"]
 		},
+		// Prettier formatting
+		{
+			"label": "Format TypeScript",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"prettier",
+				"--write",
+				"src/**/*.ts"
+			],
+			"icon": { "id": "wand" },
+			"problemMatcher": []
+		},
 		// Package VSIX using vsce
 		{
 			"label": "Package Extension",

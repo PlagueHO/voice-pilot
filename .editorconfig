@@ -13,7 +13,7 @@ trim_trailing_whitespace = true
 # TypeScript, JavaScript, JSON
 [*.{ts,js,json,jsonc}]
 indent_style = space
-indent_size = 4
+indent_size = 2
 
 # Markdown files
 [*.md]
@@ -34,12 +34,12 @@ indent_size = 2
 # VS Code specific files
 [*.code-workspace]
 indent_style = space
-indent_size = 4
+indent_size = 2
 
 # Configuration files
 [*.{conf,cfg,ini}]
 indent_style = space
-indent_size = 4
+indent_size = 2
 
 # Shell scripts
 [*.{sh,bash,zsh}]

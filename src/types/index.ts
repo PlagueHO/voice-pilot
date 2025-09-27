@@ -4,6 +4,8 @@ export * from './configuration';
 export * from './conversation';
 export * from './credentials';
 export * from './ephemeral';
+export * from './error/error-taxonomy';
+export * from './error/voice-pilot-error';
 export * from './presence';
 export * from './privacy';
 export * from './realtime-events';
