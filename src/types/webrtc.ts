@@ -47,6 +47,25 @@ export interface EphemeralAuthentication {
   keyInfo: EphemeralKeyInfo;
 }
 
+export interface AudioContextProviderConfiguration {
+  /**
+   * Strategy identifier for downstream services. Currently only a shared provider is supported.
+   */
+  strategy: "shared";
+  /**
+   * Desired latency category for the shared AudioContext. Defaults to "interactive".
+   */
+  latencyHint: AudioContextLatencyCategory | number;
+  /**
+   * Whether the AudioContext should resume automatically when voice sessions start.
+   */
+  resumeOnActivation: boolean;
+  /**
+   * Whether resuming the AudioContext requires an explicit user gesture before activation.
+   */
+  requiresUserGesture: boolean;
+}
+
 export interface AudioConfiguration {
   sampleRate: 24000;
   format: "pcm16";
@@ -54,6 +73,49 @@ export interface AudioConfiguration {
   echoCancellation?: boolean;
   noiseSuppression?: boolean;
   autoGainControl?: boolean;
+  audioContextProvider: AudioContextProviderConfiguration;
+  workletModuleUrls: ReadonlyArray<string>;
+}
+
+export function validateAudioConfiguration(
+  configuration: AudioConfiguration,
+): ReadonlyArray<string> {
+  const errors: string[] = [];
+
+  if (configuration.sampleRate !== 24000) {
+    errors.push("Audio sample rate must be 24000 Hz for realtime transport compliance.");
+  }
+
+  if (configuration.format !== "pcm16") {
+    errors.push("Audio format must be pcm16 for realtime transport compliance.");
+  }
+
+  if (configuration.channels !== 1) {
+    errors.push("Audio channel count must remain mono (1 channel).");
+  }
+
+  if (!configuration.audioContextProvider) {
+    errors.push("audioContextProvider configuration is required.");
+  } else {
+    if (configuration.audioContextProvider.strategy !== "shared") {
+      errors.push("Only the shared audio context provider strategy is currently supported.");
+    }
+
+    if (
+      configuration.audioContextProvider.latencyHint !== "interactive" &&
+      typeof configuration.audioContextProvider.latencyHint !== "number"
+    ) {
+      errors.push(
+        "AudioContext latency hint must be either \"interactive\" or a numeric value in seconds.",
+      );
+    }
+  }
+
+  if (!Array.isArray(configuration.workletModuleUrls)) {
+    errors.push("workletModuleUrls must be an array of module URLs.");
+  }
+
+  return errors;
 }
 
 export interface DataChannelConfiguration {

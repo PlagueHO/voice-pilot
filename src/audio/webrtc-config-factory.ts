@@ -3,14 +3,15 @@ import { ConfigurationManager } from "../config/configuration-manager";
 import { Logger } from "../core/logger";
 import { EphemeralKeyInfo } from "../types/ephemeral";
 import {
-  AudioConfiguration,
-  ConnectionConfiguration,
-  DataChannelConfiguration,
-  EphemeralAuthentication,
-  WebRTCConfig,
-  WebRTCEndpoint,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
+    AudioConfiguration,
+    ConnectionConfiguration,
+    DataChannelConfiguration,
+    EphemeralAuthentication,
+    validateAudioConfiguration,
+    WebRTCConfig,
+    WebRTCEndpoint,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
 } from "../types/webrtc";
 
 /**
@@ -151,6 +152,13 @@ export class WebRTCConfigFactory {
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: true,
+      audioContextProvider: {
+        strategy: "shared",
+        latencyHint: "interactive",
+        resumeOnActivation: true,
+        requiresUserGesture: true,
+      },
+      workletModuleUrls: [] as ReadonlyArray<string>,
     };
   }
 
@@ -239,12 +247,15 @@ export class WebRTCConfigFactory {
       }
 
       // Validate audio configuration
-      if (
-        !config.audioConfig ||
-        config.audioConfig.sampleRate !== 24000 ||
-        config.audioConfig.format !== "pcm16"
-      ) {
+      if (!config.audioConfig) {
         throw new Error("Invalid audio configuration");
+      }
+
+      const audioConfigErrors = validateAudioConfiguration(config.audioConfig);
+      if (audioConfigErrors.length > 0) {
+        throw new Error(
+          `Invalid audio configuration: ${audioConfigErrors.join("; ")}`,
+        );
       }
 
       // Validate supported region

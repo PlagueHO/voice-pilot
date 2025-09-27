@@ -2,14 +2,26 @@ import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { AudioTrackState, AudioTrackStatistics } from "../types/audio-capture";
 import {
-  ConnectionQuality,
-  ConnectionStatistics,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  WebRTCTransport,
+    AudioConfiguration,
+    ConnectionQuality,
+    ConnectionStatistics,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    WebRTCTransport,
 } from "../types/webrtc";
+import {
+    AudioContextProvider,
+    AudioGraphNodes,
+    sharedAudioContextProvider,
+} from "./audio-context-provider";
 
 const QUALITY_MONITOR_DEFAULT_INTERVAL_MS = 2000;
+
+type CaptureGraphContext = {
+  inputStream: MediaStream;
+  inputTrack: MediaStreamTrack;
+  graph: AudioGraphNodes;
+};
 
 /**
  * Manages audio tracks for WebRTC communication
@@ -18,11 +30,19 @@ const QUALITY_MONITOR_DEFAULT_INTERVAL_MS = 2000;
 export class AudioTrackManager implements ServiceInitializable {
   private initialized = false;
   private readonly logger: Logger;
+  private readonly audioContextProvider: AudioContextProvider;
+
+  private audioConfiguration?: AudioConfiguration;
 
   private localStream: MediaStream | null = null;
   private readonly localTracks = new Map<string, MediaStreamTrack>();
   private readonly trackStreams = new Map<string, MediaStream>();
   private readonly remoteStreams = new Map<string, MediaStream>();
+  private readonly captureGraphs = new Map<string, CaptureGraphContext>();
+  private readonly remotePlaybackSources = new Map<
+    string,
+    MediaStreamAudioSourceNode
+  >();
 
   private readonly trackStateHandlers = new Set<
     (trackId: string, state: AudioTrackState) => void
@@ -47,8 +67,23 @@ export class AudioTrackManager implements ServiceInitializable {
     autoGainControl: true,
   };
 
-  constructor(logger?: Logger) {
+  constructor(logger?: Logger, audioContextProvider?: AudioContextProvider) {
     this.logger = logger || new Logger("AudioTrackManager");
+    this.audioContextProvider =
+      audioContextProvider ?? sharedAudioContextProvider;
+  }
+
+  setAudioConfiguration(configuration: AudioConfiguration): void {
+    this.audioConfiguration = configuration;
+    this.audioContextProvider.configure(configuration);
+
+    this.audioConstraints = {
+      sampleRate: configuration.sampleRate,
+      channelCount: configuration.channels,
+      echoCancellation: configuration.echoCancellation ?? true,
+      noiseSuppression: configuration.noiseSuppression ?? true,
+      autoGainControl: configuration.autoGainControl ?? true,
+    };
   }
 
   async initialize(): Promise<void> {
@@ -91,41 +126,73 @@ export class AudioTrackManager implements ServiceInitializable {
   ): Promise<MediaStreamTrack> {
     this.ensureInitialized();
 
+    if (!this.audioConfiguration) {
+      throw new Error(
+        "Audio configuration not set. Call setAudioConfiguration() before capturing.",
+      );
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("getUserMedia not supported in this environment");
+    }
+
+    const constraints = {
+      audio: {
+        ...this.audioConstraints,
+        ...customConstraints,
+      },
+    } as MediaStreamConstraints;
+
+    this.logger.debug("Requesting microphone access", { constraints });
+
+  let inputStream: MediaStream | undefined;
+  let processedStream: MediaStream | undefined;
+  let captureContext: CaptureGraphContext | undefined;
+
     try {
-      const constraints = {
-        audio: {
-          ...this.audioConstraints,
-          ...customConstraints,
-        },
-      };
+      inputStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const inputTrack = inputStream.getAudioTracks()[0];
 
-      this.logger.debug("Requesting microphone access", { constraints });
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      const audioTrack = stream.getAudioTracks()[0];
-
-      if (!audioTrack) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (!inputTrack) {
+        inputStream.getTracks().forEach((track) => track.stop());
         throw new Error("Failed to obtain audio track from microphone");
       }
 
-      this.localStream = stream;
-      this.localTracks.set(audioTrack.id, audioTrack);
-      this.trackStreams.set(audioTrack.id, stream);
-      this.setupTrackEventHandlers(audioTrack);
-      this.emitTrackState(audioTrack);
+      const processed = await this.createProcessedTrackForStream(inputStream);
+      processedStream = processed.processedStream;
+      captureContext = {
+        inputStream,
+        inputTrack,
+        graph: processed.graph,
+      };
+
+      this.registerProcessedTrack(
+        processed.processedTrack,
+        processed.processedStream,
+        captureContext,
+      );
+
+      captureContext = undefined;
+      processedStream = undefined;
+      inputStream = undefined;
 
       this.logger.info("Microphone captured successfully", {
-        trackId: audioTrack.id,
-        label: audioTrack.label,
-        settings: audioTrack.getSettings(),
+        trackId: processed.processedTrack.id,
+        label: inputTrack.label,
+        settings: inputTrack.getSettings(),
       });
 
-      return audioTrack;
+      return processed.processedTrack;
     } catch (error: any) {
       this.logger.error("Failed to capture microphone", {
         error: error?.message,
       });
+
+      if (captureContext && processedStream) {
+        this.disposePendingCaptureContext(captureContext, processedStream);
+      } else if (inputStream) {
+        inputStream.getTracks().forEach((track) => track.stop());
+      }
 
       if (error?.name === "NotAllowedError") {
         throw new WebRTCErrorImpl({
@@ -197,7 +264,8 @@ export class AudioTrackManager implements ServiceInitializable {
   async replaceTrack(
     transport: WebRTCTransport,
     newTrack: MediaStreamTrack,
-    stream: MediaStream,
+    processedStream: MediaStream,
+    captureContext: CaptureGraphContext,
     currentTrackId?: string,
   ): Promise<void> {
     this.ensureInitialized();
@@ -251,16 +319,12 @@ export class AudioTrackManager implements ServiceInitializable {
         existingTrack.stop();
       }
 
-      this.localTracks.set(newTrack.id, newTrack);
-      this.trackStreams.set(newTrack.id, stream);
-      this.localStream = stream;
-      this.setupTrackEventHandlers(newTrack);
-      this.emitTrackState(newTrack);
+      this.registerProcessedTrack(newTrack, processedStream, captureContext);
     } catch (error: any) {
       this.logger.error("Failed to replace audio track", {
         error: error?.message,
       });
-      stream.getTracks().forEach((track) => track.stop());
+      this.disposePendingCaptureContext(captureContext, processedStream);
       throw error;
     }
   }
@@ -272,7 +336,7 @@ export class AudioTrackManager implements ServiceInitializable {
       streamId: id,
       trackCount: stream.getTracks().length,
     });
-    this.setupAudioPlayback(stream);
+    void this.setupAudioPlayback(stream, id);
   }
 
   getLocalTracks(): MediaStreamTrack[] {
@@ -297,16 +361,16 @@ export class AudioTrackManager implements ServiceInitializable {
   }
 
   stopAllLocalTracks(): void {
-    for (const track of this.localTracks.values()) {
-      track.stop();
+    const trackIds = Array.from(this.localTracks.keys());
+    for (const trackId of trackIds) {
+      const track = this.localTracks.get(trackId);
+      track?.stop();
+      this.stopStreamForTrack(trackId);
+      this.localTracks.delete(trackId);
     }
 
-    for (const stream of this.trackStreams.values()) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-
-    this.localTracks.clear();
     this.trackStreams.clear();
+    this.captureGraphs.clear();
 
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
@@ -323,6 +387,10 @@ export class AudioTrackManager implements ServiceInitializable {
     }
 
     track.enabled = !muted;
+    const captureGraph = this.captureGraphs.get(trackId);
+    if (captureGraph) {
+      captureGraph.inputTrack.enabled = !muted;
+    }
     this.emitTrackMuted(trackId, muted);
     this.emitTrackState(track);
     this.logger.debug("Track mute state changed", { trackId, muted });
@@ -442,6 +510,12 @@ export class AudioTrackManager implements ServiceInitializable {
   ): Promise<MediaStreamTrack> {
     this.ensureInitialized();
 
+    if (!this.audioConfiguration) {
+      throw new Error(
+        "Audio configuration not set. Call setAudioConfiguration() before switching devices.",
+      );
+    }
+
     const constraints: MediaStreamConstraints = {
       audio: {
         ...this.audioConstraints,
@@ -449,30 +523,64 @@ export class AudioTrackManager implements ServiceInitializable {
       },
     };
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    const newTrack = stream.getAudioTracks()[0];
+    let inputStream: MediaStream | undefined;
+    let processedStream: MediaStream | undefined;
+    let captureContext: CaptureGraphContext | undefined;
 
-    if (!newTrack) {
-      stream.getTracks().forEach((track) => track.stop());
-      throw new Error("Failed to obtain audio track when switching devices");
+    try {
+      inputStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const inputTrack = inputStream.getAudioTracks()[0];
+
+      if (!inputTrack) {
+        throw new Error("Failed to obtain audio track when switching devices");
+      }
+
+      const processed = await this.createProcessedTrackForStream(inputStream);
+      processedStream = processed.processedStream;
+      captureContext = {
+        inputStream,
+        inputTrack,
+        graph: processed.graph,
+      };
+
+      if (transport && this.localTracks.size > 0) {
+        await this.replaceTrack(
+          transport,
+          processed.processedTrack,
+          processed.processedStream,
+          captureContext,
+        );
+      } else {
+        this.stopAllLocalTracks();
+        this.registerProcessedTrack(
+          processed.processedTrack,
+          processed.processedStream,
+          captureContext,
+        );
+      }
+
+      captureContext = undefined;
+      processedStream = undefined;
+      inputStream = undefined;
+
+      this.logger.info("Audio device switched", {
+        deviceId,
+        trackId: processed.processedTrack.id,
+      });
+      return processed.processedTrack;
+    } catch (error: any) {
+      if (captureContext && processedStream) {
+        this.disposePendingCaptureContext(captureContext, processedStream);
+      } else if (inputStream) {
+        inputStream.getTracks().forEach((track) => track.stop());
+      }
+
+      this.logger.error("Failed to switch audio device", {
+        deviceId,
+        error: error?.message,
+      });
+      throw error;
     }
-
-    if (transport && this.localTracks.size > 0) {
-      await this.replaceTrack(transport, newTrack, stream);
-    } else {
-      this.stopAllLocalTracks();
-      this.localStream = stream;
-      this.localTracks.set(newTrack.id, newTrack);
-      this.trackStreams.set(newTrack.id, stream);
-      this.setupTrackEventHandlers(newTrack);
-      this.emitTrackState(newTrack);
-    }
-
-    this.logger.info("Audio device switched", {
-      deviceId,
-      trackId: newTrack.id,
-    });
-    return newTrack;
   }
 
   onTrackQualityChanged(
@@ -631,26 +739,158 @@ export class AudioTrackManager implements ServiceInitializable {
     });
   }
 
-  private setupAudioPlayback(stream: MediaStream): void {
-    const audioElement = document.createElement("audio");
-    audioElement.srcObject = stream;
-    audioElement.autoplay = true;
-    audioElement.muted = false;
-    audioElement.volume = 1.0;
+  private async setupAudioPlayback(
+    stream: MediaStream,
+    streamId: string,
+  ): Promise<void> {
+    try {
+      const sourceNode = await this.audioContextProvider.connectStreamToDestination(
+        stream,
+      );
+      this.remotePlaybackSources.set(streamId, sourceNode);
+      this.logger.debug("Remote audio ready for playback", { streamId });
+    } catch (error: any) {
+      this.logger.error("Audio playback error", {
+        streamId,
+        error: error?.message,
+      });
+    }
+  }
 
-    audioElement.addEventListener("loadeddata", () => {
-      this.logger.debug("Remote audio ready for playback", {
+  private async createProcessedTrackForStream(
+    stream: MediaStream,
+  ): Promise<{
+    processedTrack: MediaStreamTrack;
+    processedStream: MediaStream;
+    graph: AudioGraphNodes;
+  }> {
+    const graph = await this.audioContextProvider.createGraphForStream(stream);
+    const processedStream = graph.destination.stream;
+    const processedTrack = processedStream.getAudioTracks()[0];
+
+    if (!processedTrack) {
+      this.logger.error("Processed audio stream did not yield a track", {
         streamId: stream.id,
       });
-    });
+      graph.source.disconnect();
+      graph.processor.disconnect();
+      try {
+        graph.destination.disconnect();
+      } catch (error: any) {
+        this.logger.debug("Destination disconnect skipped", {
+          streamId: stream.id,
+          error: error?.message,
+        });
+      }
+      throw new Error("Failed to create processed audio track");
+    }
 
-    audioElement.addEventListener("error", (error) => {
-      this.logger.error("Audio playback error", { streamId: stream.id, error });
-    });
+    return { processedTrack, processedStream, graph };
+  }
+
+  private registerProcessedTrack(
+    track: MediaStreamTrack,
+    processedStream: MediaStream,
+    context: CaptureGraphContext,
+  ): void {
+    this.captureGraphs.set(track.id, context);
+    this.localTracks.set(track.id, track);
+    this.trackStreams.set(track.id, processedStream);
+    this.localStream = processedStream;
+    this.setupTrackEventHandlers(track);
+    this.emitTrackState(track);
+  }
+
+  private disposeCaptureGraph(trackId: string): void {
+    const context = this.captureGraphs.get(trackId);
+    if (!context) {
+      return;
+    }
+
+    try {
+      context.graph.source.disconnect();
+    } catch (error: any) {
+      this.logger.warn("Failed to disconnect source node", {
+        trackId,
+        error: error?.message,
+      });
+    }
+
+    try {
+      context.graph.processor.disconnect();
+      context.graph.processor.port.close();
+    } catch (error: any) {
+      this.logger.warn("Failed to dispose processor node", {
+        trackId,
+        error: error?.message,
+      });
+    }
+
+    try {
+      context.graph.destination.disconnect();
+    } catch (error: any) {
+      this.logger.debug("Destination node disconnect skipped", {
+        trackId,
+        error: error?.message,
+      });
+    }
+
+    context.inputStream.getTracks().forEach((inputTrack) => inputTrack.stop());
+    const processedStream = context.graph.destination.stream;
+    processedStream.getTracks().forEach((processedTrack) =>
+      processedTrack.stop(),
+    );
+
+    this.captureGraphs.delete(trackId);
+  }
+
+  private disposePendingCaptureContext(
+    context: CaptureGraphContext,
+    processedStream: MediaStream,
+  ): void {
+    try {
+      context.graph.source.disconnect();
+    } catch (error: any) {
+      this.logger.debug("Pending source disconnect failure", {
+        error: error?.message,
+      });
+    }
+
+    try {
+      context.graph.processor.disconnect();
+      context.graph.processor.port.close();
+    } catch (error: any) {
+      this.logger.debug("Pending processor disposal failure", {
+        error: error?.message,
+      });
+    }
+
+    try {
+      context.graph.destination.disconnect();
+    } catch (error: any) {
+      this.logger.debug("Pending destination disconnect failure", {
+        error: error?.message,
+      });
+    }
+
+    context.inputStream.getTracks().forEach((track) => track.stop());
+    processedStream.getTracks().forEach((track) => track.stop());
   }
 
   private clearRemoteStreams(): void {
     for (const [streamId, stream] of this.remoteStreams) {
+      const sourceNode = this.remotePlaybackSources.get(streamId);
+      if (sourceNode) {
+        try {
+          sourceNode.disconnect();
+        } catch (error: any) {
+          this.logger.warn("Failed to disconnect remote playback source", {
+            streamId,
+            error: error?.message,
+          });
+        }
+        this.remotePlaybackSources.delete(streamId);
+      }
       stream.getTracks().forEach((track) => track.stop());
       this.logger.debug("Remote stream cleared", { streamId });
     }
@@ -667,12 +907,12 @@ export class AudioTrackManager implements ServiceInitializable {
 
   private stopStreamForTrack(trackId: string): void {
     const stream = this.trackStreams.get(trackId);
-    if (!stream) {
-      return;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      this.trackStreams.delete(trackId);
     }
 
-    stream.getTracks().forEach((track) => track.stop());
-    this.trackStreams.delete(trackId);
+    this.disposeCaptureGraph(trackId);
   }
 
   private getPrimaryTrackId(): string | undefined {

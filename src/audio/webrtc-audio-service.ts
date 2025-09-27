@@ -4,11 +4,13 @@ import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { SessionManager } from "../session/session-manager";
 import type { RealtimeEvent } from "../types/realtime-events";
+import type { AudioConfiguration } from "../types/webrtc";
 import {
-  ConnectionQuality,
-  WebRTCConnectionState,
-  WebRTCErrorImpl,
+    ConnectionQuality,
+    WebRTCConnectionState,
+    WebRTCErrorImpl,
 } from "../types/webrtc";
+import { sharedAudioContextProvider } from "./audio-context-provider";
 import { AudioTrackManager } from "./audio-track-manager";
 import { RealtimeTurnEvent } from "./turn-detection-coordinator";
 import { WebRTCConfigFactory } from "./webrtc-config-factory";
@@ -41,6 +43,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   // Audio session state
   private isSessionActive = false;
   private currentMicrophoneTrack?: MediaStreamTrack;
+  private currentAudioConfig?: AudioConfiguration;
 
   // Event callbacks
   private onSessionStateChangedCallback?: (state: string) => Promise<void>;
@@ -65,7 +68,10 @@ export class WebRTCAudioService implements ServiceInitializable {
     // Initialize components
     this.transport = new WebRTCTransportImpl(this.logger);
     this.configFactory = new WebRTCConfigFactory(this.logger);
-    this.audioManager = new AudioTrackManager(this.logger);
+    this.audioManager = new AudioTrackManager(
+      this.logger,
+      sharedAudioContextProvider,
+    );
     this.errorHandler = new WebRTCErrorHandler(this.logger);
 
     this.setupEventHandlers();
@@ -116,6 +122,13 @@ export class WebRTCAudioService implements ServiceInitializable {
     // Dispose components
     this.transport.dispose();
     this.audioManager.dispose();
+    void sharedAudioContextProvider.close().catch((error: any) => {
+      this.logger.warn("Failed to close shared AudioContext", {
+        error: error?.message,
+      });
+    });
+
+    this.currentAudioConfig = undefined;
 
     this.initialized = false;
     this.logger.info("WebRTC Audio Service disposed");
@@ -145,6 +158,10 @@ export class WebRTCAudioService implements ServiceInitializable {
         this.configurationManager,
         this.ephemeralKeyService,
       );
+
+      this.audioManager.setAudioConfiguration(config.audioConfig);
+      this.currentAudioConfig = config.audioConfig;
+      await this.prepareAudioContext(config.audioConfig);
 
       // Establish WebRTC connection
       const connectionResult = await this.transport.establishConnection(config);
@@ -177,6 +194,8 @@ export class WebRTCAudioService implements ServiceInitializable {
       this.logger.error("Failed to start WebRTC session", {
         error: error.message,
       });
+      await this.suspendAudioContext();
+      this.currentAudioConfig = undefined;
       this.onErrorCallback?.(error);
       throw error;
     }
@@ -203,12 +222,15 @@ export class WebRTCAudioService implements ServiceInitializable {
       // Close WebRTC connection
       await this.transport.closeConnection();
 
+  await this.suspendAudioContext();
+
       this.isSessionActive = false;
       this.onSessionStateChangedCallback?.("inactive");
 
       this.logger.info("WebRTC voice session stopped");
     } catch (error: any) {
       this.logger.error("Error stopping session", { error: error.message });
+      await this.suspendAudioContext();
       this.onErrorCallback?.(error);
     }
   }
@@ -388,6 +410,43 @@ export class WebRTCAudioService implements ServiceInitializable {
       await this.stopSession();
       this.onErrorCallback?.(error);
     });
+  }
+
+  private async prepareAudioContext(
+    audioConfig: AudioConfiguration,
+  ): Promise<void> {
+    if (!audioConfig.audioContextProvider.resumeOnActivation) {
+      return;
+    }
+
+    try {
+      await sharedAudioContextProvider.resume();
+    } catch (error: any) {
+      if (audioConfig.audioContextProvider.requiresUserGesture) {
+        this.logger.warn("AudioContext resume requires user gesture", {
+          error: error?.message,
+        });
+      } else {
+        this.logger.error("Failed to resume shared AudioContext", {
+          error: error?.message,
+        });
+        throw error;
+      }
+    }
+  }
+
+  private async suspendAudioContext(): Promise<void> {
+    if (!this.currentAudioConfig?.audioContextProvider.resumeOnActivation) {
+      return;
+    }
+
+    try {
+      await sharedAudioContextProvider.suspend();
+    } catch (error: any) {
+      this.logger.warn("Failed to suspend shared AudioContext", {
+        error: error?.message,
+      });
+    }
   }
 
   private async handleDataChannelMessage(
