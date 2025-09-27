@@ -1,4 +1,5 @@
 import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConversationConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
+import type { PrivacyPolicyConfig } from '../../types/privacy';
 
 export interface RuleContext {
   azureOpenAI: AzureOpenAIConfig;
@@ -7,6 +8,7 @@ export interface RuleContext {
   commands: CommandsConfig;
   github: GitHubConfig;
   conversation: ConversationConfig;
+  privacy: PrivacyPolicyConfig;
 }
 export type RuleResult = { errors: ValidationError[]; warnings: ValidationWarning[] };
 export type ValidationRule = (ctx: RuleContext) => RuleResult | Promise<RuleResult>;
@@ -117,8 +119,47 @@ export const conversationPolicyRule: ValidationRule = ({ conversation }) => {
   return { errors, warnings };
 };
 
+export const privacyRetentionRule: ValidationRule = ({ privacy }) => {
+  const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
+  const { retention, redactionRules, profanityFilter } = privacy;
+
+  if (retention.audioSeconds > 5) {
+    errors.push(err('voicepilot.privacyPolicy.retention.audioSeconds', 'Audio retention must be ≤ 5 seconds', 'PRIVACY_RETENTION_AUDIO_TOO_HIGH', 'Reduce audio retention to 5 seconds or less.'));
+  }
+  if (retention.partialTranscriptSeconds > 30) {
+    errors.push(err('voicepilot.privacyPolicy.retention.partialTranscriptSeconds', 'Partial transcript retention must be ≤ 30 seconds', 'PRIVACY_RETENTION_PARTIAL_TOO_HIGH', 'Reduce partial transcript retention to 30 seconds or less.'));
+  }
+  if (retention.finalTranscriptSeconds > 120) {
+    errors.push(err('voicepilot.privacyPolicy.retention.finalTranscriptSeconds', 'Final transcript retention must be ≤ 120 seconds', 'PRIVACY_RETENTION_FINAL_TOO_HIGH', 'Reduce final transcript retention to 120 seconds or less.'));
+  }
+  if (retention.audioSeconds <= 0 || retention.partialTranscriptSeconds <= 0 || retention.finalTranscriptSeconds <= 0) {
+    errors.push(err('voicepilot.privacyPolicy.retention', 'Retention windows must be positive values', 'PRIVACY_RETENTION_NON_POSITIVE', 'Set each retention value to a positive number within the allowed range.'));
+  }
+  if (retention.diagnosticsHours > 24) {
+    errors.push(err('voicepilot.privacyPolicy.retention.diagnosticsHours', 'Diagnostics retention must be ≤ 24 hours', 'PRIVACY_RETENTION_DIAGNOSTICS_TOO_HIGH', 'Reduce diagnostics retention to 24 hours or less.'));
+  }
+  if (retention.diagnosticsHours <= 0) {
+    errors.push(err('voicepilot.privacyPolicy.retention.diagnosticsHours', 'Diagnostics retention must be positive', 'PRIVACY_RETENTION_DIAGNOSTICS_NON_POSITIVE', 'Set diagnostics retention to at least 1 hour.'));
+  }
+
+  if (!['none', 'medium', 'high'].includes(profanityFilter)) {
+    errors.push(err('voicepilot.privacyPolicy.profanityFilter', 'Profanity filter must be one of none, medium, or high', 'PRIVACY_PROFANITY_INVALID', 'Choose none, medium, or high.'));
+  }
+
+  if (redactionRules.some(rule => !rule.id || !rule.pattern)) {
+    warnings.push({
+      path: 'voicepilot.privacyPolicy.redactionRules',
+      message: 'Custom redaction rules missing ids or patterns were automatically normalized',
+      code: 'PRIVACY_REDACTION_RULE_NORMALIZED',
+      remediation: 'Provide unique ids and valid patterns for each custom redaction rule.'
+    });
+  }
+
+  return { errors, warnings };
+};
+
 // Placeholder stub rules for future expansion
 export const audioDevicesRule: ValidationRule = () => ({ errors: [], warnings: [] });
 export const networkReachabilityRule: ValidationRule = () => ({ errors: [], warnings: [] });
 
-export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, audioDevicesRule, networkReachabilityRule];
+export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, privacyRetentionRule, audioDevicesRule, networkReachabilityRule];

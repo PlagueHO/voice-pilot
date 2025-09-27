@@ -36,6 +36,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - **Context Awareness**: Leverage existing codebase and design documentation through Copilot's knowledge
 - **GitHub Issue Management**: Create and manage issues via voice for planning and task tracking
 - **Conversational Flow**: Natural dialogue with follow-up questions and conversational memory
+- **Conversation Persistence**: Resume, browse, and delete past voice sessions stored locally in VS Code user data storage per workspace
 
 ## Architecture Components
 
@@ -58,12 +59,17 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
     - Utilize Copilot's MCP server integrations without reimplementation
     - Manage conversation context and follow-up interactions for planning sessions
     - Reference: Copilot Chat GitHub Repo
-5. **Codebase Context**
+5. **Conversation History Storage**
+    - Persist conversations on the local device using VS Code workspace storage (`Memento`) scoped to the active repository
+    - Restore the latest session automatically after VS Code restarts with the same workspace open
+    - Provide quick switching between historical sessions while the same workspace is open
+    - Support secure deletion and retention policies honoring local-only storage
+6. **Codebase Context**
     - Use VS Code APIs to:
         - Read open files
         - Search workspace
         - Summarize code segments
-6. **GitHub Integration**
+7. **GitHub Integration**
     - Preferred: GitHub MCP server for issue creation and repo actions
     - Alternative: GitHub REST API via octokit.js
     - Authentication: VS Code GitHub auth API or PAT
@@ -102,6 +108,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - Optimize for screen-free operation
 - Add conversation transcription and replay
 - Support for planning session management
+- Implement local conversation storage, resume support, and history management UI
 - Optimize latency for conversational flow
 
 ## Reference Projects & APIs

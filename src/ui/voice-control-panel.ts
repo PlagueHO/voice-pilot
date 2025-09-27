@@ -75,7 +75,12 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
         }
       }
     );
-    this.context.subscriptions.push(this.registration);
+    try {
+      this.context.subscriptions.push(this.registration);
+    } catch (error: any) {
+      const reason = error?.message ?? String(error);
+      console.warn(`VoicePilot: Extension context disposed before panel registration (${reason})`);
+    }
     this.initialized = true;
   }
 
@@ -248,6 +253,25 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
       entryId,
       content,
       confidence
+    });
+    this.flushPendingMessages();
+  }
+
+  removeTranscriptEntry(entryId: string): void {
+    if (!entryId) {
+      return;
+    }
+    const nextEntries = this.state.transcript.filter(entry => entry.entryId !== entryId);
+    if (nextEntries.length === this.state.transcript.length) {
+      return;
+    }
+    this.state = {
+      ...this.state,
+      transcript: nextEntries
+    };
+    this.enqueueMessage({
+      type: 'transcript.remove',
+      entryId
     });
     this.flushPendingMessages();
   }

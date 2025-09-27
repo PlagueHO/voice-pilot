@@ -81,6 +81,11 @@ export interface TranscriptTruncatedMessage {
   type: 'transcript.truncated';
 }
 
+export interface TranscriptRemoveMessage {
+  type: 'transcript.remove';
+  entryId: string;
+}
+
 export interface AudioStatusMessage {
   type: 'audio.status';
   microphoneStatus: MicrophoneStatus;
@@ -97,6 +102,7 @@ export type PanelOutboundMessage =
   | TranscriptAppendMessage
   | TranscriptCommitMessage
   | TranscriptTruncatedMessage
+  | TranscriptRemoveMessage
   | AudioStatusMessage
   | CopilotAvailabilityMessage;
 

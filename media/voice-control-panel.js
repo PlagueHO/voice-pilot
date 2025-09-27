@@ -87,6 +87,7 @@ function renderTranscript() {
     const item = document.createElement('li');
     item.className = 'vp-entry';
     item.dataset.partial = entry.partial ? 'true' : 'false';
+    item.dataset.entryId = entry.entryId;
 
     const speaker = document.createElement('span');
     speaker.className = 'vp-entry-speaker';
@@ -109,6 +110,15 @@ function renderTranscript() {
   if (state.transcript.length > 0) {
     dom.transcriptList.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
+}
+
+function removeTranscript(entryId) {
+  state.transcript = state.transcript.filter(entry => entry.entryId !== entryId);
+  if (!dom.transcriptList) {
+    return;
+  }
+  const node = dom.transcriptList.querySelector(`li[data-entry-id="${entryId}"]`);
+  node?.remove();
 }
 
 function renderErrorBanner() {
@@ -329,6 +339,9 @@ window.addEventListener('message', event => {
     case 'transcript.commit':
       commitTranscript(message.entryId, message.content, message.confidence);
       renderTranscript();
+      break;
+    case 'transcript.remove':
+      removeTranscript(message.entryId);
       break;
     case 'transcript.truncated':
       state.truncated = true;

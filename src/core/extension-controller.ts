@@ -8,7 +8,9 @@ import ConversationStateMachine, {
     TurnEvent as ConversationTurnEvent,
     CopilotResponseEvent
 } from '../conversation/conversation-state-machine';
+import { TranscriptPrivacyAggregator } from '../conversation/transcript-privacy-aggregator';
 import { ChatIntegration } from '../copilot/chat-integration';
+import { PrivacyController } from '../services/privacy/privacy-controller';
 import { InterruptionEngineImpl } from '../session/interruption-engine';
 import { SessionManagerImpl } from '../session/session-manager';
 import { SessionTimerManagerImpl } from '../session/session-timer-manager';
@@ -26,6 +28,7 @@ export class ExtensionController implements ServiceInitializable {
   private readonly interruptionEngine: InterruptionEngineImpl;
   private readonly conversationMachine: ConversationStateMachine;
   private readonly chatIntegration: ChatIntegration;
+  private readonly transcriptAggregator: TranscriptPrivacyAggregator;
   private readonly controllerDisposables: vscode.Disposable[] = [];
   private readonly dispatchedUserTurnIds = new Set<string>();
 
@@ -34,12 +37,14 @@ export class ExtensionController implements ServiceInitializable {
     private readonly configurationManager: ConfigurationManager,
     private readonly sessionManager: SessionManagerImpl,
     private readonly voicePanel: VoiceControlPanel,
+    private readonly privacyController: PrivacyController,
     private readonly logger: Logger,
     interruptionEngine?: InterruptionEngineImpl
   ) {
     this.interruptionEngine = interruptionEngine ?? new InterruptionEngineImpl({ logger: this.logger });
     this.conversationMachine = new ConversationStateMachine({ logger: this.logger });
     this.chatIntegration = new ChatIntegration(this.logger);
+    this.transcriptAggregator = new TranscriptPrivacyAggregator(this.voicePanel, this.privacyController, this.logger);
   }
 
   async initialize(): Promise<void> {
@@ -55,6 +60,20 @@ export class ExtensionController implements ServiceInitializable {
 
       // Initialize configuration manager
       await this.safeInit('configuration manager', () => this.configurationManager.initialize(), () => this.configurationManager.dispose(), initialized, 'configurationManager');
+
+      await this.safeInit('privacy controller', () => this.privacyController.initialize(), () => this.privacyController.dispose(), initialized, 'privacyController');
+
+      try {
+        await this.privacyController.issuePurge({
+          type: 'privacy.purge',
+          target: 'all',
+          reason: 'policy-update',
+          issuedAt: new Date().toISOString(),
+          correlationId: 'startup'
+        });
+      } catch (error: any) {
+        this.logger.warn('Startup privacy purge failed', { error: error?.message ?? error });
+      }
 
       // Initialize ephemeral key service with dependencies
       this.ephemeralKeyService = new EphemeralKeyServiceImpl(this.credentialManager, this.configurationManager, this.logger);
@@ -122,6 +141,8 @@ export class ExtensionController implements ServiceInitializable {
       ['controller observers', () => this.disposeControllerDisposables()],
       ['conversation state machine', () => this.conversationMachine.dispose()],
       ['chat integration', () => this.chatIntegration.dispose()],
+  ['transcript aggregator', () => this.transcriptAggregator.dispose()],
+  ['privacy controller', () => this.privacyController.dispose()],
       ['voice panel', () => this.voicePanel.dispose()],
       ['session manager', () => this.sessionManager.dispose()],
       ['interruption engine', () => this.interruptionEngine.dispose()],
@@ -165,8 +186,8 @@ export class ExtensionController implements ServiceInitializable {
       })
     );
 
-    this.context.subscriptions.push(...disposables);
-    this.controllerDisposables.push(...disposables);
+  this.safeContextPush(...disposables);
+  this.controllerDisposables.push(...disposables);
   }
 
   getConfigurationManager(): ConfigurationManager { return this.configurationManager; }
@@ -175,6 +196,7 @@ export class ExtensionController implements ServiceInitializable {
   getEphemeralKeyService(): EphemeralKeyServiceImpl { return this.ephemeralKeyService; }
   getVoiceControlPanel(): VoiceControlPanel { return this.voicePanel; }
   getInterruptionEngine(): InterruptionEngineImpl { return this.interruptionEngine; }
+  getPrivacyController(): PrivacyController { return this.privacyController; }
 
   private registerConversationIntegration(): void {
     const hooksDisposable = this.sessionManager.registerConversationHooks({
@@ -205,6 +227,12 @@ export class ExtensionController implements ServiceInitializable {
     });
     const turnDisposable: vscode.Disposable = { dispose: () => turnSubscription.dispose() };
     this.controllerDisposables.push(turnDisposable);
+
+    const transcriptSubscription = this.conversationMachine.onTranscriptEvent(event => {
+      this.transcriptAggregator.handle(event);
+    });
+    const transcriptDisposable: vscode.Disposable = { dispose: () => transcriptSubscription.dispose() };
+    this.controllerDisposables.push(transcriptDisposable);
 
     const copilotSubscription = this.chatIntegration.onResponse(event => {
       void this.handleCopilotResponse(event);
@@ -282,8 +310,8 @@ export class ExtensionController implements ServiceInitializable {
       }
       this.voicePanel.updateDiagnostics(event.diagnostics);
     });
-    this.context.subscriptions.push(configDisposable, eventDisposable);
-    this.controllerDisposables.push(configDisposable, eventDisposable);
+  this.safeContextPush(configDisposable, eventDisposable);
+  this.controllerDisposables.push(configDisposable, eventDisposable);
 
     void vscode.commands
       .executeCommand('setContext', 'voicepilot.interruptionState', this.interruptionEngine.getConversationState())
@@ -301,6 +329,16 @@ export class ExtensionController implements ServiceInitializable {
       } catch (error: any) {
         this.logger.warn('Failed to dispose controller disposable', { error: error?.message ?? error });
       }
+    }
+  }
+
+  private safeContextPush(...disposables: vscode.Disposable[]): void {
+    try {
+      this.context.subscriptions.push(...disposables);
+    } catch (error: any) {
+      this.logger.warn('Context subscriptions already disposed; skipping registration', {
+        error: error?.message ?? error
+      });
     }
   }
 

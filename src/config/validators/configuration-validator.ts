@@ -12,7 +12,8 @@ export class ConfigurationValidator {
       audio: this.access.getAudio(),
       commands: this.access.getCommands(),
       github: this.access.getGitHub(),
-      conversation: this.access.getConversation()
+      conversation: this.access.getConversation(),
+      privacy: this.access.getPrivacyPolicy()
     };
     const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
     for (const rule of allRules) {

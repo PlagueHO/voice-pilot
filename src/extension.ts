@@ -3,6 +3,7 @@ import { ConfigurationManager } from './config/configuration-manager';
 import { ExtensionController } from './core/extension-controller';
 import { Logger } from './core/logger';
 import { ensureCopilotChatInstalled, isCopilotChatAvailable } from './helpers/ensure-copilot';
+import { PrivacyController } from './services/privacy/privacy-controller';
 import { SessionManagerImpl } from './session/session-manager';
 import { VoiceControlPanel } from './ui/voice-control-panel';
 
@@ -14,11 +15,13 @@ export async function activate(context: vscode.ExtensionContext) {
   const configurationManager = new ConfigurationManager(context, logger);
   const sessionManager = new SessionManagerImpl();
   const voicePanel = new VoiceControlPanel(context);
+  const privacyController = new PrivacyController(configurationManager, logger);
   controller = new ExtensionController(
     context,
     configurationManager,
     sessionManager,
     voicePanel,
+    privacyController,
     logger
   );
 

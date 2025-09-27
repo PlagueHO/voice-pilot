@@ -2,12 +2,14 @@ import * as vscode from 'vscode';
 import { Logger } from '../core/logger';
 import { ServiceInitializable } from '../core/service-initializable';
 import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConfigurationChange, ConfigurationChangeHandler, ConversationConfig, GitHubConfig, ValidationResult } from '../types/configuration';
+import type { PrivacyPolicyConfig } from '../types/privacy';
 import { AudioSection } from './sections/audio-config-section';
 import { AzureOpenAISection } from './sections/azure-openai-config-section';
 import { AzureOpenAIRealtimeSection } from './sections/azure-openai-realtime-config-section';
 import { CommandsSection } from './sections/commands-config-section';
 import { ConversationSection } from './sections/conversation-config-section';
 import { GitHubSection } from './sections/github-config-section';
+import { PrivacyPolicySection } from './sections/privacy-policy-section';
 import { ConfigurationValidator } from './validators/configuration-validator';
 
 /**
@@ -32,6 +34,7 @@ export class ConfigurationManager implements ServiceInitializable {
   private commandsSection: CommandsSection;
   private conversationSection: ConversationSection;
   private gitHubSection: GitHubSection;
+  private privacySection: PrivacyPolicySection;
   private validator: ConfigurationValidator;
 
   private context!: vscode.ExtensionContext;
@@ -45,21 +48,23 @@ export class ConfigurationManager implements ServiceInitializable {
     if (!logger) {
       logger = new Logger('VoicePilot');
     }
-  this.context = context as vscode.ExtensionContext;
-  this.logger = logger as Logger;
-  this.azureOpenAISection = new AzureOpenAISection();
-  this.azureRealtimeSection = new AzureOpenAIRealtimeSection();
-  this.audioSection = new AudioSection();
+    this.context = context as vscode.ExtensionContext;
+    this.logger = logger as Logger;
+    this.azureOpenAISection = new AzureOpenAISection();
+    this.azureRealtimeSection = new AzureOpenAIRealtimeSection();
+    this.audioSection = new AudioSection();
     this.commandsSection = new CommandsSection();
     this.conversationSection = new ConversationSection();
     this.gitHubSection = new GitHubSection();
+    this.privacySection = new PrivacyPolicySection();
     this.validator = new ConfigurationValidator(this.logger, {
       getAzureOpenAI: () => this.getAzureOpenAIConfig(),
       getAzureRealtime: () => this.getAzureRealtimeConfig(),
       getAudio: () => this.getAudioConfig(),
       getCommands: () => this.getCommandsConfig(),
       getGitHub: () => this.getGitHubConfig(),
-      getConversation: () => this.getConversationConfig()
+      getConversation: () => this.getConversationConfig(),
+      getPrivacyPolicy: () => this.getPrivacyPolicyConfig()
     });
   }
 
@@ -101,6 +106,7 @@ export class ConfigurationManager implements ServiceInitializable {
   getCommandsConfig(): CommandsConfig { return this.cached('commands', () => this.commandsSection.read()); }
   getGitHubConfig(): GitHubConfig { return this.cached('github', () => this.gitHubSection.read()); }
   getConversationConfig(): ConversationConfig { return this.cached('conversation', () => this.conversationSection.read()); }
+  getPrivacyPolicyConfig(): PrivacyPolicyConfig { return this.cached('privacyPolicy', () => this.privacySection.read()); }
 
   getDiagnostics(): ValidationResult | undefined { return this.lastValidation; }
 
@@ -130,11 +136,11 @@ export class ConfigurationManager implements ServiceInitializable {
     this.cache.clear();
     this.getAzureOpenAIConfig();
     this.getAzureRealtimeConfig();
-  // removed: getAzureSpeechConfig
     this.getAudioConfig();
     this.getCommandsConfig();
     this.getGitHubConfig();
-  this.getConversationConfig();
+    this.getConversationConfig();
+    this.getPrivacyPolicyConfig();
   }
 
   private async handleConfigurationChange(e: vscode.ConfigurationChangeEvent): Promise<void> {
@@ -211,6 +217,10 @@ export class ConfigurationManager implements ServiceInitializable {
         break;
       case 'github':
         base.push('githubService');
+        break;
+      case 'privacyPolicy':
+        base.push('privacyService');
+        base.push('sessionManager');
         break;
     }
     if (critical) {base.push('sessionRestartRequired');}

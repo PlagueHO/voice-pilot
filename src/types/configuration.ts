@@ -1,3 +1,5 @@
+import type { PrivacyPolicyConfig } from './privacy';
+
 export interface AzureOpenAIConfig {
   endpoint: string;
   deploymentName: string;
@@ -92,4 +94,7 @@ export interface ConfigurationAccessors {
   getCommands(): CommandsConfig;
   getGitHub(): GitHubConfig;
   getConversation(): ConversationConfig;
+  getPrivacyPolicy(): PrivacyPolicyConfig;
 }
+
+export type { PrivacyPolicyConfig } from './privacy';

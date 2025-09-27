@@ -225,6 +225,13 @@ export class ConversationStateMachine implements ServiceInitializable {
     };
   }
 
+  onTranscriptEvent(handler: (event: TranscriptEvent) => void): { dispose(): void } {
+    this.emitter.on('transcript-event', handler);
+    return {
+      dispose: () => this.emitter.off('transcript-event', handler)
+    };
+  }
+
   async notifyTranscript(event: TranscriptEvent): Promise<void> {
     this.ensureInitialized('notifyTranscript');
     switch (event.type) {
@@ -244,6 +251,7 @@ export class ConversationStateMachine implements ServiceInitializable {
         this.logger.debug('Unhandled transcript event', { type: (event as TranscriptEvent).type });
         break;
     }
+    this.emitter.emit('transcript-event', { ...event });
   }
 
   async notifyTranscriptionStatus(event: TranscriptionStatusEvent): Promise<void> {

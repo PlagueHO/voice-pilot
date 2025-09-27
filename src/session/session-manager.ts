@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
 import { ConfigurationManager } from '../config/configuration-manager';
 import { Logger } from '../core/logger';
+import { PrivacyController } from '../services/privacy/privacy-controller';
 import { EphemeralKeyInfo, EphemeralKeyResult } from '../types/ephemeral';
+import type { PurgeCommand, PurgeReason } from '../types/privacy';
 import {
     HealthCheck,
     RenewalResult,
@@ -47,17 +49,20 @@ export class SessionManagerImpl implements SessionManager {
   private eventHandlers = new Map<string, Set<Function>>();
   private conversationHooks?: ConversationLifecycleHooks;
   private lastErrors = new Map<string, SessionError>();
+  private privacyController?: PrivacyController;
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
     timerManager?: SessionTimerManagerImpl,
     configManager?: ConfigurationManager,
-    logger?: Logger
+    logger?: Logger,
+    privacyController?: PrivacyController
   ) {
     if (keyService) { this.keyService = keyService; }
     if (timerManager) { this.timerManager = timerManager; }
     if (configManager) { this.configManager = configManager; }
     if (logger) { this.logger = logger; }
+    if (privacyController) { this.privacyController = privacyController; }
   }
 
   async initialize(): Promise<void> {
@@ -107,6 +112,10 @@ export class SessionManagerImpl implements SessionManager {
     };
   }
 
+  setPrivacyController(controller: PrivacyController): void {
+    this.privacyController = controller;
+  }
+
   isInitialized(): boolean {
     return this.initialized;
   }
@@ -141,6 +150,7 @@ export class SessionManagerImpl implements SessionManager {
 
     this.initialized = false;
     this.logger.info('SessionManager disposed');
+    void this.purgePrivacyData('policy-update');
   }
 
   // Primary session operations
@@ -264,6 +274,8 @@ export class SessionManagerImpl implements SessionManager {
         error: error.message
       });
       throw error;
+    } finally {
+      await this.purgePrivacyData('session-timeout', 'all');
     }
   }
 
@@ -958,6 +970,28 @@ export class SessionManagerImpl implements SessionManager {
     } catch (error: any) {
       this.logger.warn('Conversation lifecycle hook failed', {
         hook,
+        error: error?.message ?? error
+      });
+    }
+  }
+
+  private async purgePrivacyData(reason: PurgeReason, target: PurgeCommand['target'] = 'all'): Promise<void> {
+    if (!this.privacyController) {
+      return;
+    }
+    const sessionId = this.getCurrentSession()?.sessionId;
+    try {
+      await this.privacyController.issuePurge({
+        type: 'privacy.purge',
+        target,
+        reason,
+        issuedAt: new Date().toISOString(),
+        correlationId: sessionId
+      });
+    } catch (error: any) {
+      this.logger.warn('Privacy purge failed', {
+        reason,
+        target,
         error: error?.message ?? error
       });
     }
