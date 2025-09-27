@@ -1,9 +1,9 @@
-import type { PrivacyPolicyConfig } from './privacy';
+import type { PrivacyPolicyConfig } from "./privacy";
 
 export interface AzureOpenAIConfig {
   endpoint: string;
   deploymentName: string;
-  region: 'eastus2' | 'swedencentral';
+  region: "eastus2" | "swedencentral";
   apiVersion?: string; // Default: "2025-04-01-preview"
   apiKey?: string; // secret storage
 }
@@ -12,9 +12,9 @@ export interface AzureRealtimeConfig {
   model: string;
   apiVersion: string;
   transcriptionModel: string;
-  inputAudioFormat: 'pcm16' | 'pcm24' | 'pcm32';
+  inputAudioFormat: "pcm16" | "pcm24" | "pcm32";
   locale: string;
-  profanityFilter: 'none' | 'medium' | 'high';
+  profanityFilter: "none" | "medium" | "high";
   interimDebounceMs: number;
   maxTranscriptHistorySeconds: number;
 }
@@ -30,28 +30,28 @@ export interface AudioConfig {
 }
 
 export interface TtsConfig {
-  transport: 'webrtc' | 'websocket';
+  transport: "webrtc" | "websocket";
   apiVersion: string;
-  fallbackMode: 'text-only' | 'retry';
+  fallbackMode: "text-only" | "retry";
   maxInitialLatencyMs: number;
   voice: {
     name: string;
     locale: string;
     style?: string;
-    gender?: 'female' | 'male' | 'unspecified';
+    gender?: "female" | "male" | "unspecified";
     providerVoiceId?: string;
     description?: string;
   };
 }
 
 export interface TurnDetectionConfig {
-  type: 'none' | 'server_vad' | 'semantic_vad';
+  type: "none" | "server_vad" | "semantic_vad";
   threshold?: number;
   prefixPaddingMs?: number;
   silenceDurationMs?: number;
   createResponse?: boolean;
   interruptResponse?: boolean;
-  eagerness?: 'low' | 'auto' | 'high';
+  eagerness?: "low" | "auto" | "high";
 }
 
 export interface CommandsConfig {
@@ -62,21 +62,36 @@ export interface CommandsConfig {
 
 export interface GitHubConfig {
   repository: string; // owner/repo
-  authMode: 'auto' | 'token' | 'oauth';
+  authMode: "auto" | "token" | "oauth";
 }
 
 export interface ConversationConfig {
-  policyProfile: 'default' | 'assertive' | 'hands-free' | 'custom';
+  policyProfile: "default" | "assertive" | "hands-free" | "custom";
   interruptionBudgetMs: number;
   completionGraceMs: number;
   speechStopDebounceMs: number;
   allowBargeIn: boolean;
-  fallbackMode: 'manual' | 'hybrid';
+  fallbackMode: "manual" | "hybrid";
 }
 
-export interface ValidationWarning { path: string; message: string; code: string; remediation?: string; }
-export interface ValidationError { path: string; message: string; code: string; severity: 'error' | 'warning'; remediation?: string; }
-export interface ValidationResult { isValid: boolean; errors: ValidationError[]; warnings: ValidationWarning[]; }
+export interface ValidationWarning {
+  path: string;
+  message: string;
+  code: string;
+  remediation?: string;
+}
+export interface ValidationError {
+  path: string;
+  message: string;
+  code: string;
+  severity: "error" | "warning";
+  remediation?: string;
+}
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+}
 
 export interface ConfigurationChange {
   section: string;
@@ -85,7 +100,9 @@ export interface ConfigurationChange {
   newValue: any;
   affectedServices: string[]; // semantic identifiers consumed by controller/services
 }
-export interface ConfigurationChangeHandler { (change: ConfigurationChange): Promise<void>; }
+export interface ConfigurationChangeHandler {
+  (change: ConfigurationChange): Promise<void>;
+}
 
 export interface ConfigurationAccessors {
   getAzureOpenAI(): AzureOpenAIConfig;
@@ -97,4 +114,4 @@ export interface ConfigurationAccessors {
   getPrivacyPolicy(): PrivacyPolicyConfig;
 }
 
-export type { PrivacyPolicyConfig } from './privacy';
+export type { PrivacyPolicyConfig } from "./privacy";

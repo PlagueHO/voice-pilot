@@ -1,4 +1,4 @@
-import { Logger } from '../core/logger';
+import { Logger } from "../core/logger";
 
 export interface TimerEventStatus {
   isActive: boolean;
@@ -16,7 +16,7 @@ export interface SessionTimerStatus {
   heartbeatTimer?: TimerEventStatus & { intervalMs: number };
 }
 
-type TimerType = 'renewal' | 'timeout' | 'heartbeat';
+type TimerType = "renewal" | "timeout" | "heartbeat";
 
 interface TimerMetadataRecord {
   renewal?: { scheduledAt: Date; intervalMs: number };
@@ -40,7 +40,7 @@ export class SessionTimerManagerImpl {
     private readonly logger: Logger,
     private readonly onRenewalRequired: (sessionId: string) => Promise<void>,
     private readonly onTimeoutExpired: (sessionId: string) => Promise<void>,
-    private readonly onHeartbeatCheck: (sessionId: string) => Promise<void>
+    private readonly onHeartbeatCheck: (sessionId: string) => Promise<void>,
   ) {}
 
   // Lifecycle ---------------------------------------------------------------
@@ -50,33 +50,58 @@ export class SessionTimerManagerImpl {
     const timeUntilRenewal = renewAtMs - now;
     if (timeUntilRenewal <= 0) {
       // Trigger immediately synchronously (test determinism)
-      this.logger.warn('Renewal timer scheduled in the past; triggering immediately', { sessionId });
+      this.logger.warn(
+        "Renewal timer scheduled in the past; triggering immediately",
+        { sessionId },
+      );
       void this.triggerRenewal(sessionId);
       return;
     }
     const scheduledAt = new Date(renewAtMs);
-    const timer = setTimeout(() => void this.triggerRenewal(sessionId), timeUntilRenewal);
+    const timer = setTimeout(
+      () => void this.triggerRenewal(sessionId),
+      timeUntilRenewal,
+    );
     this.renewalTimers.set(sessionId, timer);
-    this.updateTimerMetadata(sessionId, 'renewal', { scheduledAt, intervalMs: timeUntilRenewal });
-    this.logger.debug('Renewal timer started', { sessionId, scheduledAt: scheduledAt.toISOString(), timeUntilRenewal });
+    this.updateTimerMetadata(sessionId, "renewal", {
+      scheduledAt,
+      intervalMs: timeUntilRenewal,
+    });
+    this.logger.debug("Renewal timer started", {
+      sessionId,
+      scheduledAt: scheduledAt.toISOString(),
+      timeUntilRenewal,
+    });
   }
 
   startTimeoutTimer(sessionId: string, timeoutMs: number) {
     this.clearTimeoutTimer(sessionId);
     const scheduledAt = new Date(Date.now() + timeoutMs);
-    const timer = setTimeout(() => void this.triggerTimeout(sessionId), timeoutMs);
+    const timer = setTimeout(
+      () => void this.triggerTimeout(sessionId),
+      timeoutMs,
+    );
     this.timeoutTimers.set(sessionId, timer);
-    this.updateTimerMetadata(sessionId, 'timeout', { scheduledAt, intervalMs: timeoutMs });
-    this.logger.debug('Timeout timer started', { sessionId, timeoutMs });
+    this.updateTimerMetadata(sessionId, "timeout", {
+      scheduledAt,
+      intervalMs: timeoutMs,
+    });
+    this.logger.debug("Timeout timer started", { sessionId, timeoutMs });
   }
 
   startHeartbeatTimer(sessionId: string, intervalMs: number) {
     this.clearHeartbeatTimer(sessionId);
     const scheduledAt = new Date(Date.now() + intervalMs);
-    const timer = setInterval(() => void this.triggerHeartbeat(sessionId), intervalMs);
+    const timer = setInterval(
+      () => void this.triggerHeartbeat(sessionId),
+      intervalMs,
+    );
     this.heartbeatTimers.set(sessionId, timer as unknown as NodeJS.Timeout);
-    this.updateTimerMetadata(sessionId, 'heartbeat', { scheduledAt, intervalMs });
-    this.logger.debug('Heartbeat timer started', { sessionId, intervalMs });
+    this.updateTimerMetadata(sessionId, "heartbeat", {
+      scheduledAt,
+      intervalMs,
+    });
+    this.logger.debug("Heartbeat timer started", { sessionId, intervalMs });
   }
 
   // Control ----------------------------------------------------------------
@@ -103,14 +128,20 @@ export class SessionTimerManagerImpl {
     if (renewalMeta && renewalTimer) {
       clearTimeout(renewalTimer);
       this.renewalTimers.delete(sessionId);
-      paused.renewal = { remainingMs: Math.max(0, renewalMeta.scheduledAt.getTime() - now), originalScheduledAt: renewalMeta.scheduledAt };
+      paused.renewal = {
+        remainingMs: Math.max(0, renewalMeta.scheduledAt.getTime() - now),
+        originalScheduledAt: renewalMeta.scheduledAt,
+      };
     }
     const timeoutMeta = this.timerMetadata.get(sessionId)?.timeout;
     const timeoutTimer = this.timeoutTimers.get(sessionId);
     if (timeoutMeta && timeoutTimer) {
       clearTimeout(timeoutTimer);
       this.timeoutTimers.delete(sessionId);
-      paused.timeout = { remainingMs: Math.max(0, timeoutMeta.scheduledAt.getTime() - now), originalScheduledAt: timeoutMeta.scheduledAt };
+      paused.timeout = {
+        remainingMs: Math.max(0, timeoutMeta.scheduledAt.getTime() - now),
+        originalScheduledAt: timeoutMeta.scheduledAt,
+      };
     }
     this.pausedTimers.set(sessionId, paused);
   }
@@ -150,7 +181,7 @@ export class SessionTimerManagerImpl {
       status.renewalTimer = {
         isActive: active,
         scheduledAt: meta.renewal.scheduledAt,
-        timeRemainingMs: Math.max(0, meta.renewal.scheduledAt.getTime() - now)
+        timeRemainingMs: Math.max(0, meta.renewal.scheduledAt.getTime() - now),
       };
       if (!active && paused?.renewal) {
         status.renewalTimer.timeRemainingMs = paused.renewal.remainingMs;
@@ -161,7 +192,7 @@ export class SessionTimerManagerImpl {
       status.timeoutTimer = {
         isActive: active,
         scheduledAt: meta.timeout.scheduledAt,
-        timeRemainingMs: Math.max(0, meta.timeout.scheduledAt.getTime() - now)
+        timeRemainingMs: Math.max(0, meta.timeout.scheduledAt.getTime() - now),
       };
       if (!active && paused?.timeout) {
         status.timeoutTimer.timeRemainingMs = paused.timeout.remainingMs;
@@ -169,7 +200,9 @@ export class SessionTimerManagerImpl {
     }
     if (meta?.heartbeat) {
       const active = this.heartbeatTimers.has(sessionId);
-      const lastBase = meta.heartbeat.lastExecutedAt?.getTime() || meta.heartbeat.scheduledAt.getTime();
+      const lastBase =
+        meta.heartbeat.lastExecutedAt?.getTime() ||
+        meta.heartbeat.scheduledAt.getTime();
       const nextExecutionAt = new Date(lastBase + meta.heartbeat.intervalMs);
       status.heartbeatTimer = {
         isActive: active,
@@ -177,7 +210,7 @@ export class SessionTimerManagerImpl {
         timeRemainingMs: Math.max(0, nextExecutionAt.getTime() - now),
         intervalMs: meta.heartbeat.intervalMs,
         lastExecutedAt: meta.heartbeat.lastExecutedAt,
-        nextExecutionAt
+        nextExecutionAt,
       };
     }
     return status;
@@ -185,15 +218,39 @@ export class SessionTimerManagerImpl {
 
   getNextScheduledEvent(sessionId: string) {
     const status = this.getTimerStatus(sessionId);
-    const events: Array<{ type: TimerType; sessionId: string; scheduledAt: Date; timeRemainingMs: number }> = [];
+    const events: Array<{
+      type: TimerType;
+      sessionId: string;
+      scheduledAt: Date;
+      timeRemainingMs: number;
+    }> = [];
     if (status.renewalTimer?.isActive) {
-      events.push({ type: 'renewal', sessionId, scheduledAt: status.renewalTimer.scheduledAt, timeRemainingMs: status.renewalTimer.timeRemainingMs });
+      events.push({
+        type: "renewal",
+        sessionId,
+        scheduledAt: status.renewalTimer.scheduledAt,
+        timeRemainingMs: status.renewalTimer.timeRemainingMs,
+      });
     }
     if (status.timeoutTimer?.isActive) {
-      events.push({ type: 'timeout', sessionId, scheduledAt: status.timeoutTimer.scheduledAt, timeRemainingMs: status.timeoutTimer.timeRemainingMs });
+      events.push({
+        type: "timeout",
+        sessionId,
+        scheduledAt: status.timeoutTimer.scheduledAt,
+        timeRemainingMs: status.timeoutTimer.timeRemainingMs,
+      });
     }
-    if (status.heartbeatTimer?.isActive && status.heartbeatTimer.nextExecutionAt) {
-      events.push({ type: 'heartbeat', sessionId, scheduledAt: status.heartbeatTimer.nextExecutionAt, timeRemainingMs: status.heartbeatTimer.nextExecutionAt.getTime() - Date.now() });
+    if (
+      status.heartbeatTimer?.isActive &&
+      status.heartbeatTimer.nextExecutionAt
+    ) {
+      events.push({
+        type: "heartbeat",
+        sessionId,
+        scheduledAt: status.heartbeatTimer.nextExecutionAt,
+        timeRemainingMs:
+          status.heartbeatTimer.nextExecutionAt.getTime() - Date.now(),
+      });
     }
     return events.sort((a, b) => a.timeRemainingMs - b.timeRemainingMs)[0];
   }
@@ -204,7 +261,10 @@ export class SessionTimerManagerImpl {
       this.renewalTimers.delete(sessionId);
       await this.onRenewalRequired(sessionId);
     } catch (e: any) {
-      this.logger.error('Renewal callback failed', { sessionId, error: e.message });
+      this.logger.error("Renewal callback failed", {
+        sessionId,
+        error: e.message,
+      });
     }
   }
   private async triggerTimeout(sessionId: string) {
@@ -212,7 +272,10 @@ export class SessionTimerManagerImpl {
       this.timeoutTimers.delete(sessionId);
       await this.onTimeoutExpired(sessionId);
     } catch (e: any) {
-      this.logger.error('Timeout callback failed', { sessionId, error: e.message });
+      this.logger.error("Timeout callback failed", {
+        sessionId,
+        error: e.message,
+      });
     }
   }
   private async triggerHeartbeat(sessionId: string) {
@@ -223,22 +286,34 @@ export class SessionTimerManagerImpl {
       }
       await this.onHeartbeatCheck(sessionId);
     } catch (e: any) {
-      this.logger.error('Heartbeat callback failed', { sessionId, error: e.message });
+      this.logger.error("Heartbeat callback failed", {
+        sessionId,
+        error: e.message,
+      });
     }
   }
 
   // Helpers ----------------------------------------------------------------
   private clearRenewalTimer(sessionId: string) {
     const t = this.renewalTimers.get(sessionId);
-    if (t) { clearTimeout(t); this.renewalTimers.delete(sessionId); }
+    if (t) {
+      clearTimeout(t);
+      this.renewalTimers.delete(sessionId);
+    }
   }
   private clearTimeoutTimer(sessionId: string) {
     const t = this.timeoutTimers.get(sessionId);
-    if (t) { clearTimeout(t); this.timeoutTimers.delete(sessionId); }
+    if (t) {
+      clearTimeout(t);
+      this.timeoutTimers.delete(sessionId);
+    }
   }
   private clearHeartbeatTimer(sessionId: string) {
     const t = this.heartbeatTimers.get(sessionId);
-    if (t) { clearInterval(t); this.heartbeatTimers.delete(sessionId); }
+    if (t) {
+      clearInterval(t);
+      this.heartbeatTimers.delete(sessionId);
+    }
   }
   private updateTimerMetadata(sessionId: string, type: TimerType, data: any) {
     const meta = this.timerMetadata.get(sessionId) || {};

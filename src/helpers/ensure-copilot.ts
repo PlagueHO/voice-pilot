@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
-const COPILOT_ID = 'GitHub.copilot-chat';
+const COPILOT_ID = "GitHub.copilot-chat";
 
 export async function ensureCopilotChatInstalled(): Promise<boolean> {
   const ext = vscode.extensions.getExtension(COPILOT_ID);
@@ -15,12 +15,12 @@ export async function ensureCopilotChatInstalled(): Promise<boolean> {
     return true;
   }
 
-  const install = 'Install Copilot Chat';
-  const later = 'Later';
+  const install = "Install Copilot Chat";
+  const later = "Later";
   const choice = await vscode.window.showInformationMessage(
-    'The GitHub Copilot Chat extension is recommended for Copilot-based actions. Install it now?',
+    "The GitHub Copilot Chat extension is recommended for Copilot-based actions. Install it now?",
     install,
-    later
+    later,
   );
 
   if (choice !== install) {
@@ -29,16 +29,24 @@ export async function ensureCopilotChatInstalled(): Promise<boolean> {
 
   try {
     // Trigger marketplace install. This will prompt the user as needed.
-    await vscode.commands.executeCommand('workbench.extensions.installExtension', COPILOT_ID);
+    await vscode.commands.executeCommand(
+      "workbench.extensions.installExtension",
+      COPILOT_ID,
+    );
     // After install, ask the user to reload to activate both extensions.
-    const reload = 'Reload Window';
-    const doReload = await vscode.window.showInformationMessage('Copilot Chat installed. Reload to finish setup.', reload);
+    const reload = "Reload Window";
+    const doReload = await vscode.window.showInformationMessage(
+      "Copilot Chat installed. Reload to finish setup.",
+      reload,
+    );
     if (doReload === reload) {
-      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+      await vscode.commands.executeCommand("workbench.action.reloadWindow");
     }
     return true;
   } catch (err) {
-    vscode.window.showErrorMessage(`Failed to install Copilot Chat: ${String(err)}`);
+    vscode.window.showErrorMessage(
+      `Failed to install Copilot Chat: ${String(err)}`,
+    );
     return false;
   }
 }

@@ -1,19 +1,19 @@
-import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
-import { ConfigurationManager } from '../config/configuration-manager';
-import { Logger } from '../core/logger';
-import { ServiceInitializable } from '../core/service-initializable';
-import { SessionManager } from '../session/session-manager';
-import type { RealtimeEvent } from '../types/realtime-events';
+import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
+import { ConfigurationManager } from "../config/configuration-manager";
+import { Logger } from "../core/logger";
+import { ServiceInitializable } from "../core/service-initializable";
+import { SessionManager } from "../session/session-manager";
+import type { RealtimeEvent } from "../types/realtime-events";
 import {
-    ConnectionQuality,
-    WebRTCConnectionState,
-    WebRTCErrorImpl
-} from '../types/webrtc';
-import { AudioTrackManager } from './audio-track-manager';
-import { RealtimeTurnEvent } from './turn-detection-coordinator';
-import { WebRTCConfigFactory } from './webrtc-config-factory';
-import { WebRTCErrorHandler } from './webrtc-error-handler';
-import { WebRTCTransportImpl } from './webrtc-transport';
+  ConnectionQuality,
+  WebRTCConnectionState,
+  WebRTCErrorImpl,
+} from "../types/webrtc";
+import { AudioTrackManager } from "./audio-track-manager";
+import { RealtimeTurnEvent } from "./turn-detection-coordinator";
+import { WebRTCConfigFactory } from "./webrtc-config-factory";
+import { WebRTCErrorHandler } from "./webrtc-error-handler";
+import { WebRTCTransportImpl } from "./webrtc-transport";
 
 /**
  * High-level audio service that orchestrates WebRTC transport with existing extension services
@@ -47,15 +47,17 @@ export class WebRTCAudioService implements ServiceInitializable {
   private onTranscriptReceivedCallback?: (transcript: string) => Promise<void>;
   private onAudioReceivedCallback?: (audioData: Buffer) => Promise<void>;
   private onErrorCallback?: (error: Error) => Promise<void>;
-  private onTurnEventCallback?: (event: RealtimeTurnEvent) => Promise<void> | void;
+  private onTurnEventCallback?: (
+    event: RealtimeTurnEvent,
+  ) => Promise<void> | void;
 
   constructor(
     ephemeralKeyService?: EphemeralKeyServiceImpl,
     configurationManager?: ConfigurationManager,
     sessionManager?: SessionManager,
-    logger?: Logger
+    logger?: Logger,
   ) {
-    this.logger = logger || new Logger('WebRTCAudioService');
+    this.logger = logger || new Logger("WebRTCAudioService");
     this.ephemeralKeyService = ephemeralKeyService;
     this.configurationManager = configurationManager;
     this.sessionManager = sessionManager;
@@ -74,7 +76,7 @@ export class WebRTCAudioService implements ServiceInitializable {
       return;
     }
 
-    this.logger.info('Initializing WebRTC Audio Service');
+    this.logger.info("Initializing WebRTC Audio Service");
 
     try {
       // Validate dependencies
@@ -88,11 +90,14 @@ export class WebRTCAudioService implements ServiceInitializable {
       this.configureErrorHandling();
 
       this.initialized = true;
-      this.logger.info('WebRTC Audio Service initialized successfully');
-
+      this.logger.info("WebRTC Audio Service initialized successfully");
     } catch (error: any) {
-      this.logger.error('Failed to initialize WebRTC Audio Service', { error: error.message });
-      throw new Error(`WebRTC Audio Service initialization failed: ${error.message}`);
+      this.logger.error("Failed to initialize WebRTC Audio Service", {
+        error: error.message,
+      });
+      throw new Error(
+        `WebRTC Audio Service initialization failed: ${error.message}`,
+      );
     }
   }
 
@@ -101,7 +106,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   }
 
   dispose(): void {
-    this.logger.info('Disposing WebRTC Audio Service');
+    this.logger.info("Disposing WebRTC Audio Service");
 
     // Stop any active session
     if (this.isSessionActive) {
@@ -113,7 +118,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.audioManager.dispose();
 
     this.initialized = false;
-    this.logger.info('WebRTC Audio Service disposed');
+    this.logger.info("WebRTC Audio Service disposed");
   }
 
   /**
@@ -123,35 +128,40 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ensureInitialized();
 
     if (this.isSessionActive) {
-      this.logger.warn('Session already active');
+      this.logger.warn("Session already active");
       return;
     }
 
     try {
-      this.logger.info('Starting WebRTC voice session');
+      this.logger.info("Starting WebRTC voice session");
 
       // Validate services are available
       if (!this.ephemeralKeyService || !this.configurationManager) {
-        throw new Error('Required services not available for session start');
+        throw new Error("Required services not available for session start");
       }
 
       // Create WebRTC configuration
       const config = await this.configFactory.createConfig(
         this.configurationManager,
-        this.ephemeralKeyService
+        this.ephemeralKeyService,
       );
 
       // Establish WebRTC connection
       const connectionResult = await this.transport.establishConnection(config);
       if (!connectionResult.success) {
-        throw new Error(`Failed to establish WebRTC connection: ${connectionResult.error?.message}`);
+        throw new Error(
+          `Failed to establish WebRTC connection: ${connectionResult.error?.message}`,
+        );
       }
 
       // Capture microphone
       this.currentMicrophoneTrack = await this.audioManager.captureMicrophone();
 
       // Add audio track to transport
-      await this.audioManager.addTrackToTransport(this.transport, this.currentMicrophoneTrack);
+      await this.audioManager.addTrackToTransport(
+        this.transport,
+        this.currentMicrophoneTrack,
+      );
 
       // Handle remote audio stream
       const remoteStream = this.transport.getRemoteAudioStream();
@@ -160,12 +170,13 @@ export class WebRTCAudioService implements ServiceInitializable {
       }
 
       this.isSessionActive = true;
-      this.onSessionStateChangedCallback?.('active');
+      this.onSessionStateChangedCallback?.("active");
 
-      this.logger.info('WebRTC voice session started successfully');
-
+      this.logger.info("WebRTC voice session started successfully");
     } catch (error: any) {
-      this.logger.error('Failed to start WebRTC session', { error: error.message });
+      this.logger.error("Failed to start WebRTC session", {
+        error: error.message,
+      });
       this.onErrorCallback?.(error);
       throw error;
     }
@@ -176,12 +187,12 @@ export class WebRTCAudioService implements ServiceInitializable {
    */
   async stopSession(): Promise<void> {
     if (!this.isSessionActive) {
-      this.logger.warn('No active session to stop');
+      this.logger.warn("No active session to stop");
       return;
     }
 
     try {
-      this.logger.info('Stopping WebRTC voice session');
+      this.logger.info("Stopping WebRTC voice session");
 
       // Stop audio capture
       if (this.currentMicrophoneTrack) {
@@ -193,12 +204,11 @@ export class WebRTCAudioService implements ServiceInitializable {
       await this.transport.closeConnection();
 
       this.isSessionActive = false;
-      this.onSessionStateChangedCallback?.('inactive');
+      this.onSessionStateChangedCallback?.("inactive");
 
-      this.logger.info('WebRTC voice session stopped');
-
+      this.logger.info("WebRTC voice session stopped");
     } catch (error: any) {
-      this.logger.error('Error stopping session', { error: error.message });
+      this.logger.error("Error stopping session", { error: error.message });
       this.onErrorCallback?.(error);
     }
   }
@@ -211,23 +221,24 @@ export class WebRTCAudioService implements ServiceInitializable {
 
     try {
       const conversationItem: RealtimeEvent = {
-        type: 'conversation.item.create',
+        type: "conversation.item.create",
         item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text }]
-        }
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text }],
+        },
       };
 
       await this.transport.sendDataChannelMessage(conversationItem);
 
       // Request response
-      await this.transport.sendDataChannelMessage({ type: 'response.create' });
+      await this.transport.sendDataChannelMessage({ type: "response.create" });
 
-      this.logger.debug('Text message sent', { text });
-
+      this.logger.debug("Text message sent", { text });
     } catch (error: any) {
-      this.logger.error('Failed to send text message', { error: error.message });
+      this.logger.error("Failed to send text message", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -245,9 +256,10 @@ export class WebRTCAudioService implements ServiceInitializable {
     return {
       isActive: this.isSessionActive,
       connectionState: this.transport.getConnectionState(),
-      connectionQuality: this.transport.getConnectionStatistics().connectionQuality,
+      connectionQuality:
+        this.transport.getConnectionStatistics().connectionQuality,
       hasAudio: !!this.currentMicrophoneTrack,
-      statistics: this.transport.getConnectionStatistics()
+      statistics: this.transport.getConnectionStatistics(),
     };
   }
 
@@ -257,7 +269,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   setMicrophoneMuted(muted: boolean): void {
     if (this.currentMicrophoneTrack) {
       this.audioManager.setTrackMuted(this.currentMicrophoneTrack.id, muted);
-      this.logger.debug('Microphone mute state changed', { muted });
+      this.logger.debug("Microphone mute state changed", { muted });
     }
   }
 
@@ -268,12 +280,16 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ensureActiveSession();
 
     try {
-      this.currentMicrophoneTrack = await this.audioManager.switchAudioDevice(deviceId, this.transport);
+      this.currentMicrophoneTrack = await this.audioManager.switchAudioDevice(
+        deviceId,
+        this.transport,
+      );
 
-      this.logger.info('Audio device switched', { deviceId });
-
+      this.logger.info("Audio device switched", { deviceId });
     } catch (error: any) {
-      this.logger.error('Failed to switch audio device', { error: error.message });
+      this.logger.error("Failed to switch audio device", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -302,16 +318,18 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.onErrorCallback = callback;
   }
 
-  onTurnEvent(callback: (event: RealtimeTurnEvent) => Promise<void> | void): void {
+  onTurnEvent(
+    callback: (event: RealtimeTurnEvent) => Promise<void> | void,
+  ): void {
     this.onTurnEventCallback = callback;
   }
 
   // Private implementation methods
   private setupEventHandlers(): void {
     // Transport connection state changes
-    this.transport.addEventListener('connectionStateChanged', async (event) => {
-      this.logger.debug('Transport connection state changed', {
-        state: event.data.currentState
+    this.transport.addEventListener("connectionStateChanged", async (event) => {
+      this.logger.debug("Transport connection state changed", {
+        state: event.data.currentState,
       });
 
       // Handle connection failures
@@ -321,17 +339,20 @@ export class WebRTCAudioService implements ServiceInitializable {
     });
 
     // Data channel messages
-    this.transport.addEventListener('dataChannelMessage', async (event) => {
+    this.transport.addEventListener("dataChannelMessage", async (event) => {
       await this.handleDataChannelMessage(event.data.message);
     });
 
     // Connection quality changes
-    this.transport.addEventListener('connectionQualityChanged', async (event) => {
-      this.audioManager.adjustAudioQuality(event.data.currentQuality);
-    });
+    this.transport.addEventListener(
+      "connectionQualityChanged",
+      async (event) => {
+        this.audioManager.adjustAudioQuality(event.data.currentQuality);
+      },
+    );
 
     // Transport errors
-    this.transport.addEventListener('error', async (event) => {
+    this.transport.addEventListener("error", async (event) => {
       await this.handleTransportError(event.data);
     });
   }
@@ -339,7 +360,9 @@ export class WebRTCAudioService implements ServiceInitializable {
   private configureErrorHandling(): void {
     // Configure error callbacks
     this.errorHandler.onAuthenticationError(async (error) => {
-      this.logger.warn('Authentication error, requesting key renewal', { error: error.code });
+      this.logger.warn("Authentication error, requesting key renewal", {
+        error: error.code,
+      });
 
       if (this.ephemeralKeyService) {
         try {
@@ -347,77 +370,83 @@ export class WebRTCAudioService implements ServiceInitializable {
           // Attempt to restart session with new key
           await this.restartSessionWithNewKey();
         } catch (renewError: any) {
-          this.logger.error('Failed to renew key', { error: renewError.message });
+          this.logger.error("Failed to renew key", {
+            error: renewError.message,
+          });
           this.onErrorCallback?.(renewError);
         }
       }
     });
 
     this.errorHandler.onConnectionError(async (error) => {
-      this.logger.warn('Connection error detected', { error: error.code });
+      this.logger.warn("Connection error detected", { error: error.code });
       await this.handleConnectionFailure();
     });
 
     this.errorHandler.onFatalError(async (error) => {
-      this.logger.error('Fatal error, stopping session', { error: error.code });
+      this.logger.error("Fatal error, stopping session", { error: error.code });
       await this.stopSession();
       this.onErrorCallback?.(error);
     });
   }
 
-  private async handleDataChannelMessage(message: RealtimeEvent): Promise<void> {
-    this.logger.debug('Received data channel message', { type: message.type });
+  private async handleDataChannelMessage(
+    message: RealtimeEvent,
+  ): Promise<void> {
+    this.logger.debug("Received data channel message", { type: message.type });
 
     try {
       switch (message.type) {
-        case 'response.text.delta':
-          if (this.onTranscriptReceivedCallback && 'delta' in message) {
+        case "response.text.delta":
+          if (this.onTranscriptReceivedCallback && "delta" in message) {
             await this.onTranscriptReceivedCallback(message.delta as string);
           }
           break;
 
-        case 'response.audio.delta':
-          if (this.onAudioReceivedCallback && 'delta' in message) {
-            const audioBuffer = Buffer.from(message.delta as string, 'base64');
+        case "response.audio.delta":
+          if (this.onAudioReceivedCallback && "delta" in message) {
+            const audioBuffer = Buffer.from(message.delta as string, "base64");
             await this.onAudioReceivedCallback(audioBuffer);
           }
           break;
 
-        case 'response.audio_transcript.delta':
-          if (this.onTranscriptReceivedCallback && 'delta' in message) {
+        case "response.audio_transcript.delta":
+          if (this.onTranscriptReceivedCallback && "delta" in message) {
             await this.onTranscriptReceivedCallback(message.delta as string);
           }
           break;
 
-        case 'input_audio_buffer.speech_started':
+        case "input_audio_buffer.speech_started":
           await this.emitTurnEvent({
-            type: 'speech-start',
+            type: "speech-start",
             timestamp: Date.now(),
-            serverEvent: message
+            serverEvent: message,
           });
           break;
 
-        case 'input_audio_buffer.speech_stopped':
+        case "input_audio_buffer.speech_stopped":
           await this.emitTurnEvent({
-            type: 'speech-stop',
+            type: "speech-stop",
             timestamp: Date.now(),
-            serverEvent: message
+            serverEvent: message,
           });
           break;
 
-        case 'error':
-          this.logger.error('Received error from data channel', { message });
-          if ('error' in message) {
+        case "error":
+          this.logger.error("Received error from data channel", { message });
+          if ("error" in message) {
             this.onErrorCallback?.(new Error(message.error as string));
           }
           break;
 
         default:
-          this.logger.debug('Unhandled message type', { type: message.type });
+          this.logger.debug("Unhandled message type", { type: message.type });
           break;
       }
     } catch (error: any) {
-      this.logger.error('Error handling data channel message', { error: error.message });
+      this.logger.error("Error handling data channel message", {
+        error: error.message,
+      });
     }
   }
 
@@ -427,44 +456,54 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
     try {
       const result = this.onTurnEventCallback(event);
-      if (result && typeof (result as Promise<void>).then === 'function') {
+      if (result && typeof (result as Promise<void>).then === "function") {
         await result;
       }
     } catch (error: any) {
-      this.logger.error('Turn detection listener failed', { error: error?.message || error, type: event.type });
+      this.logger.error("Turn detection listener failed", {
+        error: error?.message || error,
+        type: event.type,
+      });
     }
   }
 
   private async handleTransportError(error: WebRTCErrorImpl): Promise<void> {
-    this.logger.warn('Transport error occurred', { error: error.code });
+    this.logger.warn("Transport error occurred", { error: error.code });
 
     if (!this.configurationManager) {
-      this.logger.error('Cannot handle transport error - no configuration manager');
+      this.logger.error(
+        "Cannot handle transport error - no configuration manager",
+      );
       return;
     }
 
     try {
       const config = await this.configFactory.createConfig(
         this.configurationManager,
-        this.ephemeralKeyService!
+        this.ephemeralKeyService!,
       );
 
       await this.errorHandler.handleError(error, this.transport, config);
     } catch (handlingError: any) {
-      this.logger.error('Failed to handle transport error', { error: handlingError.message });
+      this.logger.error("Failed to handle transport error", {
+        error: handlingError.message,
+      });
       this.onErrorCallback?.(handlingError);
     }
   }
 
   private async handleConnectionFailure(): Promise<void> {
-    this.logger.warn('Handling connection failure');
+    this.logger.warn("Handling connection failure");
 
     if (this.isSessionActive) {
       try {
         // Attempt to restart the session
         await this.restartSession();
       } catch (error: any) {
-        this.logger.error('Failed to restart session after connection failure', { error: error.message });
+        this.logger.error(
+          "Failed to restart session after connection failure",
+          { error: error.message },
+        );
         await this.stopSession();
         this.onErrorCallback?.(error);
       }
@@ -472,7 +511,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   }
 
   private async restartSession(): Promise<void> {
-    this.logger.info('Restarting WebRTC session');
+    this.logger.info("Restarting WebRTC session");
 
     const wasActive = this.isSessionActive;
     await this.stopSession();
@@ -483,16 +522,19 @@ export class WebRTCAudioService implements ServiceInitializable {
   }
 
   private async restartSessionWithNewKey(): Promise<void> {
-    this.logger.info('Restarting session with new ephemeral key');
+    this.logger.info("Restarting session with new ephemeral key");
 
     if (!this.configurationManager || !this.ephemeralKeyService) {
-      throw new Error('Required services not available for session restart');
+      throw new Error("Required services not available for session restart");
     }
 
     // Create new configuration with renewed key
     const config = await this.configFactory.updateConfigWithNewKey(
-      await this.configFactory.createConfig(this.configurationManager, this.ephemeralKeyService),
-      this.ephemeralKeyService
+      await this.configFactory.createConfig(
+        this.configurationManager,
+        this.ephemeralKeyService,
+      ),
+      this.ephemeralKeyService,
     );
 
     // Re-establish connection
@@ -501,22 +543,24 @@ export class WebRTCAudioService implements ServiceInitializable {
       throw new Error(`Failed to restart session: ${result.error?.message}`);
     }
 
-    this.logger.info('Session restarted with new key');
+    this.logger.info("Session restarted with new key");
   }
 
   private validateDependencies(): void {
     if (!this.ephemeralKeyService?.isInitialized()) {
-      throw new Error('EphemeralKeyService must be initialized');
+      throw new Error("EphemeralKeyService must be initialized");
     }
 
     if (!this.configurationManager?.isInitialized()) {
-      throw new Error('ConfigurationManager must be initialized');
+      throw new Error("ConfigurationManager must be initialized");
     }
   }
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error('WebRTC Audio Service not initialized. Call initialize() first.');
+      throw new Error(
+        "WebRTC Audio Service not initialized. Call initialize() first.",
+      );
     }
   }
 
@@ -524,7 +568,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ensureInitialized();
 
     if (!this.isSessionActive) {
-      throw new Error('No active voice session. Call startSession() first.');
+      throw new Error("No active voice session. Call startSession() first.");
     }
   }
 }

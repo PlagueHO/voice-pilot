@@ -1,5 +1,5 @@
-import { EphemeralKeyInfo } from './ephemeral';
-import type { RealtimeEvent } from './realtime-events';
+import { EphemeralKeyInfo } from "./ephemeral";
+import type { RealtimeEvent } from "./realtime-events";
 
 /**
  * WebRTC transport interface for Azure OpenAI Realtime API
@@ -36,7 +36,7 @@ export interface WebRTCConfig {
 }
 
 export interface WebRTCEndpoint {
-  region: 'eastus2' | 'swedencentral';
+  region: "eastus2" | "swedencentral";
   url: string; // e.g., https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc
   deployment: string; // e.g., gpt-4o-realtime-preview
 }
@@ -49,7 +49,7 @@ export interface EphemeralAuthentication {
 
 export interface AudioConfiguration {
   sampleRate: 24000;
-  format: 'pcm16';
+  format: "pcm16";
   channels: 1; // Mono audio for voice
   echoCancellation?: boolean;
   noiseSuppression?: boolean;
@@ -70,12 +70,12 @@ export interface ConnectionConfiguration {
 }
 
 export enum WebRTCConnectionState {
-  Disconnected = 'disconnected',
-  Connecting = 'connecting',
-  Connected = 'connected',
-  Reconnecting = 'reconnecting',
-  Failed = 'failed',
-  Closed = 'closed'
+  Disconnected = "disconnected",
+  Connecting = "connecting",
+  Connected = "connected",
+  Reconnecting = "reconnecting",
+  Failed = "failed",
+  Closed = "closed",
 }
 
 export interface ConnectionResult {
@@ -104,11 +104,11 @@ export interface ConnectionStatistics {
 }
 
 export enum ConnectionQuality {
-  Excellent = 'excellent',
-  Good = 'good',
-  Fair = 'fair',
-  Poor = 'poor',
-  Failed = 'failed'
+  Excellent = "excellent",
+  Good = "good",
+  Fair = "fair",
+  Poor = "poor",
+  Failed = "failed",
 }
 
 export interface WebRTCError {
@@ -127,7 +127,7 @@ export class WebRTCErrorImpl extends Error implements WebRTCError {
 
   constructor(error: WebRTCError) {
     super(error.message);
-    this.name = 'WebRTCError';
+    this.name = "WebRTCError";
     this.code = error.code;
     this.details = error.details;
     this.recoverable = error.recoverable;
@@ -136,25 +136,25 @@ export class WebRTCErrorImpl extends Error implements WebRTCError {
 }
 
 export enum WebRTCErrorCode {
-  AuthenticationFailed = 'AUTHENTICATION_FAILED',
-  SdpNegotiationFailed = 'SDP_NEGOTIATION_FAILED',
-  IceConnectionFailed = 'ICE_CONNECTION_FAILED',
-  DataChannelFailed = 'DATA_CHANNEL_FAILED',
-  AudioTrackFailed = 'AUDIO_TRACK_FAILED',
-  NetworkTimeout = 'NETWORK_TIMEOUT',
-  RegionNotSupported = 'REGION_NOT_SUPPORTED',
-  ConfigurationInvalid = 'CONFIGURATION_INVALID'
+  AuthenticationFailed = "AUTHENTICATION_FAILED",
+  SdpNegotiationFailed = "SDP_NEGOTIATION_FAILED",
+  IceConnectionFailed = "ICE_CONNECTION_FAILED",
+  DataChannelFailed = "DATA_CHANNEL_FAILED",
+  AudioTrackFailed = "AUDIO_TRACK_FAILED",
+  NetworkTimeout = "NETWORK_TIMEOUT",
+  RegionNotSupported = "REGION_NOT_SUPPORTED",
+  ConfigurationInvalid = "CONFIGURATION_INVALID",
 }
 
 export type WebRTCEventType =
-  | 'connectionStateChanged'
-  | 'audioTrackAdded'
-  | 'audioTrackRemoved'
-  | 'dataChannelMessage'
-  | 'dataChannelStateChanged'
-  | 'connectionQualityChanged'
-  | 'reconnectAttempt'
-  | 'error';
+  | "connectionStateChanged"
+  | "audioTrackAdded"
+  | "audioTrackRemoved"
+  | "dataChannelMessage"
+  | "dataChannelStateChanged"
+  | "connectionQualityChanged"
+  | "reconnectAttempt"
+  | "error";
 
 export interface WebRTCEventHandler {
   (event: WebRTCEvent): Promise<void> | void;
@@ -168,7 +168,7 @@ export interface WebRTCEvent {
 }
 
 export interface ConnectionStateChangedEvent extends WebRTCEvent {
-  type: 'connectionStateChanged';
+  type: "connectionStateChanged";
   data: {
     previousState: WebRTCConnectionState;
     currentState: WebRTCConnectionState;
@@ -177,7 +177,7 @@ export interface ConnectionStateChangedEvent extends WebRTCEvent {
 }
 
 export interface AudioTrackEvent extends WebRTCEvent {
-  type: 'audioTrackAdded' | 'audioTrackRemoved';
+  type: "audioTrackAdded" | "audioTrackRemoved";
   data: {
     track: MediaStreamTrack;
     stream: MediaStream;
@@ -186,7 +186,7 @@ export interface AudioTrackEvent extends WebRTCEvent {
 }
 
 export interface DataChannelMessageEvent extends WebRTCEvent {
-  type: 'dataChannelMessage';
+  type: "dataChannelMessage";
   data: {
     message: RealtimeEvent;
     channel: RTCDataChannel;
@@ -194,11 +194,10 @@ export interface DataChannelMessageEvent extends WebRTCEvent {
 }
 
 export interface ConnectionQualityChangedEvent extends WebRTCEvent {
-  type: 'connectionQualityChanged';
+  type: "connectionQualityChanged";
   data: {
     previousQuality: ConnectionQuality;
     currentQuality: ConnectionQuality;
     statistics: ConnectionStatistics;
   };
 }
-

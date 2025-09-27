@@ -1,11 +1,11 @@
-import { Logger } from '../core/logger';
+import { Logger } from "../core/logger";
 import {
-    WebRTCConfig,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
-    WebRTCTransport
-} from '../types/webrtc';
-import { ConnectionRecoveryManager } from './connection-recovery-manager';
+  WebRTCConfig,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+  WebRTCTransport,
+} from "../types/webrtc";
+import { ConnectionRecoveryManager } from "./connection-recovery-manager";
 
 /**
  * Handles WebRTC errors with classification, recovery, and reporting
@@ -19,12 +19,14 @@ export class WebRTCErrorHandler {
   private maxHistorySize = 100;
 
   // Error callbacks
-  private onAuthenticationErrorCallback?: (error: WebRTCErrorImpl) => Promise<void>;
+  private onAuthenticationErrorCallback?: (
+    error: WebRTCErrorImpl,
+  ) => Promise<void>;
   private onConnectionErrorCallback?: (error: WebRTCErrorImpl) => Promise<void>;
   private onFatalErrorCallback?: (error: WebRTCErrorImpl) => Promise<void>;
 
   constructor(logger?: Logger) {
-    this.logger = logger || new Logger('WebRTCErrorHandler');
+    this.logger = logger || new Logger("WebRTCErrorHandler");
     this.recoveryManager = new ConnectionRecoveryManager(logger);
   }
 
@@ -34,9 +36,8 @@ export class WebRTCErrorHandler {
   async handleError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-
     this.logError(error);
     this.addToErrorHistory(error);
 
@@ -73,9 +74,9 @@ export class WebRTCErrorHandler {
           break;
       }
     } catch (handlingError: any) {
-      this.logger.error('Error handling failed', {
+      this.logger.error("Error handling failed", {
         originalError: error.code,
-        handlingError: handlingError.message
+        handlingError: handlingError.message,
       });
     }
   }
@@ -85,47 +86,68 @@ export class WebRTCErrorHandler {
    */
   classifyError(error: any): WebRTCErrorCode {
     // Permission errors
-    if (error.name === 'NotAllowedError') {
+    if (error.name === "NotAllowedError") {
       return WebRTCErrorCode.AuthenticationFailed;
     }
 
     // Device errors
-    if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+    if (
+      error.name === "NotFoundError" ||
+      error.name === "DevicesNotFoundError"
+    ) {
       return WebRTCErrorCode.AudioTrackFailed;
     }
 
     // Network errors
-    if (error.name === 'NetworkError' || error.code === 'NETWORK_FAILURE') {
+    if (error.name === "NetworkError" || error.code === "NETWORK_FAILURE") {
       return WebRTCErrorCode.NetworkTimeout;
     }
 
     // SDP errors
-    if (error.message?.includes('SDP') || error.message?.includes('offer') || error.message?.includes('answer')) {
+    if (
+      error.message?.includes("SDP") ||
+      error.message?.includes("offer") ||
+      error.message?.includes("answer")
+    ) {
       return WebRTCErrorCode.SdpNegotiationFailed;
     }
 
     // ICE errors
-    if (error.message?.includes('ICE') || error.message?.includes('connection') || error.message?.includes('candidate')) {
+    if (
+      error.message?.includes("ICE") ||
+      error.message?.includes("connection") ||
+      error.message?.includes("candidate")
+    ) {
       return WebRTCErrorCode.IceConnectionFailed;
     }
 
     // Data channel errors
-    if (error.message?.includes('data channel') || error.message?.includes('datachannel')) {
+    if (
+      error.message?.includes("data channel") ||
+      error.message?.includes("datachannel")
+    ) {
       return WebRTCErrorCode.DataChannelFailed;
     }
 
     // Timeout errors
-    if (error.message?.includes('timeout') || error.name === 'TimeoutError') {
+    if (error.message?.includes("timeout") || error.name === "TimeoutError") {
       return WebRTCErrorCode.NetworkTimeout;
     }
 
     // Authentication errors
-    if (error.message?.includes('401') || error.message?.includes('403') || error.message?.includes('auth')) {
+    if (
+      error.message?.includes("401") ||
+      error.message?.includes("403") ||
+      error.message?.includes("auth")
+    ) {
       return WebRTCErrorCode.AuthenticationFailed;
     }
 
     // Region errors
-    if (error.message?.includes('region') || error.message?.includes('endpoint')) {
+    if (
+      error.message?.includes("region") ||
+      error.message?.includes("endpoint")
+    ) {
       return WebRTCErrorCode.RegionNotSupported;
     }
 
@@ -141,10 +163,10 @@ export class WebRTCErrorHandler {
 
     return new WebRTCErrorImpl({
       code,
-      message: error.message || 'Unknown error',
+      message: error.message || "Unknown error",
       details: error,
       recoverable: isRecoverable,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -155,7 +177,7 @@ export class WebRTCErrorHandler {
     const totalErrors = this.errorHistory.length;
     const errorsByCode = new Map<WebRTCErrorCode, number>();
     const recentErrors = this.errorHistory.filter(
-      entry => Date.now() - entry.timestamp.getTime() < 300000 // Last 5 minutes
+      (entry) => Date.now() - entry.timestamp.getTime() < 300000, // Last 5 minutes
     );
 
     for (const entry of this.errorHistory) {
@@ -168,14 +190,16 @@ export class WebRTCErrorHandler {
       recentErrors: recentErrors.length,
       errorsByCode: Object.fromEntries(errorsByCode),
       lastError: this.errorHistory[this.errorHistory.length - 1]?.error,
-      averageErrorsPerHour: this.calculateAverageErrorsPerHour()
+      averageErrorsPerHour: this.calculateAverageErrorsPerHour(),
     };
   }
 
   /**
    * Set error callbacks
    */
-  onAuthenticationError(callback: (error: WebRTCErrorImpl) => Promise<void>): void {
+  onAuthenticationError(
+    callback: (error: WebRTCErrorImpl) => Promise<void>,
+  ): void {
     this.onAuthenticationErrorCallback = callback;
   }
 
@@ -203,30 +227,30 @@ export class WebRTCErrorHandler {
   private async handleAuthenticationError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-    this.logger.warn('Handling authentication error', { error: error.code });
+    this.logger.warn("Handling authentication error", { error: error.code });
 
     // Request new ephemeral key through callback
     if (this.onAuthenticationErrorCallback) {
       await this.onAuthenticationErrorCallback(error);
     } else {
-      this.logger.error('No authentication error handler configured');
+      this.logger.error("No authentication error handler configured");
     }
   }
 
   private async handleConnectionError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-    this.logger.warn('Handling connection error', { error: error.code });
+    this.logger.warn("Handling connection error", { error: error.code });
 
     // Attempt connection recovery
     const recovered = await this.recoveryManager.handleConnectionFailure(
       transport,
       config,
-      error
+      error,
     );
 
     if (!recovered && this.onConnectionErrorCallback) {
@@ -237,26 +261,32 @@ export class WebRTCErrorHandler {
   private async handleDataChannelError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-    this.logger.warn('Handling data channel error', { error: error.code });
+    this.logger.warn("Handling data channel error", { error: error.code });
 
     // Data channel failures might be recoverable by continuing with audio-only
     if (this.isDataChannelOptional()) {
-      this.logger.info('Continuing with audio-only mode after data channel failure');
+      this.logger.info(
+        "Continuing with audio-only mode after data channel failure",
+      );
       return;
     }
 
     // Attempt recovery if data channel is critical
-    await this.recoveryManager.handleConnectionFailure(transport, config, error);
+    await this.recoveryManager.handleConnectionFailure(
+      transport,
+      config,
+      error,
+    );
   }
 
   private async handleSdpError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-    this.logger.error('Handling SDP negotiation error', { error: error.code });
+    this.logger.error("Handling SDP negotiation error", { error: error.code });
 
     // SDP errors are usually fatal and require reconnection
     await this.handleFatalError(error);
@@ -265,9 +295,9 @@ export class WebRTCErrorHandler {
   private async handleAudioTrackError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-    this.logger.error('Handling audio track error', { error: error.code });
+    this.logger.error("Handling audio track error", { error: error.code });
 
     // Audio track errors might require permission request or device change
     if (this.onConnectionErrorCallback) {
@@ -276,7 +306,7 @@ export class WebRTCErrorHandler {
   }
 
   private async handleFatalError(error: WebRTCErrorImpl): Promise<void> {
-    this.logger.error('Handling fatal error', { error: error.code });
+    this.logger.error("Handling fatal error", { error: error.code });
 
     if (this.onFatalErrorCallback) {
       await this.onFatalErrorCallback(error);
@@ -286,13 +316,17 @@ export class WebRTCErrorHandler {
   private async handleUnknownError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<void> {
-    this.logger.warn('Handling unknown error', { error: error.code });
+    this.logger.warn("Handling unknown error", { error: error.code });
 
     // Try recovery for unknown errors if they're marked as recoverable
     if (error.recoverable) {
-      await this.recoveryManager.handleConnectionFailure(transport, config, error);
+      await this.recoveryManager.handleConnectionFailure(
+        transport,
+        config,
+        error,
+      );
     } else {
       await this.handleFatalError(error);
     }
@@ -330,17 +364,17 @@ export class WebRTCErrorHandler {
       code: error.code,
       recoverable: error.recoverable,
       timestamp: error.timestamp,
-      details: error.details
+      details: error.details,
     };
 
     switch (logLevel) {
-      case 'error':
+      case "error":
         this.logger.error(message, data);
         break;
-      case 'warn':
+      case "warn":
         this.logger.warn(message, data);
         break;
-      case 'info':
+      case "info":
         this.logger.info(message, data);
         break;
       default:
@@ -349,31 +383,33 @@ export class WebRTCErrorHandler {
     }
   }
 
-  private getLogLevel(code: WebRTCErrorCode): 'error' | 'warn' | 'info' | 'debug' {
+  private getLogLevel(
+    code: WebRTCErrorCode,
+  ): "error" | "warn" | "info" | "debug" {
     switch (code) {
       case WebRTCErrorCode.AuthenticationFailed:
       case WebRTCErrorCode.SdpNegotiationFailed:
       case WebRTCErrorCode.RegionNotSupported:
       case WebRTCErrorCode.ConfigurationInvalid:
-        return 'error';
+        return "error";
 
       case WebRTCErrorCode.IceConnectionFailed:
       case WebRTCErrorCode.AudioTrackFailed:
-        return 'warn';
+        return "warn";
 
       case WebRTCErrorCode.DataChannelFailed:
       case WebRTCErrorCode.NetworkTimeout:
-        return 'info';
+        return "info";
 
       default:
-        return 'debug';
+        return "debug";
     }
   }
 
   private addToErrorHistory(error: WebRTCErrorImpl): void {
     this.errorHistory.push({
       error,
-      timestamp: error.timestamp
+      timestamp: error.timestamp,
     });
 
     // Limit history size
@@ -391,7 +427,7 @@ export class WebRTCErrorHandler {
     const oneHourAgo = now - 3600000; // 1 hour in milliseconds
 
     const recentErrors = this.errorHistory.filter(
-      entry => entry.timestamp.getTime() > oneHourAgo
+      (entry) => entry.timestamp.getTime() > oneHourAgo,
     );
 
     return recentErrors.length;

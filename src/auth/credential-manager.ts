@@ -1,14 +1,14 @@
-import * as vscode from 'vscode';
-import { Logger } from '../core/logger';
+import * as vscode from "vscode";
+import { Logger } from "../core/logger";
 import {
-    CredentialInfo,
-    CredentialManager,
-    CredentialType,
-    CredentialValidationResult,
-    HealthCheckResult
-} from '../types/credentials';
-import { LEGACY_KEYS, SECRET_KEYS } from './constants';
-import { CredentialValidatorImpl } from './validators/credential-validator';
+  CredentialInfo,
+  CredentialManager,
+  CredentialType,
+  CredentialValidationResult,
+  HealthCheckResult,
+} from "../types/credentials";
+import { LEGACY_KEYS, SECRET_KEYS } from "./constants";
+import { CredentialValidatorImpl } from "./validators/credential-validator";
 
 /**
  * Implementation of secure credential management using VS Code Secret Storage
@@ -35,18 +35,21 @@ export class CredentialManagerImpl implements CredentialManager {
     }
 
     if (!this.context) {
-      throw new Error('Extension context is required for CredentialManager initialization');
+      throw new Error(
+        "Extension context is required for CredentialManager initialization",
+      );
     }
 
     if (!this.logger) {
-      this.logger = new Logger('CredentialManager');
+      this.logger = new Logger("CredentialManager");
       this.validator = new CredentialValidatorImpl(this.logger);
     }
 
     // Test secret storage accessibility
     const healthCheck = await this.testCredentialAccess();
     if (!healthCheck.secretStorageAvailable) {
-      const errorMsg = 'Secret storage unavailable: ' + healthCheck.errors.join(', ');
+      const errorMsg =
+        "Secret storage unavailable: " + healthCheck.errors.join(", ");
       this.logger.error(errorMsg);
       throw new Error(errorMsg);
     }
@@ -55,7 +58,7 @@ export class CredentialManagerImpl implements CredentialManager {
     await this.migrateCredentials();
 
     this.initialized = true;
-    this.logger.info('CredentialManager initialized successfully');
+    this.logger.info("CredentialManager initialized successfully");
   }
 
   isInitialized(): boolean {
@@ -65,7 +68,7 @@ export class CredentialManagerImpl implements CredentialManager {
   dispose(): void {
     // Clear any cached sensitive data from memory
     this.initialized = false;
-    this.logger.info('CredentialManager disposed');
+    this.logger.info("CredentialManager disposed");
   }
 
   // Azure OpenAI credential operations
@@ -76,16 +79,20 @@ export class CredentialManagerImpl implements CredentialManager {
     const validation = await this.validator.validateAzureOpenAIKey(key);
     if (!validation.isValid) {
       const error = validation.errors[0];
-      this.logger.error('Invalid Azure OpenAI key format', { code: error.code });
+      this.logger.error("Invalid Azure OpenAI key format", {
+        code: error.code,
+      });
       throw new Error(`Invalid Azure OpenAI key: ${error.message}`);
     }
 
     try {
       await this.context.secrets.store(SECRET_KEYS.AZURE_OPENAI_API_KEY, key);
-      this.logger.info('Azure OpenAI key stored successfully');
+      this.logger.info("Azure OpenAI key stored successfully");
     } catch (error: any) {
-      this.logger.error('Failed to store Azure OpenAI key', { error: error.message });
-      throw new Error('Failed to store credential securely');
+      this.logger.error("Failed to store Azure OpenAI key", {
+        error: error.message,
+      });
+      throw new Error("Failed to store credential securely");
     }
   }
 
@@ -93,13 +100,17 @@ export class CredentialManagerImpl implements CredentialManager {
     this.ensureInitialized();
 
     try {
-      const key = await this.context.secrets.get(SECRET_KEYS.AZURE_OPENAI_API_KEY);
+      const key = await this.context.secrets.get(
+        SECRET_KEYS.AZURE_OPENAI_API_KEY,
+      );
       if (key) {
-        this.logger.debug('Azure OpenAI key retrieved');
+        this.logger.debug("Azure OpenAI key retrieved");
       }
       return key;
     } catch (error: any) {
-      this.logger.error('Failed to retrieve Azure OpenAI key', { error: error.message });
+      this.logger.error("Failed to retrieve Azure OpenAI key", {
+        error: error.message,
+      });
       return undefined;
     }
   }
@@ -109,10 +120,12 @@ export class CredentialManagerImpl implements CredentialManager {
 
     try {
       await this.context.secrets.delete(SECRET_KEYS.AZURE_OPENAI_API_KEY);
-      this.logger.info('Azure OpenAI key cleared successfully');
+      this.logger.info("Azure OpenAI key cleared successfully");
     } catch (error: any) {
-      this.logger.error('Failed to clear Azure OpenAI key', { error: error.message });
-      throw new Error('Failed to clear credential');
+      this.logger.error("Failed to clear Azure OpenAI key", {
+        error: error.message,
+      });
+      throw new Error("Failed to clear credential");
     }
   }
 
@@ -128,16 +141,21 @@ export class CredentialManagerImpl implements CredentialManager {
     const validation = await this.validator.validateGitHubToken(token);
     if (!validation.isValid) {
       const error = validation.errors[0];
-      this.logger.error('Invalid GitHub token format', { code: error.code });
+      this.logger.error("Invalid GitHub token format", { code: error.code });
       throw new Error(`Invalid GitHub token: ${error.message}`);
     }
 
     try {
-      await this.context.secrets.store(SECRET_KEYS.GITHUB_PERSONAL_TOKEN, token);
-      this.logger.info('GitHub token stored successfully');
+      await this.context.secrets.store(
+        SECRET_KEYS.GITHUB_PERSONAL_TOKEN,
+        token,
+      );
+      this.logger.info("GitHub token stored successfully");
     } catch (error: any) {
-      this.logger.error('Failed to store GitHub token', { error: error.message });
-      throw new Error('Failed to store credential securely');
+      this.logger.error("Failed to store GitHub token", {
+        error: error.message,
+      });
+      throw new Error("Failed to store credential securely");
     }
   }
 
@@ -145,13 +163,17 @@ export class CredentialManagerImpl implements CredentialManager {
     this.ensureInitialized();
 
     try {
-      const token = await this.context.secrets.get(SECRET_KEYS.GITHUB_PERSONAL_TOKEN);
+      const token = await this.context.secrets.get(
+        SECRET_KEYS.GITHUB_PERSONAL_TOKEN,
+      );
       if (token) {
-        this.logger.debug('GitHub token retrieved');
+        this.logger.debug("GitHub token retrieved");
       }
       return token;
     } catch (error: any) {
-      this.logger.error('Failed to retrieve GitHub token', { error: error.message });
+      this.logger.error("Failed to retrieve GitHub token", {
+        error: error.message,
+      });
       return undefined;
     }
   }
@@ -161,15 +183,20 @@ export class CredentialManagerImpl implements CredentialManager {
 
     try {
       await this.context.secrets.delete(SECRET_KEYS.GITHUB_PERSONAL_TOKEN);
-      this.logger.info('GitHub token cleared successfully');
+      this.logger.info("GitHub token cleared successfully");
     } catch (error: any) {
-      this.logger.error('Failed to clear GitHub token', { error: error.message });
-      throw new Error('Failed to clear credential');
+      this.logger.error("Failed to clear GitHub token", {
+        error: error.message,
+      });
+      throw new Error("Failed to clear credential");
     }
   }
 
   // Lifecycle management
-  async validateCredential(type: CredentialType, value: string): Promise<CredentialValidationResult> {
+  async validateCredential(
+    type: CredentialType,
+    value: string,
+  ): Promise<CredentialValidationResult> {
     this.ensureInitialized();
 
     switch (type) {
@@ -189,8 +216,11 @@ export class CredentialManagerImpl implements CredentialManager {
 
     // Check each credential type
     const credentialChecks = [
-      { type: CredentialType.AzureOpenAI, key: SECRET_KEYS.AZURE_OPENAI_API_KEY },
-      { type: CredentialType.GitHub, key: SECRET_KEYS.GITHUB_PERSONAL_TOKEN }
+      {
+        type: CredentialType.AzureOpenAI,
+        key: SECRET_KEYS.AZURE_OPENAI_API_KEY,
+      },
+      { type: CredentialType.GitHub, key: SECRET_KEYS.GITHUB_PERSONAL_TOKEN },
     ];
 
     for (const { type, key } of credentialChecks) {
@@ -208,15 +238,17 @@ export class CredentialManagerImpl implements CredentialManager {
           type,
           keyName: key,
           isPresent,
-          isValid
+          isValid,
         });
       } catch (error: any) {
-        this.logger.warn(`Failed to check credential ${type}`, { error: error.message });
+        this.logger.warn(`Failed to check credential ${type}`, {
+          error: error.message,
+        });
         credentials.push({
           type,
           keyName: key,
           isPresent: false,
-          isValid: false
+          isValid: false,
         });
       }
     }
@@ -231,8 +263,8 @@ export class CredentialManagerImpl implements CredentialManager {
 
     // Clear all known credentials
     const clearOperations = [
-      { name: 'Azure OpenAI', operation: () => this.clearAzureOpenAIKey() },
-      { name: 'GitHub', operation: () => this.clearGitHubToken() }
+      { name: "Azure OpenAI", operation: () => this.clearAzureOpenAIKey() },
+      { name: "GitHub", operation: () => this.clearGitHubToken() },
     ];
 
     for (const { name, operation } of clearOperations) {
@@ -244,24 +276,24 @@ export class CredentialManagerImpl implements CredentialManager {
     }
 
     if (errors.length > 0) {
-      this.logger.error('Some credentials could not be cleared', { errors });
-      throw new Error(`Failed to clear some credentials: ${errors.join(', ')}`);
+      this.logger.error("Some credentials could not be cleared", { errors });
+      throw new Error(`Failed to clear some credentials: ${errors.join(", ")}`);
     }
 
-    this.logger.info('All credentials cleared successfully');
+    this.logger.info("All credentials cleared successfully");
   }
 
   async testCredentialAccess(): Promise<HealthCheckResult> {
     const result: HealthCheckResult = {
       secretStorageAvailable: false,
       credentialsAccessible: false,
-      errors: []
+      errors: [],
     };
 
     try {
       // Test basic secret storage functionality
-      const testKey = 'voicepilot.test.access';
-      const testValue = 'test-value';
+      const testKey = "voicepilot.test.access";
+      const testValue = "test-value";
 
       await this.context.secrets.store(testKey, testValue);
       const retrieved = await this.context.secrets.get(testKey);
@@ -271,18 +303,24 @@ export class CredentialManagerImpl implements CredentialManager {
         result.secretStorageAvailable = true;
         result.credentialsAccessible = true;
       } else {
-        result.errors.push('Secret storage test failed: value mismatch');
+        result.errors.push("Secret storage test failed: value mismatch");
       }
     } catch (error: any) {
       result.errors.push(`Secret storage error: ${error.message}`);
 
       // Provide user guidance based on error type
-      if (error.message.includes('keychain')) {
-        result.errors.push('macOS Keychain access denied. Check system preferences.');
-      } else if (error.message.includes('credential manager')) {
-        result.errors.push('Windows Credential Manager unavailable. Check system services.');
-      } else if (error.message.includes('libsecret')) {
-        result.errors.push('Linux credential storage unavailable. Install gnome-keyring or equivalent.');
+      if (error.message.includes("keychain")) {
+        result.errors.push(
+          "macOS Keychain access denied. Check system preferences.",
+        );
+      } else if (error.message.includes("credential manager")) {
+        result.errors.push(
+          "Windows Credential Manager unavailable. Check system services.",
+        );
+      } else if (error.message.includes("libsecret")) {
+        result.errors.push(
+          "Linux credential storage unavailable. Install gnome-keyring or equivalent.",
+        );
       }
     }
 
@@ -290,20 +328,20 @@ export class CredentialManagerImpl implements CredentialManager {
   }
 
   async migrateCredentials(): Promise<void> {
-    this.logger.debug('Starting credential migration check');
+    this.logger.debug("Starting credential migration check");
 
     // Handle migration from old credential format to new format
     const legacyMigrations = [
       {
         legacyKey: LEGACY_KEYS.AZURE_OLD,
         migrationAction: (value: string) => this.storeAzureOpenAIKey(value),
-        name: 'Azure OpenAI'
+        name: "Azure OpenAI",
       },
       {
         legacyKey: LEGACY_KEYS.GITHUB_OLD,
         migrationAction: (value: string) => this.storeGitHubToken(value),
-        name: 'GitHub'
-      }
+        name: "GitHub",
+      },
     ];
 
     for (const { legacyKey, migrationAction, name } of legacyMigrations) {
@@ -317,49 +355,70 @@ export class CredentialManagerImpl implements CredentialManager {
 
           // Remove legacy key
           await this.context.secrets.delete(legacyKey);
-          this.logger.info(`Successfully migrated ${name} credential`, { from: legacyKey });
+          this.logger.info(`Successfully migrated ${name} credential`, {
+            from: legacyKey,
+          });
         }
       } catch (error: any) {
-        this.logger.warn(`Failed to migrate ${name} credential`, { key: legacyKey, error: error.message });
+        this.logger.warn(`Failed to migrate ${name} credential`, {
+          key: legacyKey,
+          error: error.message,
+        });
       }
     }
   }
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error('CredentialManager not initialized. Call initialize() first.');
+      throw new Error(
+        "CredentialManager not initialized. Call initialize() first.",
+      );
     }
   }
 
   /**
    * Handle credential errors with user-friendly guidance
    */
-  async handleCredentialError(error: Error, credentialType: CredentialType): Promise<void> {
+  async handleCredentialError(
+    error: Error,
+    credentialType: CredentialType,
+  ): Promise<void> {
     let userMessage: string;
     let actionButton: string | undefined;
 
     switch (credentialType) {
       case CredentialType.AzureOpenAI:
-        userMessage = 'Azure OpenAI credentials are required but not configured.';
-        actionButton = 'Configure Azure Credentials';
+        userMessage =
+          "Azure OpenAI credentials are required but not configured.";
+        actionButton = "Configure Azure Credentials";
         break;
       case CredentialType.GitHub:
-        userMessage = 'GitHub access token is required for repository operations.';
-        actionButton = 'Configure GitHub Token';
+        userMessage =
+          "GitHub access token is required for repository operations.";
+        actionButton = "Configure GitHub Token";
         break;
       default:
-        userMessage = 'Required credentials are missing or invalid.';
-        actionButton = 'Open Settings';
+        userMessage = "Required credentials are missing or invalid.";
+        actionButton = "Open Settings";
     }
 
-    const action = await vscode.window.showErrorMessage(userMessage, actionButton, 'Help');
+    const action = await vscode.window.showErrorMessage(
+      userMessage,
+      actionButton,
+      "Help",
+    );
 
     if (action === actionButton) {
       // Open appropriate configuration UI
-      vscode.commands.executeCommand('voicepilot.openCredentialSettings', credentialType);
-    } else if (action === 'Help') {
+      vscode.commands.executeCommand(
+        "voicepilot.openCredentialSettings",
+        credentialType,
+      );
+    } else if (action === "Help") {
       // Open documentation
-      vscode.env.openExternal(vscode.Uri.parse('https://github.com/PlagueHO/voice-pilot/docs/setup'));
+      vscode.env.openExternal(
+        vscode.Uri.parse("https://github.com/PlagueHO/voice-pilot/docs/setup"),
+      );
     }
   }
 }

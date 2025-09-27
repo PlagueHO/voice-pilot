@@ -1,37 +1,37 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
 export class ChatPanel {
-    private panel: vscode.WebviewPanel | undefined;
-    private readonly extensionUri: vscode.Uri;
+  private panel: vscode.WebviewPanel | undefined;
+  private readonly extensionUri: vscode.Uri;
 
-    constructor(extensionUri: vscode.Uri) {
-        this.extensionUri = extensionUri;
+  constructor(extensionUri: vscode.Uri) {
+    this.extensionUri = extensionUri;
+  }
+
+  public createOrShow() {
+    if (this.panel) {
+      this.panel.reveal(vscode.ViewColumn.One);
+    } else {
+      this.panel = vscode.window.createWebviewPanel(
+        "voicePilotChat",
+        "VoicePilot Chat",
+        vscode.ViewColumn.One,
+        {
+          enableScripts: true,
+          localResourceRoots: [this.extensionUri],
+        },
+      );
+
+      this.panel.webview.html = this.getWebviewContent();
+
+      this.panel.onDidDispose(() => {
+        this.panel = undefined;
+      });
     }
+  }
 
-    public createOrShow() {
-        if (this.panel) {
-            this.panel.reveal(vscode.ViewColumn.One);
-        } else {
-            this.panel = vscode.window.createWebviewPanel(
-                'voicePilotChat',
-                'VoicePilot Chat',
-                vscode.ViewColumn.One,
-                {
-                    enableScripts: true,
-                    localResourceRoots: [this.extensionUri]
-                }
-            );
-
-            this.panel.webview.html = this.getWebviewContent();
-
-            this.panel.onDidDispose(() => {
-                this.panel = undefined;
-            });
-        }
-    }
-
-    private getWebviewContent() {
-        return `<!DOCTYPE html>
+  private getWebviewContent() {
+    return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
@@ -59,11 +59,14 @@ export class ChatPanel {
             </script>
         </body>
         </html>`;
-    }
+  }
 
-    public appendMessage(message: string) {
-        if (this.panel) {
-            this.panel.webview.postMessage({ command: 'appendMessage', text: message });
-        }
+  public appendMessage(message: string) {
+    if (this.panel) {
+      this.panel.webview.postMessage({
+        command: "appendMessage",
+        text: message,
+      });
     }
+  }
 }

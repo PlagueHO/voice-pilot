@@ -1,9 +1,14 @@
-import * as vscode from 'vscode';
-import { ServiceInitializable } from '../core/service-initializable';
+import * as vscode from "vscode";
+import { ServiceInitializable } from "../core/service-initializable";
 
-export type ConversationState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'recovering';
+export type ConversationState =
+  | "idle"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "recovering";
 
-export type PolicyProfileId = 'default' | 'assertive' | 'hands-free' | 'custom';
+export type PolicyProfileId = "default" | "assertive" | "hands-free" | "custom";
 
 export interface InterruptionPolicyConfig {
   profile: PolicyProfileId;
@@ -11,21 +16,21 @@ export interface InterruptionPolicyConfig {
   interruptionBudgetMs: number;
   completionGraceMs: number;
   speechStopDebounceMs: number;
-  fallbackMode: 'manual' | 'hybrid';
+  fallbackMode: "manual" | "hybrid";
 }
 
 export interface InterruptionInfo {
-  type: 'barge-in' | 'manual-stop' | 'policy-yield';
+  type: "barge-in" | "manual-stop" | "policy-yield";
   detectedAt: string;
   latencyMs: number;
-  source: 'azure-vad' | 'client-hint' | 'ui-command' | 'system';
+  source: "azure-vad" | "client-hint" | "ui-command" | "system";
   reasonCode?: string;
   interruptionCount?: number;
 }
 
 export interface TurnDescriptor {
   turnId: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   startedAt: string;
   endedAt?: string;
   interruption?: InterruptionInfo;
@@ -41,13 +46,13 @@ export interface TurnEventDiagnostics {
 
 export interface TurnEvent {
   type:
-    | 'state-changed'
-    | 'turn-started'
-    | 'turn-ended'
-    | 'interruption'
-    | 'policy-updated'
-    | 'degraded'
-    | 'recovered';
+    | "state-changed"
+    | "turn-started"
+    | "turn-ended"
+    | "interruption"
+    | "policy-updated"
+    | "degraded"
+    | "recovered";
   state: ConversationState;
   turn?: TurnDescriptor;
   timestamp: string;
@@ -56,18 +61,21 @@ export interface TurnEvent {
 
 export interface SpeechActivityEvent {
   type:
-    | 'user-speech-start'
-    | 'user-speech-stop'
-    | 'assistant-speech-start'
-    | 'assistant-speech-stop'
-    | 'vad-degraded';
-  source: 'azure-vad' | 'client-hint' | 'manual';
+    | "user-speech-start"
+    | "user-speech-stop"
+    | "assistant-speech-start"
+    | "assistant-speech-stop"
+    | "vad-degraded";
+  source: "azure-vad" | "client-hint" | "manual";
   timestamp: string;
   latencyMs?: number;
 }
 
 export interface PlaybackActivityEvent {
-  type: 'assistant-playback-started' | 'assistant-playback-ended' | 'assistant-playback-cancelled';
+  type:
+    | "assistant-playback-started"
+    | "assistant-playback-ended"
+    | "assistant-playback-cancelled";
   handleId?: string;
   timestamp: string;
   latencyMs?: number;
@@ -80,8 +88,13 @@ export interface TurnHints {
 }
 
 export interface InterruptionEngineHooks {
-  cancelAssistantPlayback?: (context: { reason: string; source: string }) => Promise<void> | void;
-  requestAssistantResponse?: (context: { hints?: TurnHints }) => Promise<void> | void;
+  cancelAssistantPlayback?: (context: {
+    reason: string;
+    source: string;
+  }) => Promise<void> | void;
+  requestAssistantResponse?: (context: {
+    hints?: TurnHints;
+  }) => Promise<void> | void;
   onFallbackChanged?: (active: boolean, reason: string) => void;
 }
 

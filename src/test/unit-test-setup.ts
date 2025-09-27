@@ -2,34 +2,39 @@
 // This runs before any tests and ensures 'vscode' module resolves to our mock
 
 // Direct CommonJS require for Module access
-const Module = require('module');
+const Module = require("module");
 
 // Import our VS Code mock
-import * as vscode from './vscode-mock';
+import * as vscode from "./vscode-mock";
 
 // Store original _resolveFilename
 const originalResolveFilename = Module._resolveFilename;
 
 // Override module resolution for 'vscode' requests
-Module._resolveFilename = function (request: string, parent: any, isMain?: boolean, options?: any) {
-  if (request === 'vscode') {
-    return 'vscode-mock';
+Module._resolveFilename = function (
+  request: string,
+  parent: any,
+  isMain?: boolean,
+  options?: any,
+) {
+  if (request === "vscode") {
+    return "vscode-mock";
   }
   return originalResolveFilename.call(this, request, parent, isMain, options);
 };
 
 // Register mock in cache with complete Module interface
-(require.cache as any)['vscode-mock'] = {
-  id: 'vscode-mock',
-  filename: 'vscode-mock',
+(require.cache as any)["vscode-mock"] = {
+  id: "vscode-mock",
+  filename: "vscode-mock",
   loaded: true,
   children: [],
   parent: null,
   paths: [],
   isPreloading: false,
-  path: 'vscode-mock',
+  path: "vscode-mock",
   require: require,
-  exports: vscode
+  exports: vscode,
 } as NodeJS.Module;
 
-console.log('✓ VS Code mock registered for unit tests');
+console.log("✓ VS Code mock registered for unit tests");

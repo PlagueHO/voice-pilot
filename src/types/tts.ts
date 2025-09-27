@@ -1,7 +1,7 @@
-import { ServiceInitializable } from '../core/service-initializable';
+import { ServiceInitializable } from "../core/service-initializable";
 
-export type TtsTransport = 'webrtc' | 'websocket';
-export type TtsFallbackMode = 'text-only' | 'retry';
+export type TtsTransport = "webrtc" | "websocket";
+export type TtsFallbackMode = "text-only" | "retry";
 
 export interface Disposable {
   dispose(): void;
@@ -17,7 +17,7 @@ export interface TtsVoiceProfile {
   name: string;
   locale: string;
   style?: string;
-  gender?: 'female' | 'male' | 'unspecified';
+  gender?: "female" | "male" | "unspecified";
   providerVoiceId?: string;
   description?: string;
 }
@@ -46,7 +46,7 @@ export interface TtsSpeakRequest {
 
 export interface TtsSpeakHandle {
   id: string;
-  state: 'pending' | 'speaking' | 'paused' | 'stopped' | 'completed' | 'failed';
+  state: "pending" | "speaking" | "paused" | "stopped" | "completed" | "failed";
   enqueuedAt: number;
   startedAt?: number;
   stoppedAt?: number;
@@ -64,16 +64,21 @@ export interface TtsPlaybackMetrics {
 }
 
 export type TtsPlaybackEventType =
-  | 'speaking-state-changed'
-  | 'chunk-received'
-  | 'chunk-played'
-  | 'playback-error'
-  | 'playback-complete'
-  | 'interrupted'
-  | 'metrics-updated';
+  | "speaking-state-changed"
+  | "chunk-received"
+  | "chunk-played"
+  | "playback-error"
+  | "playback-complete"
+  | "interrupted"
+  | "metrics-updated";
 
 export interface TtsError {
-  code: 'AUTH_FAILED' | 'NETWORK_ERROR' | 'STREAM_TIMEOUT' | 'UNSUPPORTED_VOICE' | 'UNKNOWN';
+  code:
+    | "AUTH_FAILED"
+    | "NETWORK_ERROR"
+    | "STREAM_TIMEOUT"
+    | "UNSUPPORTED_VOICE"
+    | "UNKNOWN";
   message: string;
   recoverable: boolean;
 }
@@ -83,7 +88,7 @@ export interface TtsPlaybackEvent {
   handleId: string;
   timestamp: number;
   data?: {
-    state?: 'idle' | 'speaking' | 'paused' | 'stopping';
+    state?: "idle" | "speaking" | "paused" | "stopping";
     chunkSize?: number;
     chunkBase64?: string;
     transcriptDelta?: string;
@@ -95,7 +100,7 @@ export interface TtsPlaybackEvent {
 }
 
 export interface TtsPlaybackState {
-  status: 'idle' | 'buffering' | 'speaking' | 'paused';
+  status: "idle" | "buffering" | "speaking" | "paused";
   bufferMs: number;
   activeVoice: string;
   averageLatencyMs: number;

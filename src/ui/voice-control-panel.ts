@@ -1,26 +1,26 @@
-import * as vscode from 'vscode';
-import type { ServiceInitializable } from '../core/service-initializable';
-import type { TurnEventDiagnostics } from '../types/conversation';
-import { renderVoiceControlPanelHtml } from './templates/voice-control-panel.html';
+import * as vscode from "vscode";
+import type { ServiceInitializable } from "../core/service-initializable";
+import type { TurnEventDiagnostics } from "../types/conversation";
+import { renderVoiceControlPanelHtml } from "./templates/voice-control-panel.html";
 import {
-    createInitialPanelState,
-    deriveMicrophoneStatusFromState,
-    ensureEntryId,
-    isSessionActive,
-    MicrophoneStatus,
-    PanelActionMessage,
-    PanelFeedbackMessage,
-    PanelInboundMessage,
-    PanelOutboundMessage,
-    PanelStatus,
-    TranscriptEntry,
-    UserFacingError,
-    VoiceControlPanelState,
-    withTranscriptAppend,
-    withTranscriptCommit
-} from './voice-control-state';
+  createInitialPanelState,
+  deriveMicrophoneStatusFromState,
+  ensureEntryId,
+  isSessionActive,
+  MicrophoneStatus,
+  PanelActionMessage,
+  PanelFeedbackMessage,
+  PanelInboundMessage,
+  PanelOutboundMessage,
+  PanelStatus,
+  TranscriptEntry,
+  UserFacingError,
+  VoiceControlPanelState,
+  withTranscriptAppend,
+  withTranscriptCommit,
+} from "./voice-control-state";
 
-type PanelAction = PanelActionMessage['action'];
+type PanelAction = PanelActionMessage["action"];
 export type PanelActionHandler = (action: PanelAction) => Promise<void> | void;
 type PanelFeedbackHandler = (message: PanelFeedbackMessage) => void;
 
@@ -46,8 +46,10 @@ interface TurnStatusUpdateOptions {
   error?: UserFacingError | null;
 }
 
-export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewViewProvider {
-  public static readonly viewType = 'voicepilot.voiceControl';
+export class VoiceControlPanel
+  implements ServiceInitializable, vscode.WebviewViewProvider
+{
+  public static readonly viewType = "voicepilot.voiceControl";
 
   private readonly actionHandlers = new Set<PanelActionHandler>();
   private readonly feedbackHandlers = new Set<PanelFeedbackHandler>();
@@ -71,15 +73,17 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
       this,
       {
         webviewOptions: {
-          retainContextWhenHidden: true
-        }
-      }
+          retainContextWhenHidden: true,
+        },
+      },
     );
     try {
       this.context.subscriptions.push(this.registration);
     } catch (error: any) {
       const reason = error?.message ?? String(error);
-      console.warn(`VoicePilot: Extension context disposed before panel registration (${reason})`);
+      console.warn(
+        `VoicePilot: Extension context disposed before panel registration (${reason})`,
+      );
     }
     this.initialized = true;
   }
@@ -114,15 +118,23 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
       try {
         this.currentView.show?.(preserveFocus);
       } catch (error) {
-        console.warn('VoicePilot: Failed to reveal voice control panel view', error);
+        console.warn(
+          "VoicePilot: Failed to reveal voice control panel view",
+          error,
+        );
       }
       return;
     }
 
     try {
-      await vscode.commands.executeCommand('workbench.view.extension.voicepilot');
+      await vscode.commands.executeCommand(
+        "workbench.view.extension.voicepilot",
+      );
     } catch (error) {
-      console.warn('VoicePilot: Failed to execute reveal command for panel', error);
+      console.warn(
+        "VoicePilot: Failed to execute reveal command for panel",
+        error,
+      );
     }
   }
 
@@ -142,7 +154,7 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     }
     this.state = {
       ...this.state,
-      pendingAction: null
+      pendingAction: null,
     };
     this.sendSessionUpdate();
     this.flushPendingMessages();
@@ -155,52 +167,61 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     const nextState: VoiceControlPanelState = {
       ...this.state,
       sessionId:
-        update.sessionId === null ? undefined : update.sessionId ?? this.state.sessionId,
+        update.sessionId === null
+          ? undefined
+          : (update.sessionId ?? this.state.sessionId),
       sessionStartedAt:
         update.sessionStartedAt === null
           ? undefined
-          : update.sessionStartedAt ?? this.state.sessionStartedAt,
+          : (update.sessionStartedAt ?? this.state.sessionStartedAt),
       elapsedSeconds:
         update.elapsedSeconds === null
           ? undefined
-          : update.elapsedSeconds ?? this.state.elapsedSeconds,
+          : (update.elapsedSeconds ?? this.state.elapsedSeconds),
       renewalCountdownSeconds:
         update.renewalCountdownSeconds === null
           ? undefined
-          : update.renewalCountdownSeconds ?? this.state.renewalCountdownSeconds,
+          : (update.renewalCountdownSeconds ??
+            this.state.renewalCountdownSeconds),
       status: nextStatus,
       statusLabel: nextLabel,
       statusMode:
-        update.statusMode === null ? undefined : update.statusMode ?? this.state.statusMode,
+        update.statusMode === null
+          ? undefined
+          : (update.statusMode ?? this.state.statusMode),
       statusDetail:
-        update.statusDetail === null ? undefined : update.statusDetail ?? this.state.statusDetail,
+        update.statusDetail === null
+          ? undefined
+          : (update.statusDetail ?? this.state.statusDetail),
       fallbackActive:
-        typeof update.fallbackActive === 'boolean'
+        typeof update.fallbackActive === "boolean"
           ? update.fallbackActive
           : this.state.fallbackActive,
       diagnostics:
-        update.diagnostics === null ? undefined : update.diagnostics ?? this.state.diagnostics,
+        update.diagnostics === null
+          ? undefined
+          : (update.diagnostics ?? this.state.diagnostics),
       errorBanner:
         update.error === undefined
           ? this.state.errorBanner
-          : update.error ?? undefined,
-      pendingAction: null
+          : (update.error ?? undefined),
+      pendingAction: null,
     };
 
-    if (nextState.status !== 'error' && !nextState.errorBanner) {
+    if (nextState.status !== "error" && !nextState.errorBanner) {
       nextState.errorBanner = undefined;
     }
 
     if (!isSessionActive(nextState)) {
       nextState.fallbackActive = false;
-      if (nextState.statusMode === 'Fallback Mode') {
+      if (nextState.statusMode === "Fallback Mode") {
         nextState.statusMode = undefined;
       }
     }
 
-  const previousMic = this.state.microphoneStatus;
-  this.state = nextState;
-  this.refreshMicrophoneState(previousMic);
+    const previousMic = this.state.microphoneStatus;
+    this.state = nextState;
+    this.refreshMicrophoneState(previousMic);
     this.sendSessionUpdate();
     this.flushPendingMessages();
   }
@@ -209,18 +230,26 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     this.updateSession({
       status,
       statusLabel: this.deriveStatusLabel(status),
-      error: error ?? (status === 'error' ? this.state.errorBanner : null)
+      error: error ?? (status === "error" ? this.state.errorBanner : null),
     });
   }
 
   setErrorBanner(error?: UserFacingError | null): void {
-    const status = error ? 'error' : this.state.status === 'error' ? 'ready' : this.state.status;
-    const label = error ? 'Needs Attention' : this.state.status === 'error' ? this.deriveStatusLabel(status) : this.state.statusLabel;
+    const status = error
+      ? "error"
+      : this.state.status === "error"
+        ? "ready"
+        : this.state.status;
+    const label = error
+      ? "Needs Attention"
+      : this.state.status === "error"
+        ? this.deriveStatusLabel(status)
+        : this.state.statusLabel;
 
     this.updateSession({
       status,
       statusLabel: label,
-      error: error ?? null
+      error: error ?? null,
     });
   }
 
@@ -228,31 +257,38 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     const normalizedEntry: TranscriptEntry = {
       ...entry,
       entryId: ensureEntryId(entry),
-      timestamp: entry.timestamp ?? new Date().toISOString()
+      timestamp: entry.timestamp ?? new Date().toISOString(),
     };
 
-    const { state, truncated } = withTranscriptAppend(this.state, normalizedEntry);
+    const { state, truncated } = withTranscriptAppend(
+      this.state,
+      normalizedEntry,
+    );
     this.state = state;
 
     this.enqueueMessage({
-      type: 'transcript.append',
-      entry: normalizedEntry
+      type: "transcript.append",
+      entry: normalizedEntry,
     });
 
     if (truncated) {
-      this.enqueueMessage({ type: 'transcript.truncated' });
+      this.enqueueMessage({ type: "transcript.truncated" });
     }
 
     this.flushPendingMessages();
   }
 
-  commitTranscriptEntry(entryId: string, content: string, confidence?: number): void {
+  commitTranscriptEntry(
+    entryId: string,
+    content: string,
+    confidence?: number,
+  ): void {
     this.state = withTranscriptCommit(this.state, entryId, content, confidence);
     this.enqueueMessage({
-      type: 'transcript.commit',
+      type: "transcript.commit",
       entryId,
       content,
-      confidence
+      confidence,
     });
     this.flushPendingMessages();
   }
@@ -261,17 +297,19 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     if (!entryId) {
       return;
     }
-    const nextEntries = this.state.transcript.filter(entry => entry.entryId !== entryId);
+    const nextEntries = this.state.transcript.filter(
+      (entry) => entry.entryId !== entryId,
+    );
     if (nextEntries.length === this.state.transcript.length) {
       return;
     }
     this.state = {
       ...this.state,
-      transcript: nextEntries
+      transcript: nextEntries,
     };
     this.enqueueMessage({
-      type: 'transcript.remove',
-      entryId
+      type: "transcript.remove",
+      entryId,
     });
     this.flushPendingMessages();
   }
@@ -279,7 +317,7 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
   setMicrophoneStatus(status: MicrophoneStatus): void {
     this.state = {
       ...this.state,
-      microphoneStatus: status
+      microphoneStatus: status,
     };
     this.sendAudioStatus();
     this.flushPendingMessages();
@@ -291,7 +329,7 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     }
     this.state = {
       ...this.state,
-      copilotAvailable: available
+      copilotAvailable: available,
     };
     this.sendCopilotAvailability();
     this.flushPendingMessages();
@@ -302,14 +340,22 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     const priorDetail = this.state.statusDetail;
 
     const detail = reason ? `Fallback: ${reason}` : priorDetail;
-    const statusMode = active ? 'Fallback Mode' : priorMode === 'Fallback Mode' ? undefined : priorMode;
-    const statusDetail = active ? detail : priorMode === 'Fallback Mode' ? undefined : priorDetail;
+    const statusMode = active
+      ? "Fallback Mode"
+      : priorMode === "Fallback Mode"
+        ? undefined
+        : priorMode;
+    const statusDetail = active
+      ? detail
+      : priorMode === "Fallback Mode"
+        ? undefined
+        : priorDetail;
 
     this.state = {
       ...this.state,
       fallbackActive: active,
       statusMode,
-      statusDetail
+      statusDetail,
     };
 
     this.sendSessionUpdate();
@@ -319,7 +365,7 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
   updateDiagnostics(diagnostics?: TurnEventDiagnostics | null): void {
     this.state = {
       ...this.state,
-      diagnostics: diagnostics ?? undefined
+      diagnostics: diagnostics ?? undefined,
     };
     this.sendSessionUpdate();
     this.flushPendingMessages();
@@ -327,25 +373,33 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
 
   updateTurnStatus(label: string, options: TurnStatusUpdateOptions = {}): void {
     const normalizedLabel = label?.trim() ?? this.state.statusLabel;
-    const derivedStatus = options.status ?? this.mapLabelToStatus(normalizedLabel) ?? this.state.status;
-    const errorBanner = options.error === undefined ? this.state.errorBanner : options.error ?? undefined;
+    const derivedStatus =
+      options.status ??
+      this.mapLabelToStatus(normalizedLabel) ??
+      this.state.status;
+    const errorBanner =
+      options.error === undefined
+        ? this.state.errorBanner
+        : (options.error ?? undefined);
 
     const statusMode =
       options.mode === null
         ? undefined
-        : typeof options.mode === 'string'
+        : typeof options.mode === "string"
           ? options.mode
           : this.state.statusMode;
 
     const statusDetail =
       options.detail === null
         ? undefined
-        : typeof options.detail === 'string'
+        : typeof options.detail === "string"
           ? options.detail
           : this.state.statusDetail;
 
     const fallbackActive =
-      typeof options.fallback === 'boolean' ? options.fallback : this.state.fallbackActive;
+      typeof options.fallback === "boolean"
+        ? options.fallback
+        : this.state.fallbackActive;
 
     const nextState: VoiceControlPanelState = {
       ...this.state,
@@ -355,16 +409,16 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
       statusDetail,
       fallbackActive,
       errorBanner,
-      pendingAction: null
+      pendingAction: null,
     };
 
-    if (nextState.status !== 'error' && !nextState.errorBanner) {
+    if (nextState.status !== "error" && !nextState.errorBanner) {
       nextState.errorBanner = undefined;
     }
 
-  const previousMic = this.state.microphoneStatus;
-  this.state = nextState;
-  this.refreshMicrophoneState(previousMic);
+    const previousMic = this.state.microphoneStatus;
+    this.state = nextState;
+    this.refreshMicrophoneState(previousMic);
     this.sendSessionUpdate();
     this.flushPendingMessages();
   }
@@ -376,17 +430,17 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     const webview = webviewView.webview;
     webview.options = {
       enableScripts: true,
-      localResourceRoots: [this.context.extensionUri]
+      localResourceRoots: [this.context.extensionUri],
     };
 
     webview.html = renderVoiceControlPanelHtml({
       webview,
       extensionUri: this.context.extensionUri,
       state: this.state,
-      nonce: this.createNonce()
+      nonce: this.createNonce(),
     });
 
-    const messageSubscription = webview.onDidReceiveMessage(message => {
+    const messageSubscription = webview.onDidReceiveMessage((message) => {
       this.handleInboundMessage(message as PanelInboundMessage);
     });
 
@@ -414,20 +468,20 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
   }
 
   private handleInboundMessage(message: PanelInboundMessage): void {
-    if (!message || typeof message.type !== 'string') {
+    if (!message || typeof message.type !== "string") {
       return;
     }
 
     switch (message.type) {
-      case 'panel.action':
+      case "panel.action":
         void this.dispatchAction(message);
         break;
-      case 'panel.feedback':
-        this.feedbackHandlers.forEach(handler => {
+      case "panel.feedback":
+        this.feedbackHandlers.forEach((handler) => {
           try {
             handler(message);
           } catch (error) {
-            console.warn('VoicePilot: Feedback handler failed', error);
+            console.warn("VoicePilot: Feedback handler failed", error);
           }
         });
         break;
@@ -444,35 +498,40 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
     const { action } = message;
     this.state = {
       ...this.state,
-      pendingAction: action
+      pendingAction: action,
     };
     this.sendSessionUpdate();
     this.flushPendingMessages();
 
     const handlers = Array.from(this.actionHandlers);
     try {
-      await Promise.all(handlers.map(handler => Promise.resolve(handler(action))));
+      await Promise.all(
+        handlers.map((handler) => Promise.resolve(handler(action))),
+      );
       this.acknowledgeAction();
     } catch (error: unknown) {
-      const messageText = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+      const messageText =
+        error instanceof Error
+          ? error.message
+          : String(error ?? "Unknown error");
       this.setErrorBanner({
-        code: 'panel-action-failed',
-        summary: 'Action failed to complete',
-        remediation: messageText
+        code: "panel-action-failed",
+        summary: "Action failed to complete",
+        remediation: messageText,
       });
     }
   }
 
   private sendInitializeMessage(): void {
     this.enqueueMessage({
-      type: 'panel.initialize',
-      state: this.state
+      type: "panel.initialize",
+      state: this.state,
     });
   }
 
   private sendSessionUpdate(): void {
     this.enqueueMessage({
-      type: 'session.update',
+      type: "session.update",
       sessionId: this.state.sessionId,
       status: this.state.status,
       statusLabel: this.state.statusLabel,
@@ -483,21 +542,21 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
       elapsedSeconds: this.state.elapsedSeconds,
       renewalCountdownSeconds: this.state.renewalCountdownSeconds,
       diagnostics: this.state.diagnostics,
-      error: this.state.errorBanner ?? undefined
+      error: this.state.errorBanner ?? undefined,
     });
   }
 
   private sendAudioStatus(): void {
     this.enqueueMessage({
-      type: 'audio.status',
-      microphoneStatus: this.state.microphoneStatus
+      type: "audio.status",
+      microphoneStatus: this.state.microphoneStatus,
     });
   }
 
   private sendCopilotAvailability(): void {
     this.enqueueMessage({
-      type: 'copilot.availability',
-      available: this.state.copilotAvailable
+      type: "copilot.availability",
+      available: this.state.copilotAvailable,
     });
   }
 
@@ -524,73 +583,73 @@ export class VoiceControlPanel implements ServiceInitializable, vscode.WebviewVi
       return;
     }
 
-    const autoManaged: MicrophoneStatus[] = ['idle', 'capturing', 'muted'];
+    const autoManaged: MicrophoneStatus[] = ["idle", "capturing", "muted"];
     if (!autoManaged.includes(previousStatus)) {
       return;
     }
 
     this.state = {
       ...this.state,
-      microphoneStatus: derived
+      microphoneStatus: derived,
     };
     this.sendAudioStatus();
   }
 
   private deriveStatusLabel(status: PanelStatus): string {
     switch (status) {
-      case 'listening':
-        return 'Listening';
-      case 'thinking':
-        return 'Thinking';
-      case 'speaking':
-        return 'Speaking';
-      case 'error':
-        return 'Needs Attention';
-      case 'copilot-unavailable':
-        return 'Copilot Unavailable';
-      case 'ready':
+      case "listening":
+        return "Listening";
+      case "thinking":
+        return "Thinking";
+      case "speaking":
+        return "Speaking";
+      case "error":
+        return "Needs Attention";
+      case "copilot-unavailable":
+        return "Copilot Unavailable";
+      case "ready":
       default:
-        return 'Ready';
+        return "Ready";
     }
   }
 
   private mapLabelToStatus(label: string): PanelStatus | undefined {
     const normalized = label.trim().toLowerCase();
     switch (normalized) {
-      case 'ready':
-      case 'idle':
-      case 'standby':
-        return 'ready';
-      case 'listening':
-      case 'capturing':
-        return 'listening';
-      case 'thinking':
-      case 'processing':
-      case 'waiting for copilot':
-      case 'preparing':
-        return 'thinking';
-      case 'speaking':
-      case 'responding':
-        return 'speaking';
-      case 'copilot unavailable':
-      case 'copilot offline':
-        return 'copilot-unavailable';
-      case 'needs attention':
-      case 'interrupted':
-      case 'error':
-        return 'error';
+      case "ready":
+      case "idle":
+      case "standby":
+        return "ready";
+      case "listening":
+      case "capturing":
+        return "listening";
+      case "thinking":
+      case "processing":
+      case "waiting for copilot":
+      case "preparing":
+        return "thinking";
+      case "speaking":
+      case "responding":
+        return "speaking";
+      case "copilot unavailable":
+      case "copilot offline":
+        return "copilot-unavailable";
+      case "needs attention":
+      case "interrupted":
+      case "error":
+        return "error";
       default:
         return undefined;
     }
   }
 
   private createNonce(): string {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let nonce = '';
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let nonce = "";
     for (let i = 0; i < 32; i += 1) {
       nonce += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return nonce;
   }
 }
-

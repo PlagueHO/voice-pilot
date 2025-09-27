@@ -1,7 +1,7 @@
-import { Disposable } from 'vscode';
-import type { TurnDetectionConfig } from './configuration';
+import { Disposable } from "vscode";
+import type { TurnDetectionConfig } from "./configuration";
 
-export type SpeakerRole = 'user' | 'assistant' | 'system';
+export type SpeakerRole = "user" | "assistant" | "system";
 
 export interface RedactionRule {
   id: string;
@@ -24,12 +24,12 @@ export interface RedactionResult {
 }
 
 export interface ServerVadSignal {
-  state: 'start' | 'stop';
+  state: "start" | "stop";
   offset_ms: number;
 }
 
 export interface ClientVadSignal {
-  state: 'start' | 'stop';
+  state: "start" | "stop";
   confidence: number;
   offset_ms: number;
 }
@@ -44,7 +44,7 @@ export interface UtteranceMetadata {
   chunkCount: number;
 }
 
-export type UtteranceStatus = 'pending' | 'partial' | 'final' | 'archived';
+export type UtteranceStatus = "pending" | "partial" | "final" | "archived";
 
 export interface UtteranceSnapshot {
   utteranceId: string;
@@ -64,7 +64,7 @@ export interface TranscriptEntry extends UtteranceSnapshot {
 }
 
 export interface TranscriptionOptions {
-  profanityFilter?: 'none' | 'medium' | 'high';
+  profanityFilter?: "none" | "medium" | "high";
   redactionRules?: RedactionRule[];
   speakerHint?: SpeakerRole;
   locale?: string;
@@ -73,7 +73,7 @@ export interface TranscriptionOptions {
   apiVersion?: string;
   transcriptionModel?: string;
   turnDetection?: TurnDetectionConfig;
-  inputAudioFormat?: 'pcm16' | 'pcm24' | 'pcm32';
+  inputAudioFormat?: "pcm16" | "pcm24" | "pcm32";
   turnDetectionCreateResponse?: boolean;
 }
 
@@ -84,7 +84,10 @@ export interface SessionInfoLike {
 }
 
 export interface SpeechToTextService {
-  startTranscription(session: SessionInfoLike, options?: TranscriptionOptions): Promise<void>;
+  startTranscription(
+    session: SessionInfoLike,
+    options?: TranscriptionOptions,
+  ): Promise<void>;
   stopTranscription(sessionId: string): Promise<void>;
   pauseTranscription(sessionId: string, reason: PauseReason): Promise<void>;
   resumeTranscription(sessionId: string): Promise<void>;
@@ -98,11 +101,21 @@ export interface SpeechToTextService {
   onError(handler: TranscriptionErrorHandler): Disposable;
 }
 
-export type PauseReason = 'credential-renewal' | 'network-loss' | 'user-requested' | 'system-overload';
+export type PauseReason =
+  | "credential-renewal"
+  | "network-loss"
+  | "user-requested"
+  | "system-overload";
 
-export type TranscriptEventHandler = (event: TranscriptEvent) => void | Promise<void>;
-export type TranscriptionStatusHandler = (event: TranscriptionStatusEvent) => void | Promise<void>;
-export type TranscriptionErrorHandler = (event: TranscriptionErrorEvent) => void | Promise<void>;
+export type TranscriptEventHandler = (
+  event: TranscriptEvent,
+) => void | Promise<void>;
+export type TranscriptionStatusHandler = (
+  event: TranscriptionStatusEvent,
+) => void | Promise<void>;
+export type TranscriptionErrorHandler = (
+  event: TranscriptionErrorEvent,
+) => void | Promise<void>;
 
 export type TranscriptEvent =
   | TranscriptDeltaEvent
@@ -111,7 +124,7 @@ export type TranscriptEvent =
   | TranscriptClearedEvent;
 
 export interface TranscriptDeltaEvent {
-  type: 'transcript-delta';
+  type: "transcript-delta";
   sessionId: string;
   utteranceId: string;
   delta: string;
@@ -123,7 +136,7 @@ export interface TranscriptDeltaEvent {
 }
 
 export interface TranscriptFinalEvent {
-  type: 'transcript-final';
+  type: "transcript-final";
   sessionId: string;
   utteranceId: string;
   content: string;
@@ -133,44 +146,51 @@ export interface TranscriptFinalEvent {
 }
 
 export interface TranscriptRedoEvent {
-  type: 'transcript-redo';
+  type: "transcript-redo";
   sessionId: string;
   utteranceId: string;
   previousContent: string;
   replacementContent: string;
-  reason: 'desync' | 'confidence-drop' | 'redaction';
+  reason: "desync" | "confidence-drop" | "redaction";
   timestamp: string;
 }
 
 export interface TranscriptClearedEvent {
-  type: 'transcript-cleared';
+  type: "transcript-cleared";
   sessionId: string;
   clearedAt: string;
-  reason: 'user-requested' | 'privacy-policy' | 'session-end';
+  reason: "user-requested" | "privacy-policy" | "session-end";
 }
 
 export interface TranscriptionStatusEvent {
-  type: 'transcription-status';
+  type: "transcription-status";
   sessionId: string;
-  status: 'connecting' | 'listening' | 'thinking' | 'paused' | 'error' | 'speech-started' | 'speech-stopped';
+  status:
+    | "connecting"
+    | "listening"
+    | "thinking"
+    | "paused"
+    | "error"
+    | "speech-started"
+    | "speech-stopped";
   detail?: string;
   timestamp: string;
   correlationId?: string;
 }
 
 export enum TranscriptionErrorCode {
-  TransportDisconnected = 'TRANSPORT_DISCONNECTED',
-  AuthenticationFailed = 'AUTHENTICATION_FAILED',
-  AudioStreamStalled = 'AUDIO_STREAM_STALLED',
-  ResponseFormatInvalid = 'RESPONSE_FORMAT_INVALID',
-  RateLimited = 'RATE_LIMITED',
-  ProfanityFilterFailed = 'PROFANITY_FILTER_FAILED',
-  RedactionRuleInvalid = 'REDACTION_RULE_INVALID',
-  Unknown = 'UNKNOWN'
+  TransportDisconnected = "TRANSPORT_DISCONNECTED",
+  AuthenticationFailed = "AUTHENTICATION_FAILED",
+  AudioStreamStalled = "AUDIO_STREAM_STALLED",
+  ResponseFormatInvalid = "RESPONSE_FORMAT_INVALID",
+  RateLimited = "RATE_LIMITED",
+  ProfanityFilterFailed = "PROFANITY_FILTER_FAILED",
+  RedactionRuleInvalid = "REDACTION_RULE_INVALID",
+  Unknown = "UNKNOWN",
 }
 
 export interface TranscriptionErrorEvent {
-  type: 'transcription-error';
+  type: "transcription-error";
   sessionId: string;
   code: TranscriptionErrorCode;
   message: string;
@@ -187,7 +207,12 @@ export interface AzureAnnotation {
 }
 
 export interface AzureRealtimeTranscriptMessage {
-  type: 'response.output_audio_transcript.delta' | 'response.done' | 'session.updated' | 'conversation.item.audio_transcription.delta' | 'conversation.item.audio_transcription.completed';
+  type:
+    | "response.output_audio_transcript.delta"
+    | "response.done"
+    | "session.updated"
+    | "conversation.item.audio_transcription.delta"
+    | "conversation.item.audio_transcription.completed";
   response_id: string;
   item_id: string;
   delta?: {

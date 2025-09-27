@@ -12,37 +12,41 @@ export interface RealtimeEvent {
 
 // Session management events
 export interface SessionUpdateEvent extends RealtimeEvent {
-  type: 'session.update';
+  type: "session.update";
   session: {
-    modalities?: ['audio'] | ['text'] | ['audio', 'text'];
+    modalities?: ["audio"] | ["text"] | ["audio", "text"];
     instructions?: string;
-    voice?: 'alloy' | 'shimmer' | 'nova' | 'echo' | 'fable' | 'onyx';
-    input_audio_format?: 'pcm16' | 'g711_ulaw' | 'g711_alaw';
-    output_audio_format?: 'pcm16' | 'g711_ulaw' | 'g711_alaw';
+    voice?: "alloy" | "shimmer" | "nova" | "echo" | "fable" | "onyx";
+    input_audio_format?: "pcm16" | "g711_ulaw" | "g711_alaw";
+    output_audio_format?: "pcm16" | "g711_ulaw" | "g711_alaw";
     input_audio_transcription?: {
-      model?: 'whisper-1';
+      model?: "whisper-1";
     };
     turn_detection?: {
-      type: 'server_vad' | 'semantic_vad' | 'none';
+      type: "server_vad" | "semantic_vad" | "none";
       threshold?: number;
       prefix_padding_ms?: number;
       silence_duration_ms?: number;
       create_response?: boolean;
       interrupt_response?: boolean;
-      eagerness?: 'low' | 'auto' | 'high';
+      eagerness?: "low" | "auto" | "high";
     };
     tools?: any[];
-    tool_choice?: 'auto' | 'none' | 'required' | { type: 'function'; name: string };
+    tool_choice?:
+      | "auto"
+      | "none"
+      | "required"
+      | { type: "function"; name: string };
     temperature?: number;
     max_response_output_tokens?: number;
   };
 }
 
 export interface SessionCreatedEvent extends RealtimeEvent {
-  type: 'session.created';
+  type: "session.created";
   session: {
     id: string;
-    object: 'realtime.session';
+    object: "realtime.session";
     model: string;
     modalities: string[];
     instructions: string;
@@ -59,10 +63,10 @@ export interface SessionCreatedEvent extends RealtimeEvent {
 }
 
 export interface SessionUpdatedEvent extends RealtimeEvent {
-  type: 'session.updated';
+  type: "session.updated";
   session: {
     id: string;
-    object: 'realtime.session';
+    object: "realtime.session";
     model: string;
     modalities: string[];
     instructions: string;
@@ -80,47 +84,47 @@ export interface SessionUpdatedEvent extends RealtimeEvent {
 
 // Audio buffer events
 export interface InputAudioBufferAppendEvent extends RealtimeEvent {
-  type: 'input_audio_buffer.append';
+  type: "input_audio_buffer.append";
   audio: string; // Base64 encoded audio data
 }
 
 export interface InputAudioBufferCommitEvent extends RealtimeEvent {
-  type: 'input_audio_buffer.commit';
+  type: "input_audio_buffer.commit";
 }
 
 export interface InputAudioBufferClearEvent extends RealtimeEvent {
-  type: 'input_audio_buffer.clear';
+  type: "input_audio_buffer.clear";
 }
 
 export interface InputAudioBufferSpeechStartedEvent extends RealtimeEvent {
-  type: 'input_audio_buffer.speech_started';
+  type: "input_audio_buffer.speech_started";
   audio_start_ms: number;
   item_id: string;
 }
 
 export interface InputAudioBufferSpeechStoppedEvent extends RealtimeEvent {
-  type: 'input_audio_buffer.speech_stopped';
+  type: "input_audio_buffer.speech_stopped";
   audio_end_ms: number;
   item_id: string;
 }
 
 export interface ResponseInterruptedEvent extends RealtimeEvent {
-  type: 'response.interrupted';
+  type: "response.interrupted";
   response_id?: string;
   reason?: string;
 }
 
 // Conversation events
 export interface ConversationItemCreateEvent extends RealtimeEvent {
-  type: 'conversation.item.create';
+  type: "conversation.item.create";
   previous_item_id?: string;
   item: {
     id?: string;
-    type: 'message' | 'function_call' | 'function_call_output';
-    status?: 'completed' | 'incomplete';
-    role?: 'user' | 'assistant' | 'system';
+    type: "message" | "function_call" | "function_call_output";
+    status?: "completed" | "incomplete";
+    role?: "user" | "assistant" | "system";
     content?: Array<{
-      type: 'input_text' | 'input_audio' | 'text' | 'audio';
+      type: "input_text" | "input_audio" | "text" | "audio";
       text?: string;
       audio?: string; // Base64 encoded audio
       transcript?: string;
@@ -133,14 +137,14 @@ export interface ConversationItemCreateEvent extends RealtimeEvent {
 }
 
 export interface ConversationItemCreatedEvent extends RealtimeEvent {
-  type: 'conversation.item.created';
+  type: "conversation.item.created";
   previous_item_id?: string;
   item: {
     id: string;
-    object: 'realtime.item';
-    type: 'message' | 'function_call' | 'function_call_output';
-    status: 'completed' | 'incomplete';
-    role?: 'user' | 'assistant' | 'system';
+    object: "realtime.item";
+    type: "message" | "function_call" | "function_call_output";
+    status: "completed" | "incomplete";
+    role?: "user" | "assistant" | "system";
     content?: any[];
     call_id?: string;
     name?: string;
@@ -150,24 +154,24 @@ export interface ConversationItemCreatedEvent extends RealtimeEvent {
 }
 
 export interface ConversationItemDeleteEvent extends RealtimeEvent {
-  type: 'conversation.item.delete';
+  type: "conversation.item.delete";
   item_id: string;
 }
 
 export interface ConversationItemDeletedEvent extends RealtimeEvent {
-  type: 'conversation.item.deleted';
+  type: "conversation.item.deleted";
   item_id: string;
 }
 
 export interface ConversationItemTruncateEvent extends RealtimeEvent {
-  type: 'conversation.item.truncate';
+  type: "conversation.item.truncate";
   item_id: string;
   content_index: number;
   audio_end_ms: number;
 }
 
 export interface ConversationItemTruncatedEvent extends RealtimeEvent {
-  type: 'conversation.item.truncated';
+  type: "conversation.item.truncated";
   item_id: string;
   content_index: number;
   audio_end_ms: number;
@@ -175,25 +179,29 @@ export interface ConversationItemTruncatedEvent extends RealtimeEvent {
 
 // Response events
 export interface ResponseCreateEvent extends RealtimeEvent {
-  type: 'response.create';
+  type: "response.create";
   response?: {
-    modalities?: ['audio'] | ['text'] | ['audio', 'text'];
+    modalities?: ["audio"] | ["text"] | ["audio", "text"];
     instructions?: string;
     voice?: string;
-    output_audio_format?: 'pcm16' | 'g711_ulaw' | 'g711_alaw';
+    output_audio_format?: "pcm16" | "g711_ulaw" | "g711_alaw";
     tools?: any[];
-    tool_choice?: 'auto' | 'none' | 'required' | { type: 'function'; name: string };
+    tool_choice?:
+      | "auto"
+      | "none"
+      | "required"
+      | { type: "function"; name: string };
     temperature?: number;
     max_output_tokens?: number;
   };
 }
 
 export interface ResponseCreatedEvent extends RealtimeEvent {
-  type: 'response.created';
+  type: "response.created";
   response: {
     id: string;
-    object: 'realtime.response';
-    status: 'in_progress' | 'completed' | 'cancelled' | 'incomplete' | 'failed';
+    object: "realtime.response";
+    status: "in_progress" | "completed" | "cancelled" | "incomplete" | "failed";
     status_details?: any;
     output: any[];
     usage?: any;
@@ -201,11 +209,11 @@ export interface ResponseCreatedEvent extends RealtimeEvent {
 }
 
 export interface ResponseDoneEvent extends RealtimeEvent {
-  type: 'response.done';
+  type: "response.done";
   response: {
     id: string;
-    object: 'realtime.response';
-    status: 'completed' | 'cancelled' | 'incomplete' | 'failed';
+    object: "realtime.response";
+    status: "completed" | "cancelled" | "incomplete" | "failed";
     status_details?: any;
     output: any[];
     usage?: {
@@ -226,15 +234,15 @@ export interface ResponseDoneEvent extends RealtimeEvent {
 }
 
 export interface ResponseOutputItemAddedEvent extends RealtimeEvent {
-  type: 'response.output_item.added';
+  type: "response.output_item.added";
   response_id: string;
   output_index: number;
   item: {
     id: string;
-    object: 'realtime.item';
-    type: 'message' | 'function_call';
-    status: 'in_progress' | 'completed' | 'incomplete';
-    role?: 'assistant';
+    object: "realtime.item";
+    type: "message" | "function_call";
+    status: "in_progress" | "completed" | "incomplete";
+    role?: "assistant";
     content?: any[];
     call_id?: string;
     name?: string;
@@ -243,15 +251,15 @@ export interface ResponseOutputItemAddedEvent extends RealtimeEvent {
 }
 
 export interface ResponseOutputItemDoneEvent extends RealtimeEvent {
-  type: 'response.output_item.done';
+  type: "response.output_item.done";
   response_id: string;
   output_index: number;
   item: {
     id: string;
-    object: 'realtime.item';
-    type: 'message' | 'function_call';
-    status: 'completed' | 'incomplete';
-    role?: 'assistant';
+    object: "realtime.item";
+    type: "message" | "function_call";
+    status: "completed" | "incomplete";
+    role?: "assistant";
     content?: any[];
     call_id?: string;
     name?: string;
@@ -261,13 +269,13 @@ export interface ResponseOutputItemDoneEvent extends RealtimeEvent {
 
 // Content delta events
 export interface ResponseContentPartAddedEvent extends RealtimeEvent {
-  type: 'response.content_part.added';
+  type: "response.content_part.added";
   response_id: string;
   item_id: string;
   output_index: number;
   content_index: number;
   part: {
-    type: 'text' | 'audio';
+    type: "text" | "audio";
     text?: string;
     audio?: string;
     transcript?: string;
@@ -275,13 +283,13 @@ export interface ResponseContentPartAddedEvent extends RealtimeEvent {
 }
 
 export interface ResponseContentPartDoneEvent extends RealtimeEvent {
-  type: 'response.content_part.done';
+  type: "response.content_part.done";
   response_id: string;
   item_id: string;
   output_index: number;
   content_index: number;
   part: {
-    type: 'text' | 'audio';
+    type: "text" | "audio";
     text?: string;
     audio?: string;
     transcript?: string;
@@ -289,7 +297,7 @@ export interface ResponseContentPartDoneEvent extends RealtimeEvent {
 }
 
 export interface ResponseTextDeltaEvent extends RealtimeEvent {
-  type: 'response.text.delta';
+  type: "response.text.delta";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -298,7 +306,7 @@ export interface ResponseTextDeltaEvent extends RealtimeEvent {
 }
 
 export interface ResponseTextDoneEvent extends RealtimeEvent {
-  type: 'response.text.done';
+  type: "response.text.done";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -307,7 +315,7 @@ export interface ResponseTextDoneEvent extends RealtimeEvent {
 }
 
 export interface ResponseAudioTranscriptDeltaEvent extends RealtimeEvent {
-  type: 'response.audio_transcript.delta';
+  type: "response.audio_transcript.delta";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -316,7 +324,7 @@ export interface ResponseAudioTranscriptDeltaEvent extends RealtimeEvent {
 }
 
 export interface ResponseAudioTranscriptDoneEvent extends RealtimeEvent {
-  type: 'response.audio_transcript.done';
+  type: "response.audio_transcript.done";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -325,7 +333,7 @@ export interface ResponseAudioTranscriptDoneEvent extends RealtimeEvent {
 }
 
 export interface ResponseAudioDeltaEvent extends RealtimeEvent {
-  type: 'response.audio.delta';
+  type: "response.audio.delta";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -334,7 +342,7 @@ export interface ResponseAudioDeltaEvent extends RealtimeEvent {
 }
 
 export interface ResponseAudioDoneEvent extends RealtimeEvent {
-  type: 'response.audio.done';
+  type: "response.audio.done";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -343,7 +351,7 @@ export interface ResponseAudioDoneEvent extends RealtimeEvent {
 
 // Function call events
 export interface ResponseFunctionCallArgumentsDeltaEvent extends RealtimeEvent {
-  type: 'response.function_call_arguments.delta';
+  type: "response.function_call_arguments.delta";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -352,7 +360,7 @@ export interface ResponseFunctionCallArgumentsDeltaEvent extends RealtimeEvent {
 }
 
 export interface ResponseFunctionCallArgumentsDoneEvent extends RealtimeEvent {
-  type: 'response.function_call_arguments.done';
+  type: "response.function_call_arguments.done";
   response_id: string;
   item_id: string;
   output_index: number;
@@ -362,7 +370,7 @@ export interface ResponseFunctionCallArgumentsDoneEvent extends RealtimeEvent {
 
 // Rate limit events
 export interface RateLimitsUpdatedEvent extends RealtimeEvent {
-  type: 'rate_limits.updated';
+  type: "rate_limits.updated";
   rate_limits: Array<{
     name: string;
     limit: number;
@@ -373,7 +381,7 @@ export interface RateLimitsUpdatedEvent extends RealtimeEvent {
 
 // Error events
 export interface ErrorEvent extends RealtimeEvent {
-  type: 'error';
+  type: "error";
   error: {
     type: string;
     code?: string;
@@ -419,26 +427,64 @@ export type AnyRealtimeEvent =
   | ErrorEvent;
 
 // Event type discrimination helpers
-export function isSessionEvent(event: RealtimeEvent): event is SessionUpdateEvent | SessionCreatedEvent | SessionUpdatedEvent {
-  return event.type.startsWith('session.');
+export function isSessionEvent(
+  event: RealtimeEvent,
+): event is SessionUpdateEvent | SessionCreatedEvent | SessionUpdatedEvent {
+  return event.type.startsWith("session.");
 }
 
-export function isAudioBufferEvent(event: RealtimeEvent): event is InputAudioBufferAppendEvent | InputAudioBufferCommitEvent | InputAudioBufferClearEvent | InputAudioBufferSpeechStartedEvent | InputAudioBufferSpeechStoppedEvent {
-  return event.type.startsWith('input_audio_buffer.');
+export function isAudioBufferEvent(
+  event: RealtimeEvent,
+): event is
+  | InputAudioBufferAppendEvent
+  | InputAudioBufferCommitEvent
+  | InputAudioBufferClearEvent
+  | InputAudioBufferSpeechStartedEvent
+  | InputAudioBufferSpeechStoppedEvent {
+  return event.type.startsWith("input_audio_buffer.");
 }
 
-export function isConversationEvent(event: RealtimeEvent): event is ConversationItemCreateEvent | ConversationItemCreatedEvent | ConversationItemDeleteEvent | ConversationItemDeletedEvent | ConversationItemTruncateEvent | ConversationItemTruncatedEvent {
-  return event.type.startsWith('conversation.');
+export function isConversationEvent(
+  event: RealtimeEvent,
+): event is
+  | ConversationItemCreateEvent
+  | ConversationItemCreatedEvent
+  | ConversationItemDeleteEvent
+  | ConversationItemDeletedEvent
+  | ConversationItemTruncateEvent
+  | ConversationItemTruncatedEvent {
+  return event.type.startsWith("conversation.");
 }
 
-export function isResponseEvent(event: RealtimeEvent): event is ResponseCreateEvent | ResponseCreatedEvent | ResponseDoneEvent | ResponseOutputItemAddedEvent | ResponseOutputItemDoneEvent {
-  return event.type.startsWith('response.') && !event.type.includes('.');
+export function isResponseEvent(
+  event: RealtimeEvent,
+): event is
+  | ResponseCreateEvent
+  | ResponseCreatedEvent
+  | ResponseDoneEvent
+  | ResponseOutputItemAddedEvent
+  | ResponseOutputItemDoneEvent {
+  return event.type.startsWith("response.") && !event.type.includes(".");
 }
 
-export function isContentEvent(event: RealtimeEvent): event is ResponseContentPartAddedEvent | ResponseContentPartDoneEvent | ResponseTextDeltaEvent | ResponseTextDoneEvent | ResponseAudioTranscriptDeltaEvent | ResponseAudioTranscriptDoneEvent | ResponseAudioDeltaEvent | ResponseAudioDoneEvent {
-  return event.type.includes('text.') || event.type.includes('audio.') || event.type.includes('content_part.');
+export function isContentEvent(
+  event: RealtimeEvent,
+): event is
+  | ResponseContentPartAddedEvent
+  | ResponseContentPartDoneEvent
+  | ResponseTextDeltaEvent
+  | ResponseTextDoneEvent
+  | ResponseAudioTranscriptDeltaEvent
+  | ResponseAudioTranscriptDoneEvent
+  | ResponseAudioDeltaEvent
+  | ResponseAudioDoneEvent {
+  return (
+    event.type.includes("text.") ||
+    event.type.includes("audio.") ||
+    event.type.includes("content_part.")
+  );
 }
 
 export function isErrorEvent(event: RealtimeEvent): event is ErrorEvent {
-  return event.type === 'error';
+  return event.type === "error";
 }

@@ -1,5 +1,9 @@
-import { EphemeralKeyInfo } from './ephemeral';
-import { ConnectionQuality, WebRTCConnectionState, WebRTCError } from './webrtc';
+import { EphemeralKeyInfo } from "./ephemeral";
+import {
+  ConnectionQuality,
+  WebRTCConnectionState,
+  WebRTCError,
+} from "./webrtc";
 
 /**
  * Service integration interfaces for WebRTC transport layer
@@ -39,9 +43,15 @@ export interface EphemeralKeyService {
   renewKey(): Promise<any>;
   revokeCurrentKey(): Promise<void>;
   isKeyValid(): boolean;
-  onKeyRenewed(handler: (result: any) => Promise<void>): { dispose: () => void };
-  onKeyExpired(handler: (info: EphemeralKeyInfo) => Promise<void>): { dispose: () => void };
-  onAuthenticationError(handler: (error: any) => Promise<void>): { dispose: () => void };
+  onKeyRenewed(handler: (result: any) => Promise<void>): {
+    dispose: () => void;
+  };
+  onKeyExpired(handler: (info: EphemeralKeyInfo) => Promise<void>): {
+    dispose: () => void;
+  };
+  onAuthenticationError(handler: (error: any) => Promise<void>): {
+    dispose: () => void;
+  };
 }
 
 export interface SessionManager {
@@ -51,7 +61,9 @@ export interface SessionManager {
   startSession(): Promise<void>;
   stopSession(): Promise<void>;
   getSessionState(): string;
-  onSessionStateChanged(handler: (state: string) => Promise<void>): { dispose: () => void };
+  onSessionStateChanged(handler: (state: string) => Promise<void>): {
+    dispose: () => void;
+  };
 }
 
 export interface ConfigurationManager {

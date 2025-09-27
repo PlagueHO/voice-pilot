@@ -1,10 +1,10 @@
-import { Logger } from '../core/logger';
+import { Logger } from "../core/logger";
 import {
-    WebRTCConfig,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
-    WebRTCTransport
-} from '../types/webrtc';
+  WebRTCConfig,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+  WebRTCTransport,
+} from "../types/webrtc";
 
 /**
  * Manages connection recovery for WebRTC transport
@@ -25,7 +25,7 @@ export class ConnectionRecoveryManager {
   private totalRecoveryAttempts = 0;
 
   constructor(logger?: Logger) {
-    this.logger = logger || new Logger('ConnectionRecoveryManager');
+    this.logger = logger || new Logger("ConnectionRecoveryManager");
   }
 
   /**
@@ -40,13 +40,14 @@ export class ConnectionRecoveryManager {
     this.maxAttempts = options.maxAttempts ?? this.maxAttempts;
     this.baseDelayMs = options.baseDelayMs ?? this.baseDelayMs;
     this.maxDelayMs = options.maxDelayMs ?? this.maxDelayMs;
-    this.backoffMultiplier = options.backoffMultiplier ?? this.backoffMultiplier;
+    this.backoffMultiplier =
+      options.backoffMultiplier ?? this.backoffMultiplier;
 
-    this.logger.debug('Recovery strategy configured', {
+    this.logger.debug("Recovery strategy configured", {
       maxAttempts: this.maxAttempts,
       baseDelayMs: this.baseDelayMs,
       maxDelayMs: this.maxDelayMs,
-      backoffMultiplier: this.backoffMultiplier
+      backoffMultiplier: this.backoffMultiplier,
     });
   }
 
@@ -56,25 +57,24 @@ export class ConnectionRecoveryManager {
   async handleConnectionFailure(
     transport: WebRTCTransport,
     config: WebRTCConfig,
-    error: WebRTCErrorImpl
+    error: WebRTCErrorImpl,
   ): Promise<boolean> {
-
     if (this.isRecovering) {
-      this.logger.warn('Recovery already in progress, skipping');
+      this.logger.warn("Recovery already in progress, skipping");
       return false;
     }
 
     if (!this.isRecoverableError(error)) {
-      this.logger.info('Error is not recoverable, skipping recovery', {
-        errorCode: error.code
+      this.logger.info("Error is not recoverable, skipping recovery", {
+        errorCode: error.code,
       });
       return false;
     }
 
     if (this.currentAttempt >= this.maxAttempts) {
-      this.logger.error('Maximum recovery attempts exceeded', {
+      this.logger.error("Maximum recovery attempts exceeded", {
         attempts: this.currentAttempt,
-        maxAttempts: this.maxAttempts
+        maxAttempts: this.maxAttempts,
       });
       this.reset();
       return false;
@@ -95,8 +95,8 @@ export class ConnectionRecoveryManager {
         return false;
       }
     } catch (recoveryError: any) {
-      this.logger.error('Recovery attempt failed with exception', {
-        error: recoveryError.message
+      this.logger.error("Recovery attempt failed with exception", {
+        error: recoveryError.message,
       });
       this.onRecoveryFailure();
       return false;
@@ -112,7 +112,7 @@ export class ConnectionRecoveryManager {
     this.isRecovering = false;
     this.currentAttempt = 0;
     this.successiveFailures = 0;
-    this.logger.debug('Recovery state reset');
+    this.logger.debug("Recovery state reset");
   }
 
   /**
@@ -130,7 +130,7 @@ export class ConnectionRecoveryManager {
       currentAttempt: this.currentAttempt,
       successiveFailures: this.successiveFailures,
       totalRecoveryAttempts: this.totalRecoveryAttempts,
-      lastConnectionTime: this.lastConnectionTime
+      lastConnectionTime: this.lastConnectionTime,
     };
   }
 
@@ -161,19 +161,18 @@ export class ConnectionRecoveryManager {
   private async attemptRecovery(
     transport: WebRTCTransport,
     config: WebRTCConfig,
-    originalError: WebRTCErrorImpl
+    originalError: WebRTCErrorImpl,
   ): Promise<boolean> {
-
     while (this.currentAttempt < this.maxAttempts) {
       this.currentAttempt++;
 
       const delay = this.calculateBackoffDelay();
 
-      this.logger.info('Starting recovery attempt', {
+      this.logger.info("Starting recovery attempt", {
         attempt: this.currentAttempt,
         maxAttempts: this.maxAttempts,
         delayMs: delay,
-        originalError: originalError.code
+        originalError: originalError.code,
       });
 
       // Wait before attempting recovery
@@ -187,28 +186,27 @@ export class ConnectionRecoveryManager {
         const success = await this.executeRecoveryStrategy(
           transport,
           config,
-          recoveryStrategy
+          recoveryStrategy,
         );
 
         if (success) {
-          this.logger.info('Recovery successful', {
+          this.logger.info("Recovery successful", {
             attempt: this.currentAttempt,
-            strategy: recoveryStrategy
+            strategy: recoveryStrategy,
           });
           return true;
         }
-
       } catch (error: any) {
-        this.logger.warn('Recovery attempt failed', {
+        this.logger.warn("Recovery attempt failed", {
           attempt: this.currentAttempt,
-          error: error.message
+          error: error.message,
         });
       }
     }
 
-    this.logger.error('All recovery attempts failed', {
+    this.logger.error("All recovery attempts failed", {
       totalAttempts: this.currentAttempt,
-      maxAttempts: this.maxAttempts
+      maxAttempts: this.maxAttempts,
     });
 
     return false;
@@ -220,16 +218,16 @@ export class ConnectionRecoveryManager {
   private selectRecoveryStrategy(error: WebRTCErrorImpl): RecoveryStrategy {
     switch (error.code) {
       case WebRTCErrorCode.NetworkTimeout:
-        return 'retry_connection';
+        return "retry_connection";
 
       case WebRTCErrorCode.IceConnectionFailed:
-        return 'restart_ice';
+        return "restart_ice";
 
       case WebRTCErrorCode.DataChannelFailed:
-        return 'recreate_datachannel';
+        return "recreate_datachannel";
 
       default:
-        return 'full_reconnect';
+        return "full_reconnect";
     }
   }
 
@@ -239,26 +237,25 @@ export class ConnectionRecoveryManager {
   private async executeRecoveryStrategy(
     transport: WebRTCTransport,
     config: WebRTCConfig,
-    strategy: RecoveryStrategy
+    strategy: RecoveryStrategy,
   ): Promise<boolean> {
-
-    this.logger.debug('Executing recovery strategy', { strategy });
+    this.logger.debug("Executing recovery strategy", { strategy });
 
     switch (strategy) {
-      case 'retry_connection':
+      case "retry_connection":
         return this.retryConnection(transport, config);
 
-      case 'restart_ice':
+      case "restart_ice":
         return this.restartIceConnection(transport, config);
 
-      case 'recreate_datachannel':
+      case "recreate_datachannel":
         return this.recreateDataChannel(transport, config);
 
-      case 'full_reconnect':
+      case "full_reconnect":
         return this.fullReconnect(transport, config);
 
       default:
-        this.logger.error('Unknown recovery strategy', { strategy });
+        this.logger.error("Unknown recovery strategy", { strategy });
         return false;
     }
   }
@@ -268,14 +265,14 @@ export class ConnectionRecoveryManager {
    */
   private async retryConnection(
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<boolean> {
     try {
       await transport.closeConnection();
       const result = await transport.establishConnection(config);
       return result.success;
     } catch (error: any) {
-      this.logger.warn('Retry connection failed', { error: error.message });
+      this.logger.warn("Retry connection failed", { error: error.message });
       return false;
     }
   }
@@ -285,14 +282,14 @@ export class ConnectionRecoveryManager {
    */
   private async restartIceConnection(
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<boolean> {
     try {
       // Note: This would require access to peer connection internals
       // For now, fall back to full reconnect
       return this.fullReconnect(transport, config);
     } catch (error: any) {
-      this.logger.warn('ICE restart failed', { error: error.message });
+      this.logger.warn("ICE restart failed", { error: error.message });
       return false;
     }
   }
@@ -302,14 +299,16 @@ export class ConnectionRecoveryManager {
    */
   private async recreateDataChannel(
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<boolean> {
     try {
       // Note: This would require access to peer connection internals
       // For now, fall back to full reconnect
       return this.fullReconnect(transport, config);
     } catch (error: any) {
-      this.logger.warn('Data channel recreation failed', { error: error.message });
+      this.logger.warn("Data channel recreation failed", {
+        error: error.message,
+      });
       return false;
     }
   }
@@ -319,7 +318,7 @@ export class ConnectionRecoveryManager {
    */
   private async fullReconnect(
     transport: WebRTCTransport,
-    config: WebRTCConfig
+    config: WebRTCConfig,
   ): Promise<boolean> {
     try {
       // Ensure clean state
@@ -332,7 +331,7 @@ export class ConnectionRecoveryManager {
       const result = await transport.establishConnection(config);
       return result.success;
     } catch (error: any) {
-      this.logger.warn('Full reconnect failed', { error: error.message });
+      this.logger.warn("Full reconnect failed", { error: error.message });
       return false;
     }
   }
@@ -345,7 +344,8 @@ export class ConnectionRecoveryManager {
       return 0; // First attempt immediately
     }
 
-    const exponentialDelay = this.baseDelayMs *
+    const exponentialDelay =
+      this.baseDelayMs *
       Math.pow(this.backoffMultiplier, this.currentAttempt - 2);
 
     // Add jitter to prevent thundering herd
@@ -364,9 +364,9 @@ export class ConnectionRecoveryManager {
     this.successiveFailures = 0;
     this.currentAttempt = 0;
 
-    this.logger.info('Connection recovery successful', {
+    this.logger.info("Connection recovery successful", {
       totalAttempts: this.totalRecoveryAttempts,
-      lastConnectionTime: this.lastConnectionTime
+      lastConnectionTime: this.lastConnectionTime,
     });
   }
 
@@ -374,9 +374,9 @@ export class ConnectionRecoveryManager {
    * Handle recovery failure
    */
   private onRecoveryFailure(): void {
-    this.logger.warn('Connection recovery failed', {
+    this.logger.warn("Connection recovery failed", {
       attempt: this.currentAttempt,
-      successiveFailures: this.successiveFailures
+      successiveFailures: this.successiveFailures,
     });
   }
 
@@ -384,12 +384,12 @@ export class ConnectionRecoveryManager {
    * Utility method for delays
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
 type RecoveryStrategy =
-  | 'retry_connection'
-  | 'restart_ice'
-  | 'recreate_datachannel'
-  | 'full_reconnect';
+  | "retry_connection"
+  | "restart_ice"
+  | "recreate_datachannel"
+  | "full_reconnect";

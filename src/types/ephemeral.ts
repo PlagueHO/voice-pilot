@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
-import { ServiceInitializable } from '../core/service-initializable';
-import type { VoicePilotError } from './error/voice-pilot-error';
+import * as vscode from "vscode";
+import { ServiceInitializable } from "../core/service-initializable";
+import type { VoicePilotError } from "./error/voice-pilot-error";
 
 // Core service interface
 export interface EphemeralKeyService extends ServiceInitializable {
@@ -75,10 +75,10 @@ export interface AzureSessionRequest {
   model: string; // e.g., "gpt-4o-realtime-preview"
   voice?: string; // Optional voice selection
   instructions?: string; // Optional system instructions
-  input_audio_format?: 'pcm16'; // Audio format specification
-  output_audio_format?: 'pcm16';
+  input_audio_format?: "pcm16"; // Audio format specification
+  output_audio_format?: "pcm16";
   turn_detection?: {
-    type: 'server_vad';
+    type: "server_vad";
     threshold?: number;
     prefix_padding_ms?: number;
     silence_duration_ms?: number;

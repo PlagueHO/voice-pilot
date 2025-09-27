@@ -1,25 +1,30 @@
-import { randomUUID } from 'crypto';
-import * as vscode from 'vscode';
-import { ConfigurationManager } from '../config/configuration-manager';
-import { Logger } from '../core/logger';
-import { withRecovery } from '../helpers/error/envelope';
-import { AzureOpenAIConfig } from '../types/configuration';
+import { randomUUID } from "crypto";
+import * as vscode from "vscode";
+import { ConfigurationManager } from "../config/configuration-manager";
+import { Logger } from "../core/logger";
+import { withRecovery } from "../helpers/error/envelope";
+import { AzureOpenAIConfig } from "../types/configuration";
 import {
-    AuthenticationError,
-    AuthenticationErrorHandler,
-    AuthenticationTestResult,
-    AzureSessionRequest,
-    AzureSessionResponse,
-    EphemeralKeyInfo,
-    EphemeralKeyResult,
-    EphemeralKeyService,
-    EphemeralKeyServiceConfig,
-    KeyExpirationHandler,
-    KeyRenewalHandler,
-    RealtimeSessionInfo
-} from '../types/ephemeral';
-import type { RecoveryExecutionOptions, RecoveryExecutor, RecoveryPlan, VoicePilotError } from '../types/error/voice-pilot-error';
-import { CredentialManagerImpl } from './credential-manager';
+  AuthenticationError,
+  AuthenticationErrorHandler,
+  AuthenticationTestResult,
+  AzureSessionRequest,
+  AzureSessionResponse,
+  EphemeralKeyInfo,
+  EphemeralKeyResult,
+  EphemeralKeyService,
+  EphemeralKeyServiceConfig,
+  KeyExpirationHandler,
+  KeyRenewalHandler,
+  RealtimeSessionInfo,
+} from "../types/ephemeral";
+import type {
+  RecoveryExecutionOptions,
+  RecoveryExecutor,
+  RecoveryPlan,
+  VoicePilotError,
+} from "../types/error/voice-pilot-error";
+import { CredentialManagerImpl } from "./credential-manager";
 
 /**
  * Implementation of ephemeral key service for Azure OpenAI Realtime API authentication.
@@ -47,7 +52,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     renewalMarginSeconds: 10,
     maxRetryAttempts: 3,
     retryBackoffMs: 1000,
-    sessionTimeoutMs: 300000 // 5 minutes
+    sessionTimeoutMs: 300000, // 5 minutes
   };
 
   constructor(
@@ -55,7 +60,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     configManager?: ConfigurationManager,
     logger?: Logger,
     recoveryExecutor?: RecoveryExecutor,
-    recoveryPlan?: RecoveryPlan
+    recoveryPlan?: RecoveryPlan,
   ) {
     if (credentialManager) {
       this.credentialManager = credentialManager;
@@ -64,7 +69,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       this.configManager = configManager;
     }
     // Always ensure a logger instance exists to avoid undefined access during initialize
-    this.logger = logger ?? new Logger('EphemeralKeyService');
+    this.logger = logger ?? new Logger("EphemeralKeyService");
     if (recoveryExecutor) {
       this.recoveryExecutor = recoveryExecutor;
     }
@@ -73,7 +78,10 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     }
   }
 
-  setRecoveryExecutor(executor: RecoveryExecutor, defaultPlan?: RecoveryPlan): void {
+  setRecoveryExecutor(
+    executor: RecoveryExecutor,
+    defaultPlan?: RecoveryPlan,
+  ): void {
     this.recoveryExecutor = executor;
     if (defaultPlan) {
       this.defaultRecoveryPlan = defaultPlan;
@@ -85,31 +93,37 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       return;
     }
 
-    this.logger.info('Initializing EphemeralKeyService');
+    this.logger.info("Initializing EphemeralKeyService");
 
     // Validate dependencies
     if (!this.credentialManager || !this.credentialManager.isInitialized()) {
-      throw new Error('CredentialManager must be initialized before EphemeralKeyService');
+      throw new Error(
+        "CredentialManager must be initialized before EphemeralKeyService",
+      );
     }
 
     if (!this.configManager || !this.configManager.isInitialized()) {
-      throw new Error('ConfigurationManager must be initialized before EphemeralKeyService');
+      throw new Error(
+        "ConfigurationManager must be initialized before EphemeralKeyService",
+      );
     }
 
     // Test authentication capability
     try {
       const testResult = await this.testAuthentication();
       if (!testResult.success) {
-        this.logger.error('Authentication test failed', testResult);
+        this.logger.error("Authentication test failed", testResult);
         throw new Error(`Authentication test failed: ${testResult.error}`);
       }
     } catch (error: any) {
-      this.logger.error('Failed to test authentication during initialization', { error: error.message });
+      this.logger.error("Failed to test authentication during initialization", {
+        error: error.message,
+      });
       throw new Error(`Authentication initialization failed: ${error.message}`);
     }
 
     this.initialized = true;
-    this.logger.info('EphemeralKeyService initialized successfully');
+    this.logger.info("EphemeralKeyService initialized successfully");
   }
 
   isInitialized(): boolean {
@@ -117,7 +131,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
   }
 
   dispose(): void {
-    this.logger.info('Disposing EphemeralKeyService');
+    this.logger.info("Disposing EphemeralKeyService");
 
     // Clear renewal timer
     if (this.renewalTimer) {
@@ -136,58 +150,61 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     this.authErrorHandlers.clear();
 
     this.initialized = false;
-    this.logger.info('EphemeralKeyService disposed');
+    this.logger.info("EphemeralKeyService disposed");
   }
 
   // Primary authentication operations
-  private async executeAuthOperation<T>(operation: () => Promise<T>, context: {
-    code: string;
-    message: string;
-    remediation: string;
-    operation: string;
-    severity?: RecoveryExecutionOptions['severity'];
-    userImpact?: RecoveryExecutionOptions['userImpact'];
-    metadata?: Record<string, unknown>;
-    retry?: RecoveryExecutionOptions['retry'];
-    recoveryPlan?: RecoveryPlan;
-    telemetryContext?: RecoveryExecutionOptions['telemetryContext'];
-    sessionId?: string;
-  }): Promise<T> {
+  private async executeAuthOperation<T>(
+    operation: () => Promise<T>,
+    context: {
+      code: string;
+      message: string;
+      remediation: string;
+      operation: string;
+      severity?: RecoveryExecutionOptions["severity"];
+      userImpact?: RecoveryExecutionOptions["userImpact"];
+      metadata?: Record<string, unknown>;
+      retry?: RecoveryExecutionOptions["retry"];
+      recoveryPlan?: RecoveryPlan;
+      telemetryContext?: RecoveryExecutionOptions["telemetryContext"];
+      sessionId?: string;
+    },
+  ): Promise<T> {
     if (!this.recoveryExecutor) {
       return operation();
     }
 
     return withRecovery(operation, {
       executor: this.recoveryExecutor,
-      faultDomain: 'auth',
+      faultDomain: "auth",
       code: context.code,
       message: context.message,
       remediation: context.remediation,
       operation: context.operation,
       correlationId: randomUUID(),
-      severity: context.severity ?? 'error',
-      userImpact: context.userImpact ?? 'blocked',
+      severity: context.severity ?? "error",
+      userImpact: context.userImpact ?? "blocked",
       metadata: context.metadata,
       retry: context.retry,
       recoveryPlan: context.recoveryPlan ?? this.defaultRecoveryPlan,
       telemetryContext: context.telemetryContext,
       sessionId: context.sessionId,
-      onRetryScheduled: plan => {
-        this.logger.warn('Authentication retry scheduled', {
+      onRetryScheduled: (plan) => {
+        this.logger.warn("Authentication retry scheduled", {
           code: context.code,
           attempt: plan.attempt,
           maxAttempts: plan.maxAttempts,
-          nextAttemptAt: plan.nextAttemptAt?.toISOString()
+          nextAttemptAt: plan.nextAttemptAt?.toISOString(),
         });
       },
-      onRecoveryComplete: outcome => {
+      onRecoveryComplete: (outcome) => {
         if (!outcome.success && outcome.error) {
-          this.logger.error('Authentication recovery failed', {
+          this.logger.error("Authentication recovery failed", {
             code: context.code,
-            message: outcome.error.message
+            message: outcome.error.message,
           });
         }
-      }
+      },
     });
   }
 
@@ -202,38 +219,41 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         return {
           success: false,
           error: {
-            code: 'MISSING_CREDENTIALS',
-            message: 'Azure OpenAI API key not configured',
+            code: "MISSING_CREDENTIALS",
+            message: "Azure OpenAI API key not configured",
             isRetryable: false,
-            remediation: 'Configure Azure OpenAI credentials in settings'
-          }
+            remediation: "Configure Azure OpenAI credentials in settings",
+          },
         };
       }
 
       const sessionResponse = await this.executeAuthOperation(
         () => this.createAzureSession(config, apiKey),
         {
-          code: 'AUTH_EPHEMERAL_SESSION_CREATE_FAILED',
-          message: 'Failed to create Azure OpenAI realtime session',
-          remediation: 'Verify Azure OpenAI endpoint, deployment name, and credentials.',
-          operation: 'requestEphemeralKey',
+          code: "AUTH_EPHEMERAL_SESSION_CREATE_FAILED",
+          message: "Failed to create Azure OpenAI realtime session",
+          remediation:
+            "Verify Azure OpenAI endpoint, deployment name, and credentials.",
+          operation: "requestEphemeralKey",
           metadata: {
             endpoint: config.endpoint,
             region: config.region,
-            deployment: config.deploymentName
+            deployment: config.deploymentName,
           },
           retry: {
-            policy: 'exponential',
+            policy: "exponential",
             maxAttempts: this.config.maxRetryAttempts,
             initialDelayMs: this.config.retryBackoffMs,
             multiplier: 2,
-            jitter: 0.2
-          }
-        }
+            jitter: 0.2,
+          },
+        },
       );
 
       const ephemeralKey = sessionResponse.client_secret.value;
-      const expiresAt = new Date(sessionResponse.client_secret.expires_at * 1000);
+      const expiresAt = new Date(
+        sessionResponse.client_secret.expires_at * 1000,
+      );
 
       // Store current key info
       this.currentKey = {
@@ -242,30 +262,31 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         issuedAt: new Date(),
         expiresAt,
         isValid: true,
-        secondsRemaining: Math.floor((expiresAt.getTime() - Date.now()) / 1000)
+        secondsRemaining: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
       };
 
       // Schedule automatic renewal
       this.scheduleRenewal();
 
-      this.logger.info('Ephemeral key requested successfully', {
+      this.logger.info("Ephemeral key requested successfully", {
         sessionId: sessionResponse.id,
-        expiresAt: expiresAt.toISOString()
+        expiresAt: expiresAt.toISOString(),
       });
 
       return {
         success: true,
         ephemeralKey,
         sessionId: sessionResponse.id,
-        expiresAt
+        expiresAt,
       };
-
     } catch (error: any) {
-      this.logger.error('Failed to request ephemeral key', { error: error.message });
+      this.logger.error("Failed to request ephemeral key", {
+        error: error.message,
+      });
 
       return {
         success: false,
-        error: this.mapAzureError(error)
+        error: this.mapAzureError(error),
       };
     }
   }
@@ -278,17 +299,20 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     // Update real-time validity
     const now = new Date();
     const isValid = now < this.currentKey.expiresAt;
-    const secondsRemaining = Math.max(0, Math.floor((this.currentKey.expiresAt.getTime() - now.getTime()) / 1000));
+    const secondsRemaining = Math.max(
+      0,
+      Math.floor((this.currentKey.expiresAt.getTime() - now.getTime()) / 1000),
+    );
 
     return {
       ...this.currentKey,
       isValid,
-      secondsRemaining
+      secondsRemaining,
     };
   }
 
   async renewKey(): Promise<EphemeralKeyResult> {
-    this.logger.info('Renewing ephemeral key');
+    this.logger.info("Renewing ephemeral key");
     return this.requestEphemeralKey();
   }
 
@@ -297,9 +321,9 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       try {
         await this.endSession(this.currentKey.sessionId);
       } catch (error: any) {
-        this.logger.warn('Failed to end session during key revocation', {
+        this.logger.warn("Failed to end session during key revocation", {
           sessionId: this.currentKey.sessionId,
-          error: error.message
+          error: error.message,
         });
       }
 
@@ -310,7 +334,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         this.renewalTimer = undefined;
       }
 
-      this.logger.info('Current key revoked');
+      this.logger.info("Current key revoked");
     }
   }
 
@@ -330,7 +354,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       sessionId: this.currentKey!.sessionId,
       ephemeralKey: this.currentKey!.key,
       webrtcUrl,
-      expiresAt: this.currentKey!.expiresAt
+      expiresAt: this.currentKey!.expiresAt,
     };
   }
 
@@ -342,43 +366,48 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       if (apiKey) {
         // Notify Azure to end session
         const response = await this.executeAuthOperation(
-          () => fetch(
-            `${config.endpoint}/openai/realtimeapi/sessions/${sessionId}?api-version=${config.apiVersion || '2025-04-01-preview'}`,
-            {
-              method: 'DELETE',
-              headers: { 'api-key': apiKey }
-            }
-          ),
+          () =>
+            fetch(
+              `${config.endpoint}/openai/realtimeapi/sessions/${sessionId}?api-version=${config.apiVersion || "2025-04-01-preview"}`,
+              {
+                method: "DELETE",
+                headers: { "api-key": apiKey },
+              },
+            ),
           {
-            code: 'AUTH_SESSION_TERMINATION_FAILED',
-            message: 'Failed to terminate Azure realtime session',
-            remediation: 'Validate network connectivity and Azure session state before retrying.',
-            operation: 'endSession',
-            severity: 'warning',
-            userImpact: 'degraded',
+            code: "AUTH_SESSION_TERMINATION_FAILED",
+            message: "Failed to terminate Azure realtime session",
+            remediation:
+              "Validate network connectivity and Azure session state before retrying.",
+            operation: "endSession",
+            severity: "warning",
+            userImpact: "degraded",
             metadata: {
               sessionId,
-              endpoint: config.endpoint
+              endpoint: config.endpoint,
             },
             retry: {
-              policy: 'immediate',
+              policy: "immediate",
               maxAttempts: 2,
-              initialDelayMs: 250
-            }
-          }
+              initialDelayMs: 250,
+            },
+          },
         );
 
         if (!response.ok) {
-          this.logger.warn('Azure session deletion returned non-OK status', {
+          this.logger.warn("Azure session deletion returned non-OK status", {
             sessionId,
-            status: response.status
+            status: response.status,
           });
         }
       }
 
-      this.logger.info('Session ended successfully', { sessionId });
+      this.logger.info("Session ended successfully", { sessionId });
     } catch (error: any) {
-      this.logger.warn('Failed to end session gracefully', { sessionId, error: error.message });
+      this.logger.warn("Failed to end session gracefully", {
+        sessionId,
+        error: error.message,
+      });
     }
   }
 
@@ -403,11 +432,11 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       endpoint: config.endpoint,
       region: config.region,
       hasValidCredentials: !!apiKey,
-      canCreateSessions: false
+      canCreateSessions: false,
     };
 
     if (!apiKey) {
-      result.error = 'No Azure OpenAI API key configured';
+      result.error = "No Azure OpenAI API key configured";
       return result;
     }
 
@@ -416,19 +445,19 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
 
       // Test session creation
       const response = await fetch(
-        `${config.endpoint}/openai/realtimeapi/sessions?api-version=${config.apiVersion || '2025-04-01-preview'}`,
+        `${config.endpoint}/openai/realtimeapi/sessions?api-version=${config.apiVersion || "2025-04-01-preview"}`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'api-key': apiKey
+            "Content-Type": "application/json",
+            "api-key": apiKey,
           },
           body: JSON.stringify({
             model: config.deploymentName,
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16'
-          } as AzureSessionRequest)
-        }
+            input_audio_format: "pcm16",
+            output_audio_format: "pcm16",
+          } as AzureSessionRequest),
+        },
       );
 
       result.latencyMs = Date.now() - startTime;
@@ -446,9 +475,8 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
-        result.error = `HTTP ${response.status}: ${errorData.error?.message || 'Unknown error'}`;
+        result.error = `HTTP ${response.status}: ${errorData.error?.message || "Unknown error"}`;
       }
-
     } catch (error: any) {
       result.error = `Network error: ${error.message}`;
     }
@@ -462,7 +490,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     return {
       dispose: () => {
         this.keyRenewalHandlers.delete(handler);
-      }
+      },
     };
   }
 
@@ -471,48 +499,55 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     return {
       dispose: () => {
         this.keyExpirationHandlers.delete(handler);
-      }
+      },
     };
   }
 
-  onAuthenticationError(handler: AuthenticationErrorHandler): vscode.Disposable {
+  onAuthenticationError(
+    handler: AuthenticationErrorHandler,
+  ): vscode.Disposable {
     this.authErrorHandlers.add(handler);
     return {
       dispose: () => {
         this.authErrorHandlers.delete(handler);
-      }
+      },
     };
   }
 
   // Private implementation methods
-  private async createAzureSession(config: AzureOpenAIConfig, apiKey: string): Promise<AzureSessionResponse> {
+  private async createAzureSession(
+    config: AzureOpenAIConfig,
+    apiKey: string,
+  ): Promise<AzureSessionResponse> {
     const sessionRequest: AzureSessionRequest = {
       model: config.deploymentName,
-      input_audio_format: 'pcm16',
-      output_audio_format: 'pcm16',
+      input_audio_format: "pcm16",
+      output_audio_format: "pcm16",
       turn_detection: {
-        type: 'server_vad',
+        type: "server_vad",
         threshold: 0.5,
         prefix_padding_ms: 300,
-        silence_duration_ms: 200
-      }
+        silence_duration_ms: 200,
+      },
     };
 
     const response = await fetch(
-      `${config.endpoint}/openai/realtimeapi/sessions?api-version=${config.apiVersion || '2025-04-01-preview'}`,
+      `${config.endpoint}/openai/realtimeapi/sessions?api-version=${config.apiVersion || "2025-04-01-preview"}`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'api-key': apiKey
+          "Content-Type": "application/json",
+          "api-key": apiKey,
         },
-        body: JSON.stringify(sessionRequest)
-      }
+        body: JSON.stringify(sessionRequest),
+      },
     );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Azure Sessions API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(
+        `Azure Sessions API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`,
+      );
     }
 
     return await response.json();
@@ -528,11 +563,14 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     }
 
     // Schedule renewal with safety margin
-    const renewalTime = this.currentKey.expiresAt.getTime() - Date.now() - (this.config.renewalMarginSeconds * 1000);
+    const renewalTime =
+      this.currentKey.expiresAt.getTime() -
+      Date.now() -
+      this.config.renewalMarginSeconds * 1000;
 
     if (renewalTime > 0) {
       this.renewalTimer = setTimeout(async () => {
-        this.logger.info('Automatic key renewal triggered');
+        this.logger.info("Automatic key renewal triggered");
         const result = await this.renewKey();
 
         if (result.success) {
@@ -540,24 +578,28 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
             try {
               await handler(result);
             } catch (error: any) {
-              this.logger.error('Key renewal handler failed', { error: error.message });
+              this.logger.error("Key renewal handler failed", {
+                error: error.message,
+              });
             }
           }
         } else {
-          this.logger.error('Automatic key renewal failed', result.error);
+          this.logger.error("Automatic key renewal failed", result.error);
           for (const handler of this.authErrorHandlers) {
             try {
               await handler(result.error!);
             } catch (error: any) {
-              this.logger.error('Authentication error handler failed', { error: error.message });
+              this.logger.error("Authentication error handler failed", {
+                error: error.message,
+              });
             }
           }
         }
       }, renewalTime);
 
-      this.logger.debug('Key renewal scheduled', {
+      this.logger.debug("Key renewal scheduled", {
         renewalTime: new Date(Date.now() + renewalTime).toISOString(),
-        marginSeconds: this.config.renewalMarginSeconds
+        marginSeconds: this.config.renewalMarginSeconds,
       });
     }
   }
@@ -573,87 +615,102 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       }
 
       if (attempt < this.config.maxRetryAttempts) {
-        this.logger.warn(`Key request attempt ${attempt} failed, retrying in ${backoffMs}ms`, result.error);
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        this.logger.warn(
+          `Key request attempt ${attempt} failed, retrying in ${backoffMs}ms`,
+          result.error,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         backoffMs *= 2; // Exponential backoff
       }
     }
 
-    this.logger.error(`All ${this.config.maxRetryAttempts} key request attempts failed`);
+    this.logger.error(
+      `All ${this.config.maxRetryAttempts} key request attempts failed`,
+    );
     return {
       success: false,
       error: {
-        code: 'MAX_RETRIES_EXCEEDED',
+        code: "MAX_RETRIES_EXCEEDED",
         message: `Failed to obtain ephemeral key after ${this.config.maxRetryAttempts} attempts`,
         isRetryable: true,
-        remediation: 'Check network connectivity and Azure service status'
-      }
+        remediation: "Check network connectivity and Azure service status",
+      },
     };
   }
 
   private mapAzureError(error: any): AuthenticationError {
-    if ((error as VoicePilotError)?.code && (error as VoicePilotError)?.remediation) {
+    if (
+      (error as VoicePilotError)?.code &&
+      (error as VoicePilotError)?.remediation
+    ) {
       const voiceError = error as VoicePilotError;
-      const retryable = voiceError.retryPlan ? voiceError.retryPlan.policy !== 'none' && voiceError.retryPlan.attempt < voiceError.retryPlan.maxAttempts : true;
+      const retryable = voiceError.retryPlan
+        ? voiceError.retryPlan.policy !== "none" &&
+          voiceError.retryPlan.attempt < voiceError.retryPlan.maxAttempts
+        : true;
       return {
         code: voiceError.code,
         message: voiceError.message,
         isRetryable: retryable,
         remediation: voiceError.remediation,
         azureErrorDetails: voiceError.metadata,
-        voicePilotError: voiceError
+        voicePilotError: voiceError,
       };
     }
 
     // Map Azure-specific errors to standardized error format
-    if (error.message?.includes('401')) {
+    if (error.message?.includes("401")) {
       return {
-        code: 'INVALID_CREDENTIALS',
-        message: 'Azure OpenAI API key is invalid or expired',
+        code: "INVALID_CREDENTIALS",
+        message: "Azure OpenAI API key is invalid or expired",
         isRetryable: false,
-        remediation: 'Update Azure OpenAI API key in credential settings'
+        remediation: "Update Azure OpenAI API key in credential settings",
       };
     }
 
-    if (error.message?.includes('403')) {
+    if (error.message?.includes("403")) {
       return {
-        code: 'INSUFFICIENT_PERMISSIONS',
-        message: 'API key lacks necessary permissions for Realtime API',
+        code: "INSUFFICIENT_PERMISSIONS",
+        message: "API key lacks necessary permissions for Realtime API",
         isRetryable: false,
-        remediation: 'Ensure API key has Cognitive Services OpenAI User role'
+        remediation: "Ensure API key has Cognitive Services OpenAI User role",
       };
     }
 
-    if (error.message?.includes('429')) {
+    if (error.message?.includes("429")) {
       return {
-        code: 'RATE_LIMITED',
-        message: 'Too many requests to Azure OpenAI service',
+        code: "RATE_LIMITED",
+        message: "Too many requests to Azure OpenAI service",
         isRetryable: true,
-        remediation: 'Wait before retrying, consider upgrading Azure resource tier'
+        remediation:
+          "Wait before retrying, consider upgrading Azure resource tier",
       };
     }
 
-    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+    if (error.code === "ENOTFOUND" || error.code === "ECONNREFUSED") {
       return {
-        code: 'NETWORK_ERROR',
-        message: 'Cannot connect to Azure OpenAI service',
+        code: "NETWORK_ERROR",
+        message: "Cannot connect to Azure OpenAI service",
         isRetryable: true,
-        remediation: 'Check network connectivity and Azure endpoint configuration'
+        remediation:
+          "Check network connectivity and Azure endpoint configuration",
       };
     }
 
     return {
-      code: 'UNKNOWN_ERROR',
-      message: error.message || 'Unknown authentication error',
+      code: "UNKNOWN_ERROR",
+      message: error.message || "Unknown authentication error",
       isRetryable: true,
-      remediation: 'Check Azure service status and configuration',
-      azureErrorDetails: error
+      remediation: "Check Azure service status and configuration",
+      azureErrorDetails: error,
     };
   }
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error('EphemeralKeyService not initialized. Call initialize() first.');
+      throw new Error(
+        "EphemeralKeyService not initialized. Call initialize() first.",
+      );
     }
   }
 }

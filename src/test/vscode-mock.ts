@@ -12,7 +12,7 @@ export const window = {
   createOutputChannel: (name: string) => new OutputChannel(),
   showErrorMessage: (message: string) => Promise.resolve(undefined),
   showWarningMessage: (message: string) => Promise.resolve(undefined),
-  showInformationMessage: (message: string) => Promise.resolve(undefined)
+  showInformationMessage: (message: string) => Promise.resolve(undefined),
 };
 
 export const workspace = {
@@ -21,21 +21,21 @@ export const workspace = {
     get: () => undefined,
     has: () => false,
     inspect: () => undefined,
-    update: () => Promise.resolve()
-  })
+    update: () => Promise.resolve(),
+  }),
 };
 
 export const commands = {
   registerCommand: () => ({ dispose: () => {} }),
-  executeCommand: () => Promise.resolve()
+  executeCommand: () => Promise.resolve(),
 };
 
 export const extensions = {
-  getExtension: () => undefined
+  getExtension: () => undefined,
 };
 
 export const Uri = {
-  parse: (value: string) => ({ toString: () => value })
+  parse: (value: string) => ({ toString: () => value }),
 };
 
 export const Disposable = class {
@@ -50,19 +50,19 @@ export const EventEmitter = class {
 
 export const ExtensionContext = class {
   subscriptions: any[] = [];
-  extensionUri: any = Uri.parse('file://test');
+  extensionUri: any = Uri.parse("file://test");
   globalState: any = {
     get: () => undefined,
-    update: () => Promise.resolve()
+    update: () => Promise.resolve(),
   };
   workspaceState: any = {
     get: () => undefined,
-    update: () => Promise.resolve()
+    update: () => Promise.resolve(),
   };
   secrets: any = {
     get: () => Promise.resolve(undefined),
     store: () => Promise.resolve(),
-    delete: () => Promise.resolve()
+    delete: () => Promise.resolve(),
   };
 };
 
@@ -73,5 +73,5 @@ export const LogLevel = {
   Warning: 3,
   Error: 4,
   Critical: 5,
-  Off: 6
+  Off: 6,
 };

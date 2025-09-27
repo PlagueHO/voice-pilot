@@ -1,15 +1,15 @@
-import type { RedactionMatch, RedactionRule } from './speech-to-text';
+import type { RedactionMatch, RedactionRule } from "./speech-to-text";
 
 /**
  * Classification tiers for data handled inside the VoicePilot extension.
  * Defaults to `Sensitive` until explicitly downgraded by a privacy control.
  */
-export type DataClassification = 'Sensitive' | 'Confidential' | 'Operational';
+export type DataClassification = "Sensitive" | "Confidential" | "Operational";
 
 export const DATA_CLASSIFICATIONS: readonly DataClassification[] = [
-  'Sensitive',
-  'Confidential',
-  'Operational'
+  "Sensitive",
+  "Confidential",
+  "Operational",
 ];
 
 /**
@@ -25,11 +25,11 @@ export interface PrivacyIndicators {
  * Metadata associated with a privacy-aware transcript entry.
  */
 export interface PrivacyTranscriptMetadata {
-  speaker: 'user' | 'assistant' | 'system';
+  speaker: "user" | "assistant" | "system";
   confidence?: number;
   azureResponseId?: string;
   privacyIndicators: PrivacyIndicators;
-  source?: 'realtime' | 'cached' | 'manual';
+  source?: "realtime" | "cached" | "manual";
 }
 
 /**
@@ -39,7 +39,7 @@ export interface PrivacyAnnotatedTranscript {
   utteranceId: string;
   sessionId: string;
   content: string;
-  classification: Extract<DataClassification, 'Sensitive' | 'Confidential'>;
+  classification: Extract<DataClassification, "Sensitive" | "Confidential">;
   redactions: RedactionMatch[];
   retentionExpiresAt: string; // ISO timestamp
   createdAt: string; // ISO timestamp for retention clock start
@@ -47,22 +47,22 @@ export interface PrivacyAnnotatedTranscript {
 }
 
 export type PurgeReason =
-  | 'user-requested'
-  | 'session-timeout'
-  | 'policy-update'
-  | 'error-recovery';
+  | "user-requested"
+  | "session-timeout"
+  | "policy-update"
+  | "error-recovery";
 
 export interface PurgeCommand {
-  type: 'privacy.purge';
-  target: 'audio' | 'transcripts' | 'logs' | 'all';
+  type: "privacy.purge";
+  target: "audio" | "transcripts" | "logs" | "all";
   reason: PurgeReason;
   issuedAt: string;
   correlationId?: string;
 }
 
 export interface PurgeResult {
-  target: PurgeCommand['target'];
-  status: 'success' | 'partial' | 'failed';
+  target: PurgeCommand["target"];
+  status: "success" | "partial" | "failed";
   clearedCount: number;
   retainedCount: number;
   retentionNotes?: string[];
@@ -79,7 +79,7 @@ export interface PrivacyRetentionWindowConfig {
 export interface PrivacyPolicyConfig {
   retention: PrivacyRetentionWindowConfig;
   redactionRules: RedactionRule[];
-  profanityFilter: 'none' | 'medium' | 'high';
+  profanityFilter: "none" | "medium" | "high";
   telemetryOptIn: boolean;
   exportEnabled: boolean;
 }
@@ -89,17 +89,17 @@ export const DEFAULT_PRIVACY_POLICY: PrivacyPolicyConfig = {
     audioSeconds: 5,
     partialTranscriptSeconds: 30,
     finalTranscriptSeconds: 120,
-    diagnosticsHours: 24
+    diagnosticsHours: 24,
   },
   redactionRules: [],
-  profanityFilter: 'medium',
+  profanityFilter: "medium",
   telemetryOptIn: false,
-  exportEnabled: false
+  exportEnabled: false,
 };
 
 export interface PrivacyPolicySnapshot extends PrivacyPolicyConfig {
   updatedAt: string;
-  source: 'default' | 'user';
+  source: "default" | "user";
 }
 
 export interface PrivacyRedactionSummary {
@@ -108,32 +108,39 @@ export interface PrivacyRedactionSummary {
   appliedRules: RedactionRule[];
 }
 
-export type PrivacyChannel = 'webview' | 'extension-host' | 'azure' | 'ui';
+export type PrivacyChannel = "webview" | "extension-host" | "azure" | "ui";
 
 export interface PrivacyAuditRecord {
   id: string;
   timestamp: string;
   actor: PrivacyChannel;
-  action: 'purge' | 'redact' | 'retain' | 'block';
+  action: "purge" | "redact" | "retain" | "block";
   classification: DataClassification;
   metadata?: Record<string, unknown>;
 }
 
-export function isDataClassification(value: unknown): value is DataClassification {
-  return typeof value === 'string' && DATA_CLASSIFICATIONS.includes(value as DataClassification);
+export function isDataClassification(
+  value: unknown,
+): value is DataClassification {
+  return (
+    typeof value === "string" &&
+    DATA_CLASSIFICATIONS.includes(value as DataClassification)
+  );
 }
 
-export function isPrivacyAnnotatedTranscript(value: unknown): value is PrivacyAnnotatedTranscript {
-  if (!value || typeof value !== 'object') {
+export function isPrivacyAnnotatedTranscript(
+  value: unknown,
+): value is PrivacyAnnotatedTranscript {
+  if (!value || typeof value !== "object") {
     return false;
   }
   const candidate = value as PrivacyAnnotatedTranscript;
   return (
-    typeof candidate.utteranceId === 'string' &&
-    typeof candidate.sessionId === 'string' &&
-    typeof candidate.content === 'string' &&
-    typeof candidate.retentionExpiresAt === 'string' &&
-    typeof candidate.createdAt === 'string' &&
+    typeof candidate.utteranceId === "string" &&
+    typeof candidate.sessionId === "string" &&
+    typeof candidate.content === "string" &&
+    typeof candidate.retentionExpiresAt === "string" &&
+    typeof candidate.createdAt === "string" &&
     Array.isArray(candidate.redactions) &&
     isDataClassification(candidate.classification)
   );
@@ -142,19 +149,27 @@ export function isPrivacyAnnotatedTranscript(value: unknown): value is PrivacyAn
 export type { RedactionRule };
 
 export function isPurgeCommand(value: unknown): value is PurgeCommand {
-  if (!value || typeof value !== 'object') {
+  if (!value || typeof value !== "object") {
     return false;
   }
   const candidate = value as PurgeCommand;
   return (
-    candidate.type === 'privacy.purge' &&
-    ['audio', 'transcripts', 'logs', 'all'].includes(candidate.target) &&
-    ['user-requested', 'session-timeout', 'policy-update', 'error-recovery'].includes(candidate.reason) &&
-    typeof candidate.issuedAt === 'string'
+    candidate.type === "privacy.purge" &&
+    ["audio", "transcripts", "logs", "all"].includes(candidate.target) &&
+    [
+      "user-requested",
+      "session-timeout",
+      "policy-update",
+      "error-recovery",
+    ].includes(candidate.reason) &&
+    typeof candidate.issuedAt === "string"
   );
 }
 
-export function calculateRetentionExpiry(createdAt: string, ttlSeconds: number): string {
+export function calculateRetentionExpiry(
+  createdAt: string,
+  ttlSeconds: number,
+): string {
   const base = new Date(createdAt).getTime();
   if (Number.isNaN(base) || ttlSeconds <= 0) {
     return new Date().toISOString();

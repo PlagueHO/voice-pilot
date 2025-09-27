@@ -1,17 +1,17 @@
-import { EphemeralKeyServiceImpl } from '../auth/ephemeral-key-service';
-import { ConfigurationManager } from '../config/configuration-manager';
-import { Logger } from '../core/logger';
-import { EphemeralKeyInfo } from '../types/ephemeral';
+import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
+import { ConfigurationManager } from "../config/configuration-manager";
+import { Logger } from "../core/logger";
+import { EphemeralKeyInfo } from "../types/ephemeral";
 import {
-    AudioConfiguration,
-    ConnectionConfiguration,
-    DataChannelConfiguration,
-    EphemeralAuthentication,
-    WebRTCConfig,
-    WebRTCEndpoint,
-    WebRTCErrorCode,
-    WebRTCErrorImpl
-} from '../types/webrtc';
+  AudioConfiguration,
+  ConnectionConfiguration,
+  DataChannelConfiguration,
+  EphemeralAuthentication,
+  WebRTCConfig,
+  WebRTCEndpoint,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+} from "../types/webrtc";
 
 /**
  * Factory for creating WebRTC configuration objects
@@ -21,7 +21,7 @@ export class WebRTCConfigFactory {
   private logger: Logger;
 
   constructor(logger?: Logger) {
-    this.logger = logger || new Logger('WebRTCConfigFactory');
+    this.logger = logger || new Logger("WebRTCConfigFactory");
   }
 
   /**
@@ -29,7 +29,7 @@ export class WebRTCConfigFactory {
    */
   async createConfig(
     configManager: ConfigurationManager,
-    ephemeralKeyService: EphemeralKeyServiceImpl
+    ephemeralKeyService: EphemeralKeyServiceImpl,
   ): Promise<WebRTCConfig> {
     try {
       // Get Azure OpenAI configuration
@@ -39,7 +39,10 @@ export class WebRTCConfigFactory {
       const realtimeSession = await ephemeralKeyService.createRealtimeSession();
 
       // Map Azure region to WebRTC endpoint
-      const endpoint = this.createEndpoint(azureConfig.region, azureConfig.deploymentName);
+      const endpoint = this.createEndpoint(
+        azureConfig.region,
+        azureConfig.deploymentName,
+      );
 
       // Create ephemeral authentication
       const authentication = this.createAuthentication(realtimeSession);
@@ -58,25 +61,26 @@ export class WebRTCConfigFactory {
         authentication,
         audioConfig,
         dataChannelConfig,
-        connectionConfig
+        connectionConfig,
       };
 
-      this.logger.debug('WebRTC configuration created', {
+      this.logger.debug("WebRTC configuration created", {
         endpoint: endpoint.url,
         region: endpoint.region,
-        deployment: endpoint.deployment
+        deployment: endpoint.deployment,
       });
 
       return config;
-
     } catch (error: any) {
-      this.logger.error('Failed to create WebRTC configuration', { error: error.message });
+      this.logger.error("Failed to create WebRTC configuration", {
+        error: error.message,
+      });
       throw new WebRTCErrorImpl({
         code: WebRTCErrorCode.ConfigurationInvalid,
         message: `Configuration creation failed: ${error.message}`,
         details: error,
         recoverable: false,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
   }
@@ -84,20 +88,25 @@ export class WebRTCConfigFactory {
   /**
    * Create WebRTC endpoint configuration from Azure region and deployment
    */
-  private createEndpoint(region: string, deploymentName: string): WebRTCEndpoint {
+  private createEndpoint(
+    region: string,
+    deploymentName: string,
+  ): WebRTCEndpoint {
     // Map Azure regions to supported WebRTC regions
-    const regionMapping: Record<string, 'eastus2' | 'swedencentral'> = {
-      'eastus2': 'eastus2',
-      'swedencentral': 'swedencentral',
+    const regionMapping: Record<string, "eastus2" | "swedencentral"> = {
+      eastus2: "eastus2",
+      swedencentral: "swedencentral",
       // Add fallback mappings
-      'eastus': 'eastus2',
-      'westeurope': 'swedencentral',
-      'northeurope': 'swedencentral'
+      eastus: "eastus2",
+      westeurope: "swedencentral",
+      northeurope: "swedencentral",
     };
 
     const webrtcRegion = regionMapping[region.toLowerCase()];
     if (!webrtcRegion) {
-      throw new Error(`Unsupported region for WebRTC: ${region}. Supported regions: eastus2, swedencentral`);
+      throw new Error(
+        `Unsupported region for WebRTC: ${region}. Supported regions: eastus2, swedencentral`,
+      );
     }
 
     const url = `https://${webrtcRegion}.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
@@ -105,7 +114,7 @@ export class WebRTCConfigFactory {
     return {
       region: webrtcRegion,
       url,
-      deployment: deploymentName
+      deployment: deploymentName,
     };
   }
 
@@ -119,13 +128,15 @@ export class WebRTCConfigFactory {
       issuedAt: new Date(),
       expiresAt: realtimeSession.expiresAt,
       isValid: true,
-      secondsRemaining: Math.floor((realtimeSession.expiresAt.getTime() - Date.now()) / 1000)
+      secondsRemaining: Math.floor(
+        (realtimeSession.expiresAt.getTime() - Date.now()) / 1000,
+      ),
     };
 
     return {
       ephemeralKey: realtimeSession.ephemeralKey,
       expiresAt: realtimeSession.expiresAt,
-      keyInfo
+      keyInfo,
     };
   }
 
@@ -135,11 +146,11 @@ export class WebRTCConfigFactory {
   private createAudioConfiguration(): AudioConfiguration {
     return {
       sampleRate: 24000,
-      format: 'pcm16',
+      format: "pcm16",
       channels: 1,
       echoCancellation: true,
       noiseSuppression: true,
-      autoGainControl: true
+      autoGainControl: true,
     };
   }
 
@@ -148,9 +159,9 @@ export class WebRTCConfigFactory {
    */
   private createDataChannelConfiguration(): DataChannelConfiguration {
     return {
-      channelName: 'realtime-channel',
+      channelName: "realtime-channel",
       ordered: true, // Ensure reliable event delivery
-      maxRetransmits: 3
+      maxRetransmits: 3,
     };
   }
 
@@ -160,12 +171,12 @@ export class WebRTCConfigFactory {
   private createConnectionConfiguration(): ConnectionConfiguration {
     return {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
       ],
       reconnectAttempts: 3,
       reconnectDelayMs: 1000,
-      connectionTimeoutMs: 5000
+      connectionTimeoutMs: 5000,
     };
   }
 
@@ -174,7 +185,7 @@ export class WebRTCConfigFactory {
    */
   async updateConfigWithNewKey(
     config: WebRTCConfig,
-    ephemeralKeyService: EphemeralKeyServiceImpl
+    ephemeralKeyService: EphemeralKeyServiceImpl,
   ): Promise<WebRTCConfig> {
     try {
       const realtimeSession = await ephemeralKeyService.createRealtimeSession();
@@ -182,17 +193,18 @@ export class WebRTCConfigFactory {
 
       return {
         ...config,
-        authentication: newAuthentication
+        authentication: newAuthentication,
       };
-
     } catch (error: any) {
-      this.logger.error('Failed to update configuration with new key', { error: error.message });
+      this.logger.error("Failed to update configuration with new key", {
+        error: error.message,
+      });
       throw new WebRTCErrorImpl({
         code: WebRTCErrorCode.AuthenticationFailed,
         message: `Key update failed: ${error.message}`,
         details: error,
         recoverable: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
   }
@@ -203,36 +215,50 @@ export class WebRTCConfigFactory {
   validateConfig(config: WebRTCConfig): boolean {
     try {
       // Validate endpoint
-      if (!config.endpoint || !config.endpoint.url || !config.endpoint.region || !config.endpoint.deployment) {
-        throw new Error('Invalid endpoint configuration');
+      if (
+        !config.endpoint ||
+        !config.endpoint.url ||
+        !config.endpoint.region ||
+        !config.endpoint.deployment
+      ) {
+        throw new Error("Invalid endpoint configuration");
       }
 
       // Validate authentication
-      if (!config.authentication || !config.authentication.ephemeralKey || !config.authentication.expiresAt) {
-        throw new Error('Invalid authentication configuration');
+      if (
+        !config.authentication ||
+        !config.authentication.ephemeralKey ||
+        !config.authentication.expiresAt
+      ) {
+        throw new Error("Invalid authentication configuration");
       }
 
       // Check if key is not expired
       if (new Date() >= config.authentication.expiresAt) {
-        throw new Error('Ephemeral key has expired');
+        throw new Error("Ephemeral key has expired");
       }
 
       // Validate audio configuration
-      if (!config.audioConfig || config.audioConfig.sampleRate !== 24000 || config.audioConfig.format !== 'pcm16') {
-        throw new Error('Invalid audio configuration');
+      if (
+        !config.audioConfig ||
+        config.audioConfig.sampleRate !== 24000 ||
+        config.audioConfig.format !== "pcm16"
+      ) {
+        throw new Error("Invalid audio configuration");
       }
 
       // Validate supported region
-      const supportedRegions = ['eastus2', 'swedencentral'];
+      const supportedRegions = ["eastus2", "swedencentral"];
       if (!supportedRegions.includes(config.endpoint.region)) {
         throw new Error(`Unsupported region: ${config.endpoint.region}`);
       }
 
-      this.logger.debug('WebRTC configuration validated successfully');
+      this.logger.debug("WebRTC configuration validated successfully");
       return true;
-
     } catch (error: any) {
-      this.logger.error('WebRTC configuration validation failed', { error: error.message });
+      this.logger.error("WebRTC configuration validation failed", {
+        error: error.message,
+      });
       return false;
     }
   }
@@ -242,28 +268,28 @@ export class WebRTCConfigFactory {
    */
   createTestConfig(): WebRTCConfig {
     const testAuthentication: EphemeralAuthentication = {
-      ephemeralKey: 'test-ephemeral-key',
+      ephemeralKey: "test-ephemeral-key",
       expiresAt: new Date(Date.now() + 300000), // 5 minutes
       keyInfo: {
-        key: 'test-ephemeral-key',
-        sessionId: 'test-session-id',
+        key: "test-ephemeral-key",
+        sessionId: "test-session-id",
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 300000),
         isValid: true,
-        secondsRemaining: 300
-      }
+        secondsRemaining: 300,
+      },
     };
 
     return {
       endpoint: {
-        region: 'eastus2',
-        url: 'https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc',
-        deployment: 'gpt-4o-realtime-preview'
+        region: "eastus2",
+        url: "https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc",
+        deployment: "gpt-4o-realtime-preview",
       },
       authentication: testAuthentication,
       audioConfig: this.createAudioConfiguration(),
       dataChannelConfig: this.createDataChannelConfiguration(),
-      connectionConfig: this.createConnectionConfiguration()
+      connectionConfig: this.createConnectionConfiguration(),
     };
   }
 }

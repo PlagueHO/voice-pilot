@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
-import { ServiceInitializable } from '../core/service-initializable';
-import { AuthenticationError, EphemeralKeyInfo } from './ephemeral';
+import * as vscode from "vscode";
+import { ServiceInitializable } from "../core/service-initializable";
+import { AuthenticationError, EphemeralKeyInfo } from "./ephemeral";
 
 // Session Manager Interface
 export interface SessionManager extends ServiceInitializable {
@@ -16,7 +16,10 @@ export interface SessionManager extends ServiceInitializable {
   isSessionActive(sessionId?: string): boolean;
 
   // Session configuration
-  updateSessionConfig(sessionId: string, config: Partial<SessionConfig>): Promise<void>;
+  updateSessionConfig(
+    sessionId: string,
+    config: Partial<SessionConfig>,
+  ): Promise<void>;
   getSessionConfig(sessionId: string): SessionConfig | undefined;
 
   // Event handling
@@ -66,7 +69,7 @@ export interface SessionStatistics {
 }
 
 export interface ConnectionInfo {
-  webrtcState: 'disconnected' | 'connecting' | 'connected' | 'failed';
+  webrtcState: "disconnected" | "connecting" | "connected" | "failed";
   lastConnectedAt?: Date;
   reconnectAttempts: number;
   ephemeralKeyInfo?: EphemeralKeyInfo;
@@ -84,8 +87,8 @@ export interface SessionDiagnostics {
   sessionId: string;
   state: SessionState;
   timerStatus: SessionTimerStatus;
-  credentialStatus: 'valid' | 'expired' | 'missing' | 'invalid';
-  connectionStatus: 'healthy' | 'degraded' | 'failed';
+  credentialStatus: "valid" | "expired" | "missing" | "invalid";
+  connectionStatus: "healthy" | "degraded" | "failed";
   lastError?: SessionError;
   uptime: number;
   nextScheduledEvent?: TimerEventInfo;
@@ -100,19 +103,19 @@ export interface SessionHealthResult {
 
 export interface HealthCheck {
   name: string;
-  status: 'pass' | 'fail' | 'warn';
+  status: "pass" | "fail" | "warn";
   message: string;
   details?: any;
 }
 
 export enum SessionState {
-  Idle = 'idle',
-  Starting = 'starting',
-  Active = 'active',
-  Renewing = 'renewing',
-  Paused = 'paused',
-  Ending = 'ending',
-  Failed = 'failed'
+  Idle = "idle",
+  Starting = "starting",
+  Active = "active",
+  Renewing = "renewing",
+  Paused = "paused",
+  Ending = "ending",
+  Failed = "failed",
 }
 
 export interface SessionError {
@@ -143,14 +146,14 @@ export interface SessionStateHandler {
 
 // Event Types
 export interface SessionEvent {
-  type: 'started' | 'ended';
+  type: "started" | "ended";
   sessionId: string;
   timestamp: Date;
   sessionInfo: SessionInfo;
 }
 
 export interface SessionRenewalEvent {
-  type: 'renewal-started' | 'renewal-completed' | 'renewal-failed';
+  type: "renewal-started" | "renewal-completed" | "renewal-failed";
   sessionId: string;
   timestamp: Date;
   result?: RenewalResult;
@@ -159,7 +162,11 @@ export interface SessionRenewalEvent {
 }
 
 export interface SessionErrorEvent {
-  type: 'authentication-error' | 'connection-error' | 'timeout-error' | 'renewal-error';
+  type:
+    | "authentication-error"
+    | "connection-error"
+    | "timeout-error"
+    | "renewal-error";
   sessionId: string;
   timestamp: Date;
   error: SessionError;
@@ -167,7 +174,7 @@ export interface SessionErrorEvent {
 }
 
 export interface SessionStateEvent {
-  type: 'state-changed';
+  type: "state-changed";
   sessionId: string;
   timestamp: Date;
   previousState: SessionState;
@@ -178,7 +185,7 @@ export interface SessionStateEvent {
 
 // Timer Integration Interfaces
 export interface TimerEventInfo {
-  type: 'renewal' | 'timeout' | 'heartbeat';
+  type: "renewal" | "timeout" | "heartbeat";
   sessionId: string;
   scheduledAt: Date;
   timeRemainingMs: number;

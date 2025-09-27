@@ -1,11 +1,25 @@
-import * as vscode from 'vscode';
-import { Logger } from '../core/logger';
-import { PrivacyController, RetentionRegistration } from '../services/privacy/privacy-controller';
-import { applyRedactions } from '../services/privacy/redaction-engine';
-import { DataClassification, PrivacyAnnotatedTranscript, PrivacyIndicators, PrivacyPolicySnapshot } from '../types/privacy';
-import type { RedactionRule } from '../types/speech-to-text';
-import { TranscriptClearedEvent, TranscriptDeltaEvent, TranscriptEvent, TranscriptFinalEvent, TranscriptRedoEvent } from '../types/speech-to-text';
-import { VoiceControlPanel } from '../ui/voice-control-panel';
+import * as vscode from "vscode";
+import { Logger } from "../core/logger";
+import {
+  PrivacyController,
+  RetentionRegistration,
+} from "../services/privacy/privacy-controller";
+import { applyRedactions } from "../services/privacy/redaction-engine";
+import {
+  DataClassification,
+  PrivacyAnnotatedTranscript,
+  PrivacyIndicators,
+  PrivacyPolicySnapshot,
+} from "../types/privacy";
+import type { RedactionRule } from "../types/speech-to-text";
+import {
+  TranscriptClearedEvent,
+  TranscriptDeltaEvent,
+  TranscriptEvent,
+  TranscriptFinalEvent,
+  TranscriptRedoEvent,
+} from "../types/speech-to-text";
+import { VoiceControlPanel } from "../ui/voice-control-panel";
 
 interface AggregatedTranscriptState {
   utteranceId: string;
@@ -13,33 +27,49 @@ interface AggregatedTranscriptState {
   entryId: string;
   sanitizedContent: string;
   rawContent: string;
-  classification: Extract<DataClassification, 'Sensitive' | 'Confidential'>;
+  classification: Extract<DataClassification, "Sensitive" | "Confidential">;
   confidence?: number;
   lastUpdatedAt: string;
   isFinal: boolean;
-  redactions: PrivacyAnnotatedTranscript['redactions'];
+  redactions: PrivacyAnnotatedTranscript["redactions"];
   retentionId: string;
   retentionDisposable?: vscode.Disposable;
-  purgeCallback: RetentionRegistration['purge'];
+  purgeCallback: RetentionRegistration["purge"];
   annotated?: PrivacyAnnotatedTranscript;
 }
 
 const PROFANITY_RULES: RedactionRule[] = [
-  { id: 'profanity-generic-1', pattern: /(fuck|shit|damn|bitch)/gi, replacement: '****' },
-  { id: 'profanity-generic-2', pattern: /(asshole|bastard|dick)/gi, replacement: '****' }
+  {
+    id: "profanity-generic-1",
+    pattern: /(fuck|shit|damn|bitch)/gi,
+    replacement: "****",
+  },
+  {
+    id: "profanity-generic-2",
+    pattern: /(asshole|bastard|dick)/gi,
+    replacement: "****",
+  },
 ];
 
 function buildRetentionId(sessionId: string, utteranceId: string): string {
   return `transcript:${sessionId}:${utteranceId}`;
 }
 
-function deriveIndicators(matches: PrivacyAnnotatedTranscript['redactions']): PrivacyIndicators {
-  const containsSecrets = matches.some(match => /secret|token|key|credential/i.test(match.ruleId));
-  const containsPII = matches.some(match => /pii|email|name|phone|address/i.test(match.ruleId));
+function deriveIndicators(
+  matches: PrivacyAnnotatedTranscript["redactions"],
+): PrivacyIndicators {
+  const containsSecrets = matches.some((match) =>
+    /secret|token|key|credential/i.test(match.ruleId),
+  );
+  const containsPII = matches.some((match) =>
+    /pii|email|name|phone|address/i.test(match.ruleId),
+  );
   return {
     containsPII,
     containsSecrets,
-    profanityFiltered: matches.some(match => match.ruleId.startsWith('profanity-'))
+    profanityFiltered: matches.some((match) =>
+      match.ruleId.startsWith("profanity-"),
+    ),
   };
 }
 
@@ -49,25 +79,25 @@ export class TranscriptPrivacyAggregator {
   constructor(
     private readonly voicePanel: VoiceControlPanel,
     private readonly privacyController: PrivacyController,
-    private readonly logger: Logger
+    private readonly logger: Logger,
   ) {}
 
   handle(event: TranscriptEvent): void {
     switch (event.type) {
-      case 'transcript-delta':
+      case "transcript-delta":
         this.handleDelta(event);
         break;
-      case 'transcript-final':
+      case "transcript-final":
         this.handleFinal(event);
         break;
-      case 'transcript-redo':
+      case "transcript-redo":
         this.handleRedo(event);
         break;
-      case 'transcript-cleared':
+      case "transcript-cleared":
         this.handleCleared(event);
         break;
       default:
-        this.logger.debug('Transcript aggregator received unsupported event');
+        this.logger.debug("Transcript aggregator received unsupported event");
         break;
     }
   }
@@ -82,7 +112,11 @@ export class TranscriptPrivacyAggregator {
   private handleDelta(event: TranscriptDeltaEvent): void {
     const policy = this.privacyController.getPolicySnapshot();
     const effectiveRules = this.composeRedactionRules(policy);
-    const entry = this.ensureEntry(event.sessionId, event.utteranceId, event.timestamp);
+    const entry = this.ensureEntry(
+      event.sessionId,
+      event.utteranceId,
+      event.timestamp,
+    );
 
     entry.rawContent += event.delta;
     entry.confidence = event.confidence;
@@ -102,31 +136,35 @@ export class TranscriptPrivacyAggregator {
       createdAt: event.timestamp,
       redactions: entry.redactions,
       metadata: {
-        speaker: 'user',
+        speaker: "user",
         confidence: event.confidence,
-        privacyIndicators: indicators
-      }
+        privacyIndicators: indicators,
+      },
     });
 
     entry.annotated = annotated;
 
     this.voicePanel.appendTranscript({
       entryId: entry.entryId,
-      speaker: 'user',
+      speaker: "user",
       content: annotated.content,
       timestamp: annotated.createdAt,
       confidence: event.confidence,
-      partial: true
+      partial: true,
     });
   }
 
   private handleFinal(event: TranscriptFinalEvent): void {
     const policy = this.privacyController.getPolicySnapshot();
     const effectiveRules = this.composeRedactionRules(policy);
-    const entry = this.ensureEntry(event.sessionId, event.utteranceId, event.timestamp);
+    const entry = this.ensureEntry(
+      event.sessionId,
+      event.utteranceId,
+      event.timestamp,
+    );
 
     entry.rawContent = event.content;
-    entry.classification = 'Confidential';
+    entry.classification = "Confidential";
     entry.confidence = event.confidence;
     entry.lastUpdatedAt = event.timestamp;
     entry.isFinal = true;
@@ -136,9 +174,9 @@ export class TranscriptPrivacyAggregator {
     entry.redactions = redaction.matches;
 
     this.privacyController.updateRetention(entry.retentionId, {
-      category: 'final-transcript',
+      category: "final-transcript",
       classification: entry.classification,
-      createdAt: event.timestamp
+      createdAt: event.timestamp,
     });
 
     const indicators = deriveIndicators(entry.redactions);
@@ -150,14 +188,18 @@ export class TranscriptPrivacyAggregator {
       createdAt: event.timestamp,
       redactions: entry.redactions,
       metadata: {
-        speaker: 'user',
+        speaker: "user",
         confidence: event.confidence,
-        privacyIndicators: indicators
-      }
+        privacyIndicators: indicators,
+      },
     });
 
     entry.annotated = annotated;
-    this.voicePanel.commitTranscriptEntry(entry.entryId, annotated.content, event.confidence);
+    this.voicePanel.commitTranscriptEntry(
+      entry.entryId,
+      annotated.content,
+      event.confidence,
+    );
   }
 
   private handleRedo(event: TranscriptRedoEvent): void {
@@ -185,24 +227,26 @@ export class TranscriptPrivacyAggregator {
       createdAt: event.timestamp,
       redactions: entry.redactions,
       metadata: {
-        speaker: 'user',
-        privacyIndicators: indicators
-      }
+        speaker: "user",
+        privacyIndicators: indicators,
+      },
     });
 
     entry.annotated = annotated;
 
     this.voicePanel.appendTranscript({
       entryId: entry.entryId,
-      speaker: 'user',
+      speaker: "user",
       content: annotated.content,
       timestamp: annotated.createdAt,
-      partial: true
+      partial: true,
     });
   }
 
   private handleCleared(event: TranscriptClearedEvent): void {
-    const entries = Array.from(this.transcripts.values()).filter(state => state.sessionId === event.sessionId);
+    const entries = Array.from(this.transcripts.values()).filter(
+      (state) => state.sessionId === event.sessionId,
+    );
     for (const entry of entries) {
       entry.retentionDisposable?.dispose();
       this.transcripts.delete(entry.utteranceId);
@@ -210,54 +254,64 @@ export class TranscriptPrivacyAggregator {
     }
   }
 
-  private ensureEntry(sessionId: string, utteranceId: string, createdAt: string): AggregatedTranscriptState {
+  private ensureEntry(
+    sessionId: string,
+    utteranceId: string,
+    createdAt: string,
+  ): AggregatedTranscriptState {
     const existing = this.transcripts.get(utteranceId);
     if (existing) {
       return existing;
     }
 
     const retentionId = buildRetentionId(sessionId, utteranceId);
-    const purge: RetentionRegistration['purge'] = reason => this.executePurge(utteranceId, reason);
+    const purge: RetentionRegistration["purge"] = (reason) =>
+      this.executePurge(utteranceId, reason);
     const disposable = this.privacyController.registerRetention({
       id: retentionId,
-      target: 'transcripts',
-      category: 'partial-transcript',
-      classification: 'Sensitive',
+      target: "transcripts",
+      category: "partial-transcript",
+      classification: "Sensitive",
       createdAt,
-      purge
+      purge,
     });
 
     const entry: AggregatedTranscriptState = {
       utteranceId,
       sessionId,
       entryId: utteranceId,
-      rawContent: '',
-      sanitizedContent: '',
-      classification: 'Sensitive',
+      rawContent: "",
+      sanitizedContent: "",
+      classification: "Sensitive",
       lastUpdatedAt: createdAt,
       isFinal: false,
       redactions: [],
       retentionId,
       retentionDisposable: disposable,
       purgeCallback: purge,
-      annotated: undefined
+      annotated: undefined,
     };
 
     this.transcripts.set(utteranceId, entry);
     return entry;
   }
 
-  private composeRedactionRules(policy: PrivacyPolicySnapshot): RedactionRule[] {
-    if (policy.profanityFilter === 'high') {
+  private composeRedactionRules(
+    policy: PrivacyPolicySnapshot,
+  ): RedactionRule[] {
+    if (policy.profanityFilter === "high") {
       return [...policy.redactionRules, ...PROFANITY_RULES];
     }
-    if (policy.profanityFilter === 'medium') {
+    if (policy.profanityFilter === "medium") {
       return [...policy.redactionRules, PROFANITY_RULES[0]];
     }
     return policy.redactionRules;
   }
 
-  private executePurge(utteranceId: string, reason: Parameters<RetentionRegistration['purge']>[0]): number {
+  private executePurge(
+    utteranceId: string,
+    reason: Parameters<RetentionRegistration["purge"]>[0],
+  ): number {
     const entry = this.transcripts.get(utteranceId);
     if (!entry) {
       return 0;
@@ -265,17 +319,22 @@ export class TranscriptPrivacyAggregator {
     entry.retentionDisposable?.dispose();
     this.transcripts.delete(utteranceId);
     this.voicePanel.removeTranscriptEntry(entry.entryId);
-    this.logger.debug('Transcript purged', {
+    this.logger.debug("Transcript purged", {
       utteranceId,
-      reason
+      reason,
     });
     return 1;
   }
-  getAnnotatedTranscript(utteranceId: string): PrivacyAnnotatedTranscript | undefined {
+  getAnnotatedTranscript(
+    utteranceId: string,
+  ): PrivacyAnnotatedTranscript | undefined {
     return this.transcripts.get(utteranceId)?.annotated;
   }
 
-  clearSession(sessionId: string, reason: Parameters<RetentionRegistration['purge']>[0] = 'session-timeout'): number {
+  clearSession(
+    sessionId: string,
+    reason: Parameters<RetentionRegistration["purge"]>[0] = "session-timeout",
+  ): number {
     let cleared = 0;
     for (const entry of Array.from(this.transcripts.values())) {
       if (entry.sessionId !== sessionId) {
@@ -285,5 +344,4 @@ export class TranscriptPrivacyAggregator {
     }
     return cleared;
   }
-
 }

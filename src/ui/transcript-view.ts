@@ -1,39 +1,39 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
 export class TranscriptView {
-    private panel: vscode.WebviewPanel | undefined;
-    private messages: string[] = [];
+  private panel: vscode.WebviewPanel | undefined;
+  private messages: string[] = [];
 
-    constructor() {
-        this.createPanel();
+  constructor() {
+    this.createPanel();
+  }
+
+  private createPanel() {
+    this.panel = vscode.window.createWebviewPanel(
+      "transcriptView",
+      "Transcript",
+      vscode.ViewColumn.Beside,
+      {
+        enableScripts: true,
+      },
+    );
+
+    this.panel.webview.html = this.getWebviewContent();
+
+    this.panel.onDidDispose(() => {
+      this.panel = undefined;
+    });
+  }
+
+  public updateTranscript(newMessage: string) {
+    this.messages.push(newMessage);
+    if (this.panel) {
+      this.panel.webview.html = this.getWebviewContent();
     }
+  }
 
-    private createPanel() {
-        this.panel = vscode.window.createWebviewPanel(
-            'transcriptView',
-            'Transcript',
-            vscode.ViewColumn.Beside,
-            {
-                enableScripts: true,
-            }
-        );
-
-        this.panel.webview.html = this.getWebviewContent();
-
-        this.panel.onDidDispose(() => {
-            this.panel = undefined;
-        });
-    }
-
-    public updateTranscript(newMessage: string) {
-        this.messages.push(newMessage);
-        if (this.panel) {
-            this.panel.webview.html = this.getWebviewContent();
-        }
-    }
-
-    private getWebviewContent(): string {
-        return `
+  private getWebviewContent(): string {
+    return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -48,10 +48,10 @@ export class TranscriptView {
             <body>
                 <h1>Transcript</h1>
                 <div id="transcript">
-                    ${this.messages.map(msg => `<div class="message">${msg}</div>`).join('')}
+                    ${this.messages.map((msg) => `<div class="message">${msg}</div>`).join("")}
                 </div>
             </body>
             </html>
         `;
-    }
+  }
 }

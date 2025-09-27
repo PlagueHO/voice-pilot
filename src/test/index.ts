@@ -1,5 +1,5 @@
 // Ensure TDD globals are available for tests that use suite/setup
-import './setupMochaTddShim';
+import "./setupMochaTddShim";
 
 // This file is no longer needed with @vscode/test-cli
 // The test CLI automatically discovers and runs tests

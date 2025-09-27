@@ -1,11 +1,11 @@
-import { ServiceInitializable } from '../core/service-initializable';
+import { ServiceInitializable } from "../core/service-initializable";
 
 /**
  * Enumeration of supported credential types
  */
 export enum CredentialType {
-  AzureOpenAI = 'azure-openai',
-  GitHub = 'github'
+  AzureOpenAI = "azure-openai",
+  GitHub = "github",
 }
 
 /**
@@ -68,7 +68,10 @@ export interface CredentialManager extends ServiceInitializable {
   clearGitHubToken(): Promise<void>;
 
   // Lifecycle management
-  validateCredential(type: CredentialType, value: string): Promise<CredentialValidationResult>;
+  validateCredential(
+    type: CredentialType,
+    value: string,
+  ): Promise<CredentialValidationResult>;
   listStoredCredentials(): Promise<CredentialInfo[]>;
   clearAllCredentials(): Promise<void>;
 

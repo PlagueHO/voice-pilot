@@ -1,19 +1,23 @@
-import { randomUUID } from 'crypto';
-import type { TurnEventDiagnostics } from '../types/conversation';
+import { randomUUID } from "crypto";
+import type { TurnEventDiagnostics } from "../types/conversation";
 
 export type PanelStatus =
-  | 'ready'
-  | 'listening'
-  | 'thinking'
-  | 'speaking'
-  | 'error'
-  | 'copilot-unavailable';
+  | "ready"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "error"
+  | "copilot-unavailable";
 
-export type MicrophoneStatus = 'idle' | 'capturing' | 'muted' | 'permission-denied';
+export type MicrophoneStatus =
+  | "idle"
+  | "capturing"
+  | "muted"
+  | "permission-denied";
 
 export interface TranscriptEntry {
   entryId: string;
-  speaker: 'user' | 'voicepilot' | 'copilot';
+  speaker: "user" | "voicepilot" | "copilot";
   content: string;
   timestamp: string;
   confidence?: number;
@@ -40,18 +44,18 @@ export interface VoiceControlPanelState {
   microphoneStatus: MicrophoneStatus;
   errorBanner?: UserFacingError;
   truncated?: boolean;
-  pendingAction?: 'start' | 'stop' | 'configure' | null;
+  pendingAction?: "start" | "stop" | "configure" | null;
   fallbackActive: boolean;
   diagnostics?: TurnEventDiagnostics;
 }
 
 export interface PanelInitializeMessage {
-  type: 'panel.initialize';
+  type: "panel.initialize";
   state: VoiceControlPanelState;
 }
 
 export interface SessionUpdateMessage {
-  type: 'session.update';
+  type: "session.update";
   sessionId?: string;
   status?: PanelStatus;
   statusLabel?: string;
@@ -66,33 +70,33 @@ export interface SessionUpdateMessage {
 }
 
 export interface TranscriptAppendMessage {
-  type: 'transcript.append';
+  type: "transcript.append";
   entry: TranscriptEntry;
 }
 
 export interface TranscriptCommitMessage {
-  type: 'transcript.commit';
+  type: "transcript.commit";
   entryId: string;
   content: string;
   confidence?: number;
 }
 
 export interface TranscriptTruncatedMessage {
-  type: 'transcript.truncated';
+  type: "transcript.truncated";
 }
 
 export interface TranscriptRemoveMessage {
-  type: 'transcript.remove';
+  type: "transcript.remove";
   entryId: string;
 }
 
 export interface AudioStatusMessage {
-  type: 'audio.status';
+  type: "audio.status";
   microphoneStatus: MicrophoneStatus;
 }
 
 export interface CopilotAvailabilityMessage {
-  type: 'copilot.availability';
+  type: "copilot.availability";
   available: boolean;
 }
 
@@ -107,14 +111,14 @@ export type PanelOutboundMessage =
   | CopilotAvailabilityMessage;
 
 export interface PanelActionMessage {
-  type: 'panel.action';
-  action: 'start' | 'stop' | 'configure';
+  type: "panel.action";
+  action: "start" | "stop" | "configure";
 }
 
 export interface PanelFeedbackMessage {
-  type: 'panel.feedback';
+  type: "panel.feedback";
   detail: unknown;
-  kind: 'error' | 'telemetry';
+  kind: "error" | "telemetry";
 }
 
 export type PanelInboundMessage = PanelActionMessage | PanelFeedbackMessage;
@@ -123,22 +127,24 @@ export const MAX_TRANSCRIPT_ENTRIES = 50;
 
 export function createInitialPanelState(): VoiceControlPanelState {
   return {
-    status: 'ready',
-    statusLabel: 'Ready',
+    status: "ready",
+    statusLabel: "Ready",
     transcript: [],
     copilotAvailable: true,
-    microphoneStatus: 'idle',
+    microphoneStatus: "idle",
     pendingAction: null,
-    fallbackActive: false
+    fallbackActive: false,
   };
 }
 
 export function withTranscriptAppend(
   state: VoiceControlPanelState,
-  entry: TranscriptEntry
+  entry: TranscriptEntry,
 ): { state: VoiceControlPanelState; truncated: boolean } {
   const nextEntries = [...state.transcript];
-  const existingIndex = nextEntries.findIndex(item => item.entryId === entry.entryId);
+  const existingIndex = nextEntries.findIndex(
+    (item) => item.entryId === entry.entryId,
+  );
   if (existingIndex >= 0) {
     nextEntries[existingIndex] = { ...nextEntries[existingIndex], ...entry };
   } else {
@@ -155,9 +161,9 @@ export function withTranscriptAppend(
     state: {
       ...state,
       transcript: nextEntries,
-      truncated: truncated || state.truncated
+      truncated: truncated || state.truncated,
     },
-    truncated
+    truncated,
   };
 }
 
@@ -165,22 +171,22 @@ export function withTranscriptCommit(
   state: VoiceControlPanelState,
   entryId: string,
   content: string,
-  confidence?: number
+  confidence?: number,
 ): VoiceControlPanelState {
-  const nextEntries = state.transcript.map(entry =>
+  const nextEntries = state.transcript.map((entry) =>
     entry.entryId === entryId
       ? {
           ...entry,
           content,
           confidence,
-          partial: false
+          partial: false,
         }
-      : entry
+      : entry,
   );
 
   return {
     ...state,
-    transcript: nextEntries
+    transcript: nextEntries,
   };
 }
 
@@ -200,18 +206,24 @@ export function getElapsedSeconds(start?: string): number | undefined {
 }
 
 export function isSessionActive(state: VoiceControlPanelState): boolean {
-  return Boolean(state.sessionId) && state.status !== 'ready' && state.status !== 'error';
+  return (
+    Boolean(state.sessionId) &&
+    state.status !== "ready" &&
+    state.status !== "error"
+  );
 }
 
-export function deriveMicrophoneStatusFromState(state: VoiceControlPanelState): MicrophoneStatus {
+export function deriveMicrophoneStatusFromState(
+  state: VoiceControlPanelState,
+): MicrophoneStatus {
   if (!state.sessionId) {
-    return 'idle';
+    return "idle";
   }
-  if (state.status === 'speaking') {
-    return 'muted';
+  if (state.status === "speaking") {
+    return "muted";
   }
-  if (state.status === 'error') {
+  if (state.status === "error") {
     return state.microphoneStatus;
   }
-  return 'capturing';
+  return "capturing";
 }
