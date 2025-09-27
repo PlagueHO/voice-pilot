@@ -1,5 +1,8 @@
 import type { VoicePilotError } from '../../types/error/voice-pilot-error';
 
+/**
+ * Set of case-insensitive keys that must be replaced to avoid leaking credentials or tokens.
+ */
 const REDACTION_KEYS = new Set([
 	'token',
 	'authorization',
@@ -66,6 +69,13 @@ function ensureJsonLike(value: unknown): JsonLike {
 	return (redacted ?? {}) as JsonMap;
 }
 
+/**
+ * Produces a sanitized copy of a {@link VoicePilotError} by removing or redacting sensitive metadata
+ * before it is persisted or emitted to telemetry.
+ *
+ * @param error - The error instance that may contain sensitive data.
+ * @returns A shallow clone of the error with redacted metadata and telemetry context.
+ */
 export function redactError(error: VoicePilotError): VoicePilotError {
 	return {
 		...error,
@@ -82,6 +92,12 @@ export function redactError(error: VoicePilotError): VoicePilotError {
 	};
 }
 
+/**
+ * Converts a {@link VoicePilotError} into a loggable object with ISO string timestamps and redacted fields.
+ *
+ * @param error - The sanitized or raw error that should be logged.
+ * @returns A JSON-compatible structure safe for structured logging sinks.
+ */
 export function sanitizeForLog(error: VoicePilotError): Record<string, unknown> {
 	const redacted = redactError(error);
 	const { cause, ...rest } = redacted;
@@ -104,6 +120,13 @@ export function sanitizeForLog(error: VoicePilotError): Record<string, unknown> 
 	};
 }
 
+/**
+ * Normalizes arbitrary values into serializable structures by redacting primitives and stripping
+ * unsafe object properties for resilient telemetry emission.
+ *
+ * @param input - Any value that might originate from user input, thrown errors, or service responses.
+ * @returns A JSON-safe representation with long strings truncated and functions removed.
+ */
 export function sanitizeUnknown(input: unknown): unknown {
 	if (input instanceof Error) {
 		return {

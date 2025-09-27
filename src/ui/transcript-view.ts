@@ -1,9 +1,16 @@
 import * as vscode from "vscode";
 
+/**
+ * Renders a live transcript webview beside the active editor and
+ * exposes methods for appending conversational messages.
+ */
 export class TranscriptView {
   private panel: vscode.WebviewPanel | undefined;
   private messages: string[] = [];
 
+  /**
+   * Creates the transcript view and initializes the backing webview panel.
+   */
   constructor() {
     this.createPanel();
   }
@@ -25,6 +32,11 @@ export class TranscriptView {
     });
   }
 
+  /**
+   * Appends a new message to the transcript and refreshes the webview markup.
+   *
+   * @param newMessage - The message text to display in the transcript view.
+   */
   public updateTranscript(newMessage: string) {
     this.messages.push(newMessage);
     if (this.panel) {

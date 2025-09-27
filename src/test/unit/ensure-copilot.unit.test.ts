@@ -39,6 +39,18 @@ describe('Unit: ensure-copilot helper', () => {
     assert.strictEqual(activateCalls, 1, 'Should activate inactive extension');
   });
 
+  it('returns false when activation throws', async () => {
+    (vscode as any).extensions.getExtension = () => ({
+      isActive: false,
+      activate: async () => {
+        throw new Error('activation failure');
+      },
+    });
+
+    const result = await ensureCopilotChatInstalled();
+    assert.strictEqual(result, false, 'Should return false when activation fails');
+  });
+
   it('prompts and returns false when user declines install', async () => {
     let promptShown = false;
     (vscode as any).window.showInformationMessage = (msg: string, install: string, later: string) => {

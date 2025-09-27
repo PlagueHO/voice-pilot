@@ -46,6 +46,14 @@ interface TurnStatusUpdateOptions {
   error?: UserFacingError | null;
 }
 
+/**
+ * Provides the VoicePilot control surface within the VS Code sidebar.
+ *
+ * @remarks
+ * The panel maintains its own UI state and communicates with the webview via
+ * structured messages. It queues outbound messages until the webview becomes
+ * visible to avoid race conditions during activation.
+ */
 export class VoiceControlPanel
   implements ServiceInitializable, vscode.WebviewViewProvider
 {
@@ -61,8 +69,14 @@ export class VoiceControlPanel
   private currentView?: vscode.WebviewView;
   private state: VoiceControlPanelState = createInitialPanelState();
 
+  /**
+   * Creates a new panel instance bound to the given extension context.
+   *
+   * @param context - VS Code extension context used for resource resolution and lifecycle tracking.
+   */
   constructor(private readonly context: vscode.ExtensionContext) {}
 
+  /** @inheritdoc */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -77,17 +91,10 @@ export class VoiceControlPanel
         },
       },
     );
-    try {
-      this.context.subscriptions.push(this.registration);
-    } catch (error: any) {
-      const reason = error?.message ?? String(error);
-      console.warn(
-        `VoicePilot: Extension context disposed before panel registration (${reason})`,
-      );
-    }
     this.initialized = true;
   }
 
+  /** @inheritdoc */
   dispose(): void {
     this.registration?.dispose();
     this.registration = undefined;
@@ -99,18 +106,34 @@ export class VoiceControlPanel
     this.visible = false;
   }
 
+  /**
+   * Indicates whether the panel has been registered with VS Code.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Determines whether the panel is currently visible to the user.
+   */
   isVisible(): boolean {
     return this.visible;
   }
 
+  /**
+   * Reveals the panel, optionally avoiding focus transfer.
+   *
+   * @param preserveFocus - When true, keeps the existing editor focus.
+   */
   async show(preserveFocus = false): Promise<void> {
     await this.reveal(preserveFocus);
   }
 
+  /**
+   * Reveals the view within the VoicePilot sidebar container.
+   *
+   * @param preserveFocus - When true, avoids shifting focus to the panel.
+   */
   async reveal(preserveFocus = false): Promise<void> {
     this.visible = true;
 
@@ -138,16 +161,31 @@ export class VoiceControlPanel
     }
   }
 
+  /**
+   * Registers a callback for panel-triggered actions (e.g., user clicks).
+   *
+   * @param handler - Callback invoked with the action identifier.
+   * @returns Disposable for unregistering the handler.
+   */
   onAction(handler: PanelActionHandler): vscode.Disposable {
     this.actionHandlers.add(handler);
     return new vscode.Disposable(() => this.actionHandlers.delete(handler));
   }
 
+  /**
+   * Registers a listener for feedback events emitted by the webview UI.
+   *
+   * @param handler - Callback receiving raw feedback payloads.
+   * @returns Disposable for unregistering the handler.
+   */
   onFeedback(handler: PanelFeedbackHandler): vscode.Disposable {
     this.feedbackHandlers.add(handler);
     return new vscode.Disposable(() => this.feedbackHandlers.delete(handler));
   }
 
+  /**
+   * Clears the current pending action and notifies the webview.
+   */
   acknowledgeAction(): void {
     if (!this.state.pendingAction) {
       return;
@@ -160,6 +198,11 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Applies a partial session update from the session manager.
+   *
+   * @param update - Payload describing updated session properties.
+   */
   updateSession(update: SessionUpdatePayload): void {
     const nextStatus = update.status ?? this.state.status;
     const nextLabel = update.statusLabel ?? this.deriveStatusLabel(nextStatus);
@@ -226,6 +269,12 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Updates the panel status and optional error banner.
+   *
+   * @param status - New status to display.
+   * @param error - Optional error metadata to surface.
+   */
   setStatus(status: PanelStatus, error?: UserFacingError | null): void {
     this.updateSession({
       status,
@@ -234,6 +283,11 @@ export class VoiceControlPanel
     });
   }
 
+  /**
+   * Shows or clears the persistent error banner.
+   *
+   * @param error - Error details to display; omit to clear the banner.
+   */
   setErrorBanner(error?: UserFacingError | null): void {
     const status = error
       ? "error"
@@ -253,6 +307,11 @@ export class VoiceControlPanel
     });
   }
 
+  /**
+   * Adds a transcript entry to the panel, generating identifiers as needed.
+   *
+   * @param entry - Transcript entry emitted by the conversation pipeline.
+   */
   appendTranscript(entry: TranscriptEntry): void {
     const normalizedEntry: TranscriptEntry = {
       ...entry,
@@ -278,6 +337,13 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Finalizes a transcript entry so the UI can render committed content.
+   *
+   * @param entryId - Identifier of the entry to update.
+   * @param content - Finalized transcript text.
+   * @param confidence - Optional confidence score for the entry.
+   */
   commitTranscriptEntry(
     entryId: string,
     content: string,
@@ -293,6 +359,11 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Removes a transcript entry if it exists.
+   *
+   * @param entryId - Identifier of the entry to remove.
+   */
   removeTranscriptEntry(entryId: string): void {
     if (!entryId) {
       return;
@@ -314,6 +385,11 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Sets the microphone status and broadcasts the change to the webview.
+   *
+   * @param status - New microphone status to publish.
+   */
   setMicrophoneStatus(status: MicrophoneStatus): void {
     this.state = {
       ...this.state,
@@ -323,6 +399,11 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Flags whether the Copilot backend is reachable.
+   *
+   * @param available - True when Copilot services are available.
+   */
   setCopilotAvailable(available: boolean): void {
     if (this.state.copilotAvailable === available) {
       return;
@@ -335,6 +416,12 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Toggles fallback mode visuals for degraded experiences.
+   *
+   * @param active - Indicates whether fallback mode is active.
+   * @param reason - Optional detail explaining the fallback state.
+   */
   setFallbackState(active: boolean, reason?: string): void {
     const priorMode = this.state.statusMode;
     const priorDetail = this.state.statusDetail;
@@ -362,6 +449,11 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Updates diagnostic telemetry displayed within the panel.
+   *
+   * @param diagnostics - Optional diagnostics payload; omit to clear.
+   */
   updateDiagnostics(diagnostics?: TurnEventDiagnostics | null): void {
     this.state = {
       ...this.state,
@@ -371,6 +463,12 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Presents a status label describing the current conversational turn.
+   *
+   * @param label - Human-readable label to show in the panel.
+   * @param options - Optional overrides for status metadata.
+   */
   updateTurnStatus(label: string, options: TurnStatusUpdateOptions = {}): void {
     const normalizedLabel = label?.trim() ?? this.state.statusLabel;
     const derivedStatus =
@@ -423,6 +521,11 @@ export class VoiceControlPanel
     this.flushPendingMessages();
   }
 
+  /**
+   * Called by VS Code when the webview is created or rehydrated.
+   *
+   * @param webviewView - The webview host that renders the panel UI.
+   */
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.currentView = webviewView;
     this.visible = webviewView.visible || this.visible;

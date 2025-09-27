@@ -1,13 +1,27 @@
 import * as vscode from "vscode";
 
+/**
+ * Manages the VoicePilot chat webview so messages stay in sync with the extension.
+ * @remarks
+ *  Provides a singleton-style webview panel that can be revealed or created on
+ *  demand, and exposes helpers for appending new chat messages from the
+ *  extension host.
+ */
 export class ChatPanel {
   private panel: vscode.WebviewPanel | undefined;
   private readonly extensionUri: vscode.Uri;
 
+  /**
+   * Creates an instance bound to the extension root for resource loading.
+   * @param extensionUri - Root URI used to scope webview local resources.
+   */
   constructor(extensionUri: vscode.Uri) {
     this.extensionUri = extensionUri;
   }
 
+  /**
+   * Reveals the chat panel if it exists, otherwise creates a new webview panel.
+   */
   public createOrShow() {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.One);
@@ -20,6 +34,10 @@ export class ChatPanel {
           enableScripts: true,
           localResourceRoots: [this.extensionUri],
         },
+    /**
+     * Appends a message to the chat webview if the panel is active.
+     * @param message - The text content to append in the webview transcript.
+     */
       );
 
       this.panel.webview.html = this.getWebviewContent();

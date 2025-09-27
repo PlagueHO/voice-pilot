@@ -1,6 +1,9 @@
 import { randomUUID } from "crypto";
 import type { TurnEventDiagnostics } from "../types/conversation";
 
+/**
+ * Enumerates the lifecycle states reflected in the voice control panel header.
+ */
 export type PanelStatus =
   | "ready"
   | "listening"
@@ -9,12 +12,18 @@ export type PanelStatus =
   | "error"
   | "copilot-unavailable";
 
+/**
+ * Represents the microphone capture state communicated to the UI layer.
+ */
 export type MicrophoneStatus =
   | "idle"
   | "capturing"
   | "muted"
   | "permission-denied";
 
+/**
+ * Describes a single conversational transcript entry rendered in the panel.
+ */
 export interface TranscriptEntry {
   entryId: string;
   speaker: "user" | "voicepilot" | "copilot";
@@ -24,12 +33,18 @@ export interface TranscriptEntry {
   partial?: boolean;
 }
 
+/**
+ * Structured error surface used to communicate actionable issues to users.
+ */
 export interface UserFacingError {
   code: string;
   summary: string;
   remediation?: string;
 }
 
+/**
+ * Captures the full render state required by the voice control panel webview.
+ */
 export interface VoiceControlPanelState {
   status: PanelStatus;
   statusLabel: string;
@@ -49,11 +64,17 @@ export interface VoiceControlPanelState {
   diagnostics?: TurnEventDiagnostics;
 }
 
+/**
+ * Message dispatched when the panel initializes and requests the latest state payload.
+ */
 export interface PanelInitializeMessage {
   type: "panel.initialize";
   state: VoiceControlPanelState;
 }
 
+/**
+ * Session lifecycle message emitted to keep the panel state in sync with backend services.
+ */
 export interface SessionUpdateMessage {
   type: "session.update";
   sessionId?: string;
@@ -69,11 +90,17 @@ export interface SessionUpdateMessage {
   error?: UserFacingError;
 }
 
+/**
+ * Message instructing the panel to append or update a transcript entry.
+ */
 export interface TranscriptAppendMessage {
   type: "transcript.append";
   entry: TranscriptEntry;
 }
 
+/**
+ * Message instructing the panel to commit a transcript entry with finalized content.
+ */
 export interface TranscriptCommitMessage {
   type: "transcript.commit";
   entryId: string;
@@ -81,25 +108,40 @@ export interface TranscriptCommitMessage {
   confidence?: number;
 }
 
+/**
+ * Message notifying the panel that historical transcript entries were truncated.
+ */
 export interface TranscriptTruncatedMessage {
   type: "transcript.truncated";
 }
 
+/**
+ * Message instructing the panel to remove a specific transcript entry.
+ */
 export interface TranscriptRemoveMessage {
   type: "transcript.remove";
   entryId: string;
 }
 
+/**
+ * Message communicating microphone capture status changes to the panel.
+ */
 export interface AudioStatusMessage {
   type: "audio.status";
   microphoneStatus: MicrophoneStatus;
 }
 
+/**
+ * Message broadcasting GitHub Copilot availability to the panel.
+ */
 export interface CopilotAvailabilityMessage {
   type: "copilot.availability";
   available: boolean;
 }
 
+/**
+ * Union of messages sent from the extension host to the voice control panel.
+ */
 export type PanelOutboundMessage =
   | PanelInitializeMessage
   | SessionUpdateMessage
@@ -110,21 +152,37 @@ export type PanelOutboundMessage =
   | AudioStatusMessage
   | CopilotAvailabilityMessage;
 
+/**
+ * Message emitted by the panel when a user invokes an action control.
+ */
 export interface PanelActionMessage {
   type: "panel.action";
   action: "start" | "stop" | "configure";
 }
 
+/**
+ * Message emitted by the panel for telemetry or error reporting feedback.
+ */
 export interface PanelFeedbackMessage {
   type: "panel.feedback";
   detail: unknown;
   kind: "error" | "telemetry";
 }
-
+/**
+ * Union of messages received by the extension host from the voice control panel.
+ */
 export type PanelInboundMessage = PanelActionMessage | PanelFeedbackMessage;
 
+/**
+ * Maximum number of transcript entries retained in panel memory.
+ */
 export const MAX_TRANSCRIPT_ENTRIES = 50;
 
+/**
+ * Constructs the default panel state presented when no session is active.
+ *
+ * @returns A panel state initialized with ready status and empty transcript.
+ */
 export function createInitialPanelState(): VoiceControlPanelState {
   return {
     status: "ready",
@@ -137,6 +195,13 @@ export function createInitialPanelState(): VoiceControlPanelState {
   };
 }
 
+/**
+ * Appends or merges a transcript entry while enforcing the transcript size limit.
+ *
+ * @param state - The current panel state.
+ * @param entry - The transcript entry to append or merge.
+ * @returns The updated panel state and a flag indicating whether truncation occurred.
+ */
 export function withTranscriptAppend(
   state: VoiceControlPanelState,
   entry: TranscriptEntry,
@@ -167,6 +232,15 @@ export function withTranscriptAppend(
   };
 }
 
+/**
+ * Finalizes a transcript entry by replacing partial content with the confirmed message.
+ *
+ * @param state - The existing panel state.
+ * @param entryId - The identifier of the entry to commit.
+ * @param content - The finalized transcript content.
+ * @param confidence - Optional confidence score associated with the transcript.
+ * @returns The updated panel state with the committed content.
+ */
 export function withTranscriptCommit(
   state: VoiceControlPanelState,
   entryId: string,
@@ -190,10 +264,22 @@ export function withTranscriptCommit(
   };
 }
 
+/**
+ * Ensures transcript entries have a stable identifier, generating one when absent.
+ *
+ * @param entry - The entry that may or may not include an identifier.
+ * @returns The existing entry identifier or a newly generated value.
+ */
 export function ensureEntryId(entry?: Partial<TranscriptEntry>): string {
   return entry?.entryId ?? randomUUID();
 }
 
+/**
+ * Calculates elapsed whole seconds since the provided ISO start timestamp.
+ *
+ * @param start - ISO 8601 timestamp indicating when the session began.
+ * @returns The elapsed seconds or undefined when the timestamp is invalid.
+ */
 export function getElapsedSeconds(start?: string): number | undefined {
   if (!start) {
     return undefined;
@@ -205,6 +291,12 @@ export function getElapsedSeconds(start?: string): number | undefined {
   return Math.floor((Date.now() - started) / 1000);
 }
 
+/**
+ * Determines whether the panel should treat the current session as active.
+ *
+ * @param state - The current panel state.
+ * @returns True when a session exists and the panel is not idle or in error.
+ */
 export function isSessionActive(state: VoiceControlPanelState): boolean {
   return (
     Boolean(state.sessionId) &&
@@ -213,6 +305,12 @@ export function isSessionActive(state: VoiceControlPanelState): boolean {
   );
 }
 
+/**
+ * Infers the microphone status based on panel session context.
+ *
+ * @param state - The current panel state.
+ * @returns The microphone status to reflect in the panel UI.
+ */
 export function deriveMicrophoneStatusFromState(
   state: VoiceControlPanelState,
 ): MicrophoneStatus {

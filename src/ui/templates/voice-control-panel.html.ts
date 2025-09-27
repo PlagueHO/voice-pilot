@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 import { PanelStatus, VoiceControlPanelState } from '../voice-control-state';
 
+/**
+ * Configuration options used to render the VoicePilot control panel webview.
+ * @property webview - The target VS Code webview used for resource resolution.
+ * @property extensionUri - Root URI of the extension for locating bundled assets.
+ * @property state - Current panel state used to populate dynamic content.
+ * @property nonce - CSP nonce applied to script tags for execution permission.
+ */
 interface RenderOptions {
   webview: vscode.Webview;
   extensionUri: vscode.Uri;
@@ -15,6 +22,11 @@ const CONNECT_SOURCES = [
   "wss://*.azure.com"
 ];
 
+/**
+ * Derives a human-friendly status label for a given panel lifecycle state.
+ * @param status - Current panel status value.
+ * @returns Localized label describing the status to users.
+ */
 function statusLabel(status: PanelStatus): string {
   switch (status) {
     case 'listening':
@@ -33,6 +45,11 @@ function statusLabel(status: PanelStatus): string {
   }
 }
 
+/**
+ * Formats session metadata for the status card, including start time and elapsed duration.
+ * @param state - Panel state containing session identifiers and timing data.
+ * @returns Readable session summary or a fallback when no session is active.
+ */
 function formatSessionMeta(state: VoiceControlPanelState): string {
   if (!state.sessionId) {
     return 'No active session';
@@ -42,11 +59,21 @@ function formatSessionMeta(state: VoiceControlPanelState): string {
   return `Session ${state.sessionId.slice(0, 8)} · Started ${started} · Elapsed ${elapsed}`;
 }
 
+/**
+ * Determines the primary action button label based on session activity.
+ * @param state - Panel state used to evaluate session activity and status.
+ * @returns Action label instructing the user to start or end a conversation.
+ */
 function primaryActionLabel(state: VoiceControlPanelState): string {
   const activeStatuses: PanelStatus[] = ['listening', 'thinking', 'speaking'];
   return state.sessionId && activeStatuses.includes(state.status) ? 'End Conversation' : 'Start Conversation';
 }
 
+/**
+ * Renders the complete VoicePilot control panel HTML for embedding in a webview.
+ * @param options - Context required to produce a CSP-compliant document tailored to the current state.
+ * @returns Serialized HTML template for the voice control panel.
+ */
 export function renderVoiceControlPanelHtml(options: RenderOptions): string {
   const { webview, extensionUri, state, nonce } = options;
   const mediaRoot = vscode.Uri.joinPath(extensionUri, 'media');

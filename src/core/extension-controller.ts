@@ -31,6 +31,16 @@ import { VoiceControlPanel } from "../ui/voice-control-panel";
 import { Logger } from "./logger";
 import { ServiceInitializable } from "./service-initializable";
 
+/**
+ * Coordinates VoicePilot service initialization, lifecycle management, and
+ * cross-cutting concerns such as recovery, telemetry, and UI updates.
+ *
+ * @remarks
+ * This controller is the primary entry point invoked from the VS Code
+ * extension activation pipeline. It adheres to the configuration → auth →
+ * session → UI boot order described in {@link AGENTS.md}, and surfaces
+ * recovery hooks for downstream services.
+ */
 export class ExtensionController implements ServiceInitializable {
   private initialized = false;
   private credentialManager!: CredentialManagerImpl;
@@ -50,6 +60,17 @@ export class ExtensionController implements ServiceInitializable {
   private authRecoveryPlan?: RecoveryPlan;
   private sessionRecoveryPlan?: RecoveryPlan;
 
+  /**
+   * Creates an {@link ExtensionController} with concrete service dependencies.
+   *
+   * @param context VS Code extension context used for subscriptions and secret storage.
+   * @param configurationManager Resolves and validates VoicePilot configuration sections.
+   * @param sessionManager Manages realtime conversation sessions and their lifecycle.
+   * @param voicePanel Handles sidebar UI rendering and transcript display.
+   * @param privacyController Executes privacy operations such as transcript purges.
+   * @param logger Provides structured logging utilities.
+   * @param interruptionEngine Optional override for the default interruption engine.
+   */
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly configurationManager: ConfigurationManager,
@@ -81,6 +102,16 @@ export class ExtensionController implements ServiceInitializable {
     this.errorPresenter = new ErrorPresenter(this.voicePanel, this.statusBar);
   }
 
+  /**
+   * Initializes all VoicePilot services in dependency order and registers
+   * command handlers.
+   *
+   * @remarks
+   * The boot sequence matches the guidance from {@link AGENTS.md}:
+   * configuration → authentication → session → UI. If initialization fails,
+   * previously started services are disposed and the error is rethrown so the
+   * extension host can surface a fatal activation failure.
+   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -243,10 +274,18 @@ export class ExtensionController implements ServiceInitializable {
     list.push({ name, dispose: disposeFn });
   }
 
+  /**
+   * Indicates whether {@link initialize} has completed successfully.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Disposes all managed services and clears registered VS Code disposables.
+   * The shutdown order is the reverse of initialization to honour service
+   * dependencies.
+   */
   dispose(): void {
     const steps: Array<[string, () => void]> = [
       ["controller observers", () => this.disposeControllerDisposables()],
@@ -314,28 +353,49 @@ export class ExtensionController implements ServiceInitializable {
       }),
     );
 
-    this.safeContextPush(...disposables);
     this.controllerDisposables.push(...disposables);
   }
 
+  /**
+   * Provides access to the active configuration manager for downstream
+   * components that require validated settings.
+   */
   getConfigurationManager(): ConfigurationManager {
     return this.configurationManager;
   }
+  /**
+   * Returns the credential manager handling Azure identity storage and token flows.
+   */
   getCredentialManager(): CredentialManagerImpl {
     return this.credentialManager;
   }
+  /**
+   * Supplies the session manager responsible for realtime conversation orchestration.
+   */
   getSessionManager(): SessionManagerImpl {
     return this.sessionManager;
   }
+  /**
+   * Retrieves the ephemeral key service used for Azure OpenAI session authentication.
+   */
   getEphemeralKeyService(): EphemeralKeyServiceImpl {
     return this.ephemeralKeyService;
   }
+  /**
+   * Exposes the voice control panel for UI integrations that need to trigger renders.
+   */
   getVoiceControlPanel(): VoiceControlPanel {
     return this.voicePanel;
   }
+  /**
+   * Returns the interruption engine handling barge-in policies and fallbacks.
+   */
   getInterruptionEngine(): InterruptionEngineImpl {
     return this.interruptionEngine;
   }
+  /**
+   * Provides the privacy controller responsible for transcript sanitisation and purges.
+   */
   getPrivacyController(): PrivacyController {
     return this.privacyController;
   }
@@ -641,7 +701,6 @@ export class ExtensionController implements ServiceInitializable {
       this.voicePanel.updateDiagnostics(event.diagnostics);
     });
 
-    this.safeContextPush(configDisposable, eventDisposable);
     this.controllerDisposables.push(configDisposable, eventDisposable);
 
     void vscode.commands
@@ -668,19 +727,6 @@ export class ExtensionController implements ServiceInitializable {
           error: error?.message ?? error,
         });
       }
-    }
-  }
-
-  private safeContextPush(...disposables: vscode.Disposable[]): void {
-    try {
-      this.context.subscriptions.push(...disposables);
-    } catch (error: any) {
-      this.logger.warn(
-        "Context subscriptions already disposed; skipping registration",
-        {
-          error: error?.message ?? error,
-        },
-      );
     }
   }
 
