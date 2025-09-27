@@ -2,7 +2,7 @@
 title: Text-to-Speech Output Service
 version: 1.0
 date_created: 2025-09-26
-last_updated: 2025-09-26
+last_updated: 2025-09-27
 owner: VoicePilot Project
 tags: [tool, audio, tts, azure, realtime]
 ---
@@ -28,7 +28,7 @@ This specification establishes the requirements and interfaces for converting ge
 - Core extension lifecycle satisfies SP-001 requirements.
 - Microphone capture and input pipeline follow SP-007 architecture.
 - WebRTC transport (SP-006) or WebSocket fallback already established.
-- VS Code webview can play PCM16 audio via Web Audio API.
+- VS Code webview reuses the shared Web Audio API 1.1 `AudioContext` (default render quantum size 128 frames) provisioned by SP-007 for both capture and playback; TTS MUST NOT allocate additional contexts.
 - GitHub Copilot integration may deliver long-form text requiring chunked rendering.
 
 ## 2. Definitions
@@ -54,6 +54,8 @@ This specification establishes the requirements and interfaces for converting ge
 - **REQ-008**: The service SHALL provide audio-level metrics for playback to support UI visualizations and diagnostics.
 - **REQ-009**: The service SHALL send an initial `session.update` configuring `modalities: ["text","audio"]`, selected voice, `output_audio_format: "pcm16"`, and any turn detection settings before creating audio responses.
 - **REQ-010**: The service SHALL default to Azure Realtime API version `2025-04-01-preview`, unless a newer supported version is explicitly configured.
+- **REQ-011**: The service SHALL consume the shared Web Audio API 1.1 `AudioContext`, validating `audioContext.renderQuantumSize` remains 128 frames (or another negotiated size agreed with SP-007) before starting playback, and SHALL avoid creating additional contexts.
+- **REQ-012**: The playback pipeline SHALL stream audio through Web Audio API 1.1 `AudioWorkletNode` processors and SHALL NOT instantiate deprecated `ScriptProcessorNode` objects.
 - **SEC-001**: Ephemeral credentials SHALL be used for initiating synthesis sessions; long-lived keys SHALL NOT be exposed to the webview.
 - **SEC-002**: Audio output buffers SHALL be cleared from memory after playback or cancellation to avoid accidental reuse.
 - **CON-001**: Playback MUST operate entirely within the webview context; no Node.js audio APIs are permitted due to VS Code sandboxing.
@@ -63,6 +65,7 @@ This specification establishes the requirements and interfaces for converting ge
 - **GUD-002**: Apply harmonic smoothing to avoid audible clicks when splitting or resuming playback.
 - **GUD-003**: Emit structured telemetry (if enabled) using anonymized playback metrics only; never log raw audio data.
 - **GUD-004**: Align audible cues with UI states described in `docs/design/UI.md`, including thinking and interruption transitions.
+- **GUD-005**: Preload and share AudioWorklet processor modules during initialization so render quanta stay synchronized across capture and playback paths.
 - **PAT-001**: Use Observer pattern for state updates to interested UI and session components.
 - **PAT-002**: Use Command pattern for playback control requests (start, pause, resume, stop) originating from host commands or voice triggers.
 - **PAT-003**: Apply Circuit Breaker pattern for Azure synthesis calls to throttle repeated failures and trigger degraded mode.
@@ -95,6 +98,8 @@ export interface TtsServiceConfig {
   defaultVoice: TtsVoiceProfile;
   fallbackMode: 'text-only' | 'retry';
   maxInitialLatencyMs: number;
+  audioContext: BaseAudioContext; // Shared Web Audio API 1.1 context from SP-007
+  expectedRenderQuantumSize?: number; // Defaults to 128 frames (Web Audio API 1.1)
 }
 
 export interface TtsSpeakRequest {
@@ -154,12 +159,14 @@ interface TtsError {
 
 ```typescript
 export interface PlaybackPipeline {
+  attachAudioContext(context: BaseAudioContext): Promise<void>;
   prime(): Promise<void>;
   enqueue(chunk: ArrayBuffer, metadata: ChunkMetadata): Promise<void>;
   fadeOut(durationMs: number): Promise<void>;
   flush(): Promise<void>;
   getBufferedDuration(): number;
   onStateChange(callback: (state: PlaybackState) => void): Disposable;
+  getRenderQuantumSize(): number;
 }
 
 export interface ChunkMetadata {
@@ -228,6 +235,8 @@ export interface PlaybackState {
 
 > Voice selections become immutable after the session streams audio, so any subsequent voice change MUST initialize a new session before issuing another `response.create`. This update MUST succeed before requesting audio output to guarantee PCM16 delivery and caption deltas.
 
+> Playback pipelines attach to the shared Web Audio API 1.1 `AudioContext` before priming so AudioWorklet processors load exactly once and render quantum telemetry can be surfaced to diagnostics.
+
 ## 5. Acceptance Criteria
 
 - **AC-001**: Given a synthesized response, When the first audio chunk arrives, Then playback begins within 300 ms and the UI status changes to “Speaking”.
@@ -237,6 +246,7 @@ export interface PlaybackState {
 - **AC-005**: Given captions are enabled, When audio is played, Then transcript deltas are emitted within 150 ms of each audio chunk for caption rendering.
 - **AC-006**: Given a conversation session restarts, When `initialize()` is invoked again, Then all previous playback resources are disposed and no residual audio remains.
 - **AC-007**: Given no API version override is provided, When the service initializes, Then it uses Azure Realtime API version `2025-04-01-preview`.
+- **AC-008**: Given playback is active, When diagnostics run, Then telemetry confirms only the shared Web Audio API 1.1 `AudioContext` is in use and that `renderQuantumSize` matches the configured expectation (default 128).
 
 ## 6. Test Automation Strategy
 
@@ -250,6 +260,7 @@ export interface PlaybackState {
 - **Coverage Requirements**: ≥90% branch coverage on playback state machine, 100% coverage on interruption handling paths.
 - **Performance Testing**: Add `npm run test:perf` probe measuring synthesis-to-playback latency using synthetic responses; fail build if average latency exceeds 350 ms.
 - **Accessibility Testing**: Automated check ensuring captions events fire when accessibility flag is enabled, and manual screen reader validation before release.
+- **Web Audio Compliance Testing**: Assert that the playback pipeline attaches to the shared `AudioContext`, loads AudioWorklet processors, and reports a consistent render quantum size without creating additional contexts.
 
 ## 7. Rationale & Context
 
@@ -281,6 +292,7 @@ Streaming TTS is essential to VoicePilot’s conversational UX, enabling full-du
 
 - **PLT-001**: VS Code webview runtime with Web Audio API support.
 - **PLT-002**: WebRTC transport layer (SP-006) or OpenAI realtime WebSocket fallback in environments lacking WebRTC.
+- **PLT-003**: Web Audio API 1.1 runtime (Chromium) – Provides the shared `AudioContext`, `AudioWorklet`, and render quantum guarantees consumed by capture and playback services.
 
 ### Compliance Dependencies
 
@@ -290,6 +302,10 @@ Streaming TTS is essential to VoicePilot’s conversational UX, enabling full-du
 ## 9. Examples & Edge Cases
 
 ```typescript
+const audioContext = capturePipeline.getSharedAudioContext(); // Provided by SP-007
+await playbackPipeline.attachAudioContext(audioContext);
+await playbackPipeline.prime();
+
 const ttsService = container.resolve<TextToSpeechService>('TextToSpeechService');
 
 await ttsService.initialize({
@@ -304,7 +320,9 @@ await ttsService.initialize({
     gender: 'unspecified'
   },
   fallbackMode: 'text-only',
-  maxInitialLatencyMs: 300
+  maxInitialLatencyMs: 300,
+  audioContext,
+  expectedRenderQuantumSize: audioContext.renderQuantumSize ?? 128
 });
 
 ttsService.onPlaybackEvent((event) => {
@@ -358,6 +376,7 @@ try {
 - Accessibility review confirms captions and controls operate with keyboard and screen readers.
 - Degraded mode notifications appear whenever Azure synthesis is unreachable for more than 2 retries.
 - Configuration validation enforces `apiVersion = '2025-04-01-preview'` when not explicitly overridden and verifies the initial `session.update` payload includes `modalities`, `voice`, and `output_audio_format: "pcm16"`.
+- Web Audio validation confirms the playback pipeline is attached to the shared `AudioContext`, reports the expected render quantum size, and uses AudioWorklet processors exclusively.
 
 ## 11. Related Specifications / Further Reading
 
@@ -368,3 +387,4 @@ try {
 - [VoicePilot Extension UI Design](../docs/design/UI.md)
 - [VoicePilot Extension Components Design](../docs/design/COMPONENTS.md)
 - Azure OpenAI GPT Realtime API documentation
+- [Web Audio API 1.1 Specification](https://webaudio.github.io/web-audio-api/)

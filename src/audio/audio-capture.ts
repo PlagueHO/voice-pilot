@@ -35,8 +35,6 @@ const DEFAULT_PROCESSING_CONFIG: AudioProcessingConfig = {
   analysisIntervalMs: 100,
 };
 
-const PCM_SCALE = 0x7fff;
-
 type EventHandlerSet = Set<AudioCaptureEventHandler>;
 
 /**
@@ -68,6 +66,12 @@ export class AudioCapture implements AudioCapturePipeline {
 
   private onErrorCallback?: (error: Error) => void;
 
+  /**
+   * Creates a new audio capture pipeline instance.
+   *
+   * @param config - Optional capture configuration overrides applied to the defaults.
+   * @param logger - Optional logger instance; if omitted a scoped logger is created.
+   */
   constructor(config: Partial<AudioCaptureConfig> = {}, logger?: Logger) {
     this.logger = logger || new Logger("AudioCapture");
     this.processingChain = new WebAudioProcessingChain(this.logger);
@@ -76,6 +80,13 @@ export class AudioCapture implements AudioCapturePipeline {
     this.processingConfig = { ...DEFAULT_PROCESSING_CONFIG };
   }
 
+  /**
+   * Initializes browser audio capture by validating device APIs and applying configuration overrides.
+   *
+   * @param config - Optional capture configuration overrides applied at initialization time.
+   * @param processingConfig - Optional processing configuration overrides for the audio chain.
+   * @throws {Error} When media device APIs are unavailable in the current environment.
+   */
   async initialize(
     config?: Partial<AudioCaptureConfig>,
     processingConfig?: Partial<AudioProcessingConfig>,
@@ -102,10 +113,20 @@ export class AudioCapture implements AudioCapturePipeline {
     });
   }
 
+  /**
+   * Indicates whether initialization has completed successfully.
+   *
+   * @returns True when the capture pipeline has been initialized.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Starts microphone capture and processing, emitting audio data and metrics events.
+   *
+   * @throws {Error | AudioProcessingError} When device validation, stream acquisition, or graph setup fails.
+   */
   async startCapture(): Promise<void> {
     if (!this.initialized) {
       throw new Error("Audio capture not initialized");
@@ -145,7 +166,7 @@ export class AudioCapture implements AudioCapturePipeline {
       this.track = stream.getAudioTracks()[0] ?? null;
       this.processingGraph = graph;
 
-      this.registerProcessorCallback();
+  this.registerWorkletMessageHandler();
       await this.updateLatencyMetric();
       this.startMetricsMonitor();
 
@@ -183,6 +204,9 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Stops microphone capture and tears down active processing resources.
+   */
   async stopCapture(): Promise<void> {
     if (!this.isCapturing) {
       return;
@@ -211,14 +235,31 @@ export class AudioCapture implements AudioCapturePipeline {
     this.logger.info("Audio capture stopped");
   }
 
+  /**
+   * Retrieves the active media stream associated with the capture pipeline, if any.
+   *
+   * @returns The current `MediaStream` when capture is active; otherwise `null`.
+   */
   getCaptureStream(): MediaStream | null {
     return this.stream;
   }
 
+  /**
+   * Retrieves the active media stream track associated with the capture pipeline, if any.
+   *
+   * @returns The current `MediaStreamTrack` when capture is active; otherwise `null`.
+   */
   getCaptureTrack(): MediaStreamTrack | null {
     return this.track;
   }
 
+  /**
+   * Replaces the currently active capture track with a new device while keeping capture active.
+   *
+   * @param deviceId - Identifier of the desired audio input device.
+   * @returns The new `MediaStreamTrack` sourced from the requested device.
+   * @throws {Error | AudioProcessingError} When device validation fails or the new stream cannot be established.
+   */
   async replaceCaptureTrack(deviceId: string): Promise<MediaStreamTrack> {
     let candidateStream: MediaStream | null = null;
     let candidateTrack: MediaStreamTrack | null = null;
@@ -269,7 +310,7 @@ export class AudioCapture implements AudioCapturePipeline {
       this.track = candidateTrack;
       this.processingGraph = candidateGraph;
 
-      this.registerProcessorCallback();
+  this.registerWorkletMessageHandler();
       await this.updateLatencyMetric();
       this.startMetricsMonitor();
 
@@ -305,6 +346,11 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Updates the capture configuration and restarts capture if it is currently active.
+   *
+   * @param config - Partial capture configuration overrides to merge with existing settings.
+   */
   async updateCaptureConfig(
     config: Partial<AudioCaptureConfig>,
   ): Promise<void> {
@@ -315,6 +361,11 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Applies new processing configuration values to the active audio processing graph.
+   *
+   * @param config - Partial processing configuration overrides to apply.
+   */
   async updateProcessingConfig(
     config: Partial<AudioProcessingConfig>,
   ): Promise<void> {
@@ -328,18 +379,39 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Runs validation checks for a given audio input device identifier.
+   *
+   * @param deviceId - The identifier of the device to validate.
+   * @returns Validation details indicating whether the device can be used.
+   */
   async validateAudioDevice(deviceId: string): Promise<DeviceValidationResult> {
     return this.deviceValidator.validateDevice(deviceId);
   }
 
+  /**
+   * Returns the most recent audio metrics collected from the processing chain.
+   *
+   * @returns Aggregated audio metrics including level, peak, RMS, and latency data.
+   */
   getAudioMetrics(): AudioMetrics {
     return this.metrics;
   }
 
+  /**
+   * Returns the current input audio level in the range `[0, 1]`.
+   *
+   * @returns Normalized input level derived from the latest metrics.
+   */
   getAudioLevel(): number {
     return this.metrics.inputLevel;
   }
 
+  /**
+   * Performs a voice activity detection check using the latest audio metrics.
+   *
+   * @returns Voice activity detection result including confidence and threshold data.
+   */
   async detectVoiceActivity(): Promise<VoiceActivityResult> {
     const threshold = Math.min(
       Math.max(this.processingConfig.voiceActivitySensitivity, 0.05),
@@ -355,6 +427,14 @@ export class AudioCapture implements AudioCapturePipeline {
     };
   }
 
+  /**
+   * Adds an event handler for a capture pipeline event type.
+   *
+   * @typeParam TEvent - The specific event shape tied to the subscribed type.
+   * @param type - The event type to subscribe to.
+   * @param handler - Callback invoked when the event is emitted.
+   * @returns void.
+   */
   addEventListener<TEvent extends AudioCapturePipelineEvent>(
     type: TEvent["type"],
     handler: AudioCaptureEventHandler<TEvent>,
@@ -364,6 +444,14 @@ export class AudioCapture implements AudioCapturePipeline {
     this.listeners.set(type, handlers);
   }
 
+  /**
+   * Removes a previously registered event handler for a specific event type.
+   *
+   * @typeParam TEvent - The specific event shape tied to the subscribed type.
+   * @param type - The event type to unsubscribe from.
+   * @param handler - Callback reference to remove.
+   * @returns void.
+   */
   removeEventListener<TEvent extends AudioCapturePipelineEvent>(
     type: TEvent["type"],
     handler: AudioCaptureEventHandler<TEvent>,
@@ -375,18 +463,36 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Registers a callback to receive raw PCM audio buffers captured by the pipeline.
+   *
+   * @param callback - Function invoked with PCM16 audio buffers.
+   */
   onAudioData(callback: (audioData: Buffer) => void): void {
     this.audioDataCallbacks.add(callback);
   }
 
+  /**
+   * Registers a callback invoked when unrecoverable errors occur within the capture pipeline.
+   *
+   * @param callback - Error handler receiving the surfaced error.
+   */
   onError(callback: (error: Error) => void): void {
     this.onErrorCallback = callback;
   }
 
+  /**
+   * Indicates whether audio capture is currently active.
+   *
+   * @returns True when the capture pipeline is running.
+   */
   isCaptureActive(): boolean {
     return this.isCapturing;
   }
 
+  /**
+   * Releases internal resources, stops capture, and clears handlers.
+   */
   dispose(): void {
     void this.stopCapture();
     this.listeners.clear();
@@ -415,30 +521,45 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
-  private registerProcessorCallback(): void {
+  private registerWorkletMessageHandler(): void {
     if (!this.processingGraph) {
       return;
     }
 
-    const processorNode = this.processingGraph.destination as
-      | ScriptProcessorNode
-      | undefined;
-    if (!processorNode) {
-      this.logger.warn(
-        "Audio processing graph does not include a processor node",
-      );
+    const workletNode = this.processingGraph.workletNode;
+    if (!workletNode) {
+      this.logger.warn("Audio processing graph missing worklet node");
       return;
     }
 
-    processorNode.onaudioprocess = (event) => {
+    workletNode.port.onmessage = (event) => {
       if (!this.isCapturing) {
         return;
       }
 
-      const inputBuffer = event.inputBuffer;
-      const channelData = inputBuffer.getChannelData(0);
-      const pcm = this.float32ToPCM16(channelData);
-      this.notifyAudioCallbacks(pcm);
+      const payload = event.data;
+      if (payload instanceof ArrayBuffer) {
+        const pcmBuffer = Buffer.from(new Uint8Array(payload));
+        this.notifyAudioCallbacks(pcmBuffer);
+        return;
+      }
+
+      if (payload && (payload as { buffer?: ArrayBuffer }).buffer) {
+        const bufferPayload = (payload as { buffer: ArrayBuffer }).buffer;
+        const pcmBuffer = Buffer.from(new Uint8Array(bufferPayload));
+        this.notifyAudioCallbacks(pcmBuffer);
+        return;
+      }
+
+      this.logger.warn("Received unexpected payload from audio worklet", {
+        type: typeof payload,
+      });
+    };
+
+    workletNode.port.onmessageerror = (event) => {
+      this.logger.error("Audio worklet port encountered a message error", {
+        error: event,
+      });
     };
   }
 
@@ -523,15 +644,6 @@ export class AudioCapture implements AudioCapturePipeline {
     if (wasCapturing) {
       await this.startCapture();
     }
-  }
-
-  private float32ToPCM16(data: Float32Array): Buffer {
-    const buffer = Buffer.allocUnsafe(data.length * 2);
-    for (let i = 0; i < data.length; i++) {
-      const clipped = Math.max(-1, Math.min(1, data[i]));
-      buffer.writeInt16LE(clipped * PCM_SCALE, i * 2);
-    }
-    return buffer;
   }
 
   private emitEvent<TType extends AudioCapturePipelineEvent["type"]>(

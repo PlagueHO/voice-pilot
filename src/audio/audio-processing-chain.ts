@@ -13,6 +13,10 @@ import {
   estimateSnr,
   mergeMetrics,
 } from "./audio-metrics";
+import {
+  ensurePcmEncoderWorklet,
+  PCM_ENCODER_WORKLET_NAME,
+} from "./worklets/pcm-encoder-worklet";
 
 interface MetricsState {
   totalFrames: number;
@@ -49,7 +53,6 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       const source = context.createMediaStreamSource(stream);
       const gainNode = context.createGain();
       const analyserNode = context.createAnalyser();
-      const processorNode = context.createScriptProcessor(4096, 1, 1);
 
       analyserNode.fftSize = 2048;
       analyserNode.smoothingTimeConstant = 0.8;
@@ -60,19 +63,23 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
 
       source.connect(gainNode);
       gainNode.connect(analyserNode);
-      analyserNode.connect(processorNode);
 
-      const silentGain = context.createGain();
-      silentGain.gain.value = 0;
-      processorNode.connect(silentGain);
-      silentGain.connect(context.destination);
+      await ensurePcmEncoderWorklet(context);
+      const workletNode = new AudioWorkletNode(context, PCM_ENCODER_WORKLET_NAME, {
+        numberOfInputs: 1,
+        numberOfOutputs: 0,
+        channelCountMode: "explicit",
+        channelInterpretation: "speakers",
+      });
+
+      analyserNode.connect(workletNode);
 
       const graph: AudioProcessingGraph = {
         context,
         source,
         gainNode,
         analyserNode,
-        destination: processorNode,
+        workletNode,
       };
 
       this.metricsState.set(graph, {
@@ -147,7 +154,16 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       graph.source.disconnect();
       graph.gainNode.disconnect();
       graph.analyserNode.disconnect();
-      graph.destination?.disconnect();
+      graph.workletNode.disconnect();
+      graph.workletNode.port.onmessage = null;
+      graph.workletNode.port.onmessageerror = null;
+      try {
+        graph.workletNode.port.close();
+      } catch (closeError: any) {
+        this.logger.debug("Audio worklet port close failed", {
+          error: closeError?.message,
+        });
+      }
     } catch (error: any) {
       this.logger.warn("Failed to fully disconnect processing graph", {
         error: error?.message,

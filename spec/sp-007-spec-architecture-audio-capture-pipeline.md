@@ -13,7 +13,7 @@ This specification defines the Audio Capture Pipeline architecture for VoicePilo
 
 This specification defines the audio capture pipeline requirements for VoicePilot, covering:
 
-- Microphone access and permission management through Web Audio API in VS Code webview context
+- Microphone access and permission management through Web Audio API 1.1 in VS Code webview context
 - Real-time audio processing including noise reduction, echo cancellation, and gain control
 - Audio format conversion for Azure OpenAI Realtime API compatibility (PCM16, 24kHz)
 - Audio track management for WebRTC communication and stream coordination
@@ -25,7 +25,7 @@ This specification defines the audio capture pipeline requirements for VoicePilo
 
 **Assumptions**:
 
-- VS Code webview context with Web Audio API access for microphone capture
+- VS Code webview context with Web Audio API 1.1 compliant access for microphone capture, including availability of `AudioContext`, `MediaStreamAudioSourceNode`, and `AudioWorklet` primitives
 - Understanding of audio processing concepts (sample rates, noise reduction, echo cancellation)
 - Familiarity with WebRTC MediaStream and MediaStreamTrack APIs
 - Knowledge of Azure OpenAI Realtime API audio format requirements (PCM16)
@@ -56,6 +56,7 @@ This specification defines the audio capture pipeline requirements for VoicePilo
 - **REQ-004**: Audio output SHALL be formatted as PCM16 for Azure OpenAI Realtime API compatibility
 - **REQ-005**: Pipeline SHALL provide real-time audio level monitoring for UI feedback
 - **REQ-006**: Audio capture SHALL support graceful degradation when microphone access is denied
+- **REQ-007**: Audio capture SHALL run within a singleton Web Audio API 1.1 `AudioContext` configured with `latencyHint: 'interactive'` and `sampleRate` harmonized with the WebRTC transport (SP-006) to guarantee consistent render quantum sizing
 
 ### Audio Processing Requirements
 
@@ -65,6 +66,7 @@ This specification defines the audio capture pipeline requirements for VoicePilo
 - **AUD-004**: Audio processing SHALL not introduce latency exceeding 50ms
 - **AUD-005**: Pipeline SHALL detect and handle audio processing errors gracefully
 - **AUD-006**: Buffer management SHALL prevent audio dropouts during continuous recording
+- **AUD-007**: Audio processing SHALL use Web Audio API 1.1 constructs (`AudioWorkletNode`, `AudioParam`, `AnalyserNode`) and SHALL NOT rely on deprecated `ScriptProcessorNode`
 
 ### WebRTC Integration Requirements
 
@@ -106,10 +108,11 @@ This specification defines the audio capture pipeline requirements for VoicePilo
 
 ### Integration Guidelines
 
-- **GUD-001**: Use Web Audio API best practices for cross-browser compatibility
+- **GUD-001**: Use Web Audio API 1.1 best practices for cross-browser compatibility
 - **GUD-002**: Implement proper resource cleanup to prevent memory leaks
 - **GUD-003**: Provide comprehensive event system for pipeline state notifications
 - **GUD-004**: Follow VS Code webview security model for media access
+- **GUD-005**: Align processing graphs with Web Audio API 1.1 recommendations: reuse a single `AudioContext`, respect `renderQuantumSize` guidance, and avoid deprecated nodes
 
 ### Architecture Patterns
 
@@ -128,6 +131,9 @@ interface AudioCapturePipeline extends ServiceInitializable {
   startCapture(): Promise<void>;
   stopCapture(): void;
   isCapturing(): boolean;
+
+  // Audio context access
+  getAudioContext(): AudioContext; // Returns the shared Web Audio API 1.1 context
 
   // Audio track management
   getCaptureTrack(): MediaStreamTrack | null;
@@ -155,6 +161,7 @@ interface AudioCaptureConfig {
   enableNoiseReduction: boolean;
   enableEchoCancellation: boolean;
   enableAutoGainControl: boolean;
+  workletModuleUrl?: string; // Optional AudioWorklet module resolving to Web Audio API 1.1 processor
 }
 
 interface AudioProcessingConfig {
@@ -162,6 +169,7 @@ interface AudioProcessingConfig {
   echoCancellationMode: 'browser' | 'acoustic' | 'system';
   gainControlTarget: number; // Target gain level 0.0-1.0
   voiceActivitySensitivity: number; // VAD sensitivity 0.1-1.0
+  workletModuleUrl?: string; // Optional AudioWorklet module aligned with Web Audio API 1.1
 }
 ```
 
@@ -341,6 +349,7 @@ interface DeviceValidationResult {
 - **AC-008**: Given configuration changes, When updateCaptureConfig() is called, Then audio processing adapts without capture interruption
 - **AC-009**: Given voice activity detection, When speech is detected, Then VAD event is fired with confidence level
 - **AC-010**: Given audio hardware failure, When device becomes unavailable, Then graceful fallback to default device occurs
+- **AC-011**: Given the shared audio context, When getAudioContext() is invoked, Then an active Web Audio API 1.1 `AudioContext` configured with the negotiated sample rate and `latencyHint: 'interactive'` is returned
 
 ## 6. Test Automation Strategy
 
@@ -352,12 +361,13 @@ interface DeviceValidationResult {
 - **Performance Testing**: Audio latency measurement, CPU usage monitoring, Memory leak detection for continuous processing
 - **Hardware Testing**: Multiple microphone devices, USB and Bluetooth audio interfaces, Permission denial scenarios
 - **Cross-Platform Testing**: Windows, macOS, Linux audio systems through VS Code webview contexts
+- **Compliance Testing**: Automated assertions verifying `AudioContext` state transitions (`resume`, `suspend`, `close`) and AudioWorklet module loading per Web Audio API 1.1
 
 ## 7. Rationale & Context
 
 The Audio Capture Pipeline design addresses critical requirements for conversational AI interaction:
 
-1. **Real-Time Performance**: Web Audio API provides the lowest latency audio processing available in browser context, essential for natural conversation flow.
+1. **Real-Time Performance**: Web Audio API 1.1 provides the lowest latency audio processing available in browser context, essential for natural conversation flow.
 
 2. **Quality Optimization**: Integrated noise reduction, echo cancellation, and gain control ensure high-quality voice input for accurate speech recognition.
 
@@ -376,7 +386,7 @@ The pipeline design prioritizes user experience through clear permission handlin
 ### VS Code Platform Dependencies
 
 - **PLT-001**: VS Code Webview Context - Required for Web Audio API access and microphone permissions
-- **PLT-002**: Web Audio API - Required for real-time audio processing and analysis
+- **PLT-002**: Web Audio API 1.1 - Required for real-time audio processing and analysis; authoritative source for `AudioContext`, `AudioWorklet`, and render quantum guidance
 - **PLT-003**: MediaDevices API - Required for microphone enumeration and getUserMedia() access
 
 ### Browser API Dependencies
@@ -384,7 +394,7 @@ The pipeline design prioritizes user experience through clear permission handlin
 - **BRW-001**: MediaStream API - Required for audio stream capture and track management
 - **BRW-002**: MediaStreamTrack API - Required for individual audio track control and statistics
 - **BRW-003**: MediaDevices Permissions API - Required for microphone permission management
-- **BRW-004**: AudioContext API - Required for audio processing graph and sample rate control
+- **BRW-004**: AudioContext API (Web Audio API 1.1) - Required for audio processing graph and sample rate control
 
 ### Extension Internal Dependencies
 
@@ -433,6 +443,11 @@ class AudioCapturePipeline implements ServiceInitializable {
       sampleRate: this.config.sampleRate,
       latencyHint: 'interactive'
     });
+
+    if (this.config.workletModuleUrl) {
+      await this.audioContext.audioWorklet.addModule(this.config.workletModuleUrl);
+      this.logger.info('AudioWorklet module loaded', { url: this.config.workletModuleUrl });
+    }
 
     // Request microphone permissions early
     try {
@@ -673,7 +688,7 @@ private async recreateAudioContext(): Promise<void> {
 
 ## 10. Validation Criteria
 
-- Audio capture initializes successfully with Web Audio API in VS Code webview context
+- Audio capture initializes successfully with Web Audio API 1.1 in VS Code webview context, including creation of a shared `AudioContext`
 - Microphone permissions are requested and handled gracefully with clear user guidance
 - Audio processing provides real-time level monitoring with configurable sensitivity
 - Voice activity detection accurately identifies speech vs. noise with tunable thresholds
@@ -682,6 +697,7 @@ private async recreateAudioContext(): Promise<void> {
 - Performance requirements met for continuous audio processing (CPU, memory, latency)
 - WebRTC integration provides valid MediaStreamTrack for transport layer
 - Configuration changes take effect without requiring capture restart
+- Audio capture exposes and maintains a Web Audio API 1.1 `AudioContext` whose `state` transitions (`suspended`, `running`, `closed`) follow specification lifecycle semantics
 - Cross-platform compatibility verified across Windows, macOS, and Linux
 
 ## 11. Related Specifications / Further Reading
@@ -691,7 +707,7 @@ private async recreateAudioContext(): Promise<void> {
 - [SP-008: Voice Activity Detection (VAD)](sp-008-spec-algorithm-voice-activity-detection.md)
 - [SP-011: Interruption & Turn-Taking Engine](sp-011-spec-design-interruption-management.md)
 - [SP-015: Audio Feedback & Sound Design](sp-015-spec-design-audio-feedback.md)
-- [Web Audio API Specification](https://webaudio.github.io/web-audio-api/)
+- [Web Audio API Specification (1.1 Editor’s Draft, 31 Mar 2025)](https://webaudio.github.io/web-audio-api/)
 - [MediaDevices API Documentation](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices)
 - [WebRTC MediaStreamTrack API](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack)
 - [Azure OpenAI Realtime Audio Quickstart](https://docs.microsoft.com/en-us/azure/ai-services/openai/realtime-audio)

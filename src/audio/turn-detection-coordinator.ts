@@ -119,13 +119,11 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
 
   dispose(): void {
     if (this.fallbackAdapter) {
-      void this.fallbackAdapter
-        .disable()
-        .catch((err) =>
-          this.logger.error("Failed to disable fallback adapter on dispose", {
-            error: err instanceof Error ? err.message : err,
-          }),
-        );
+      void this.fallbackAdapter.disable().catch((err) =>
+        this.logger.error("Failed to disable fallback adapter on dispose", {
+          error: err instanceof Error ? err.message : err,
+        }),
+      );
     }
     this.listeners.clear();
     this.initialized = false;
@@ -211,23 +209,19 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
 
   registerFallbackAdapter(adapter: HybridFallbackAdapter | undefined): void {
     if (this.fallbackAdapter && this.state.diagnostics.fallbackActive) {
-      void this.fallbackAdapter
-        .disable()
-        .catch((err) =>
-          this.logger.error("Failed to disable previous fallback adapter", {
-            error: err instanceof Error ? err.message : err,
-          }),
-        );
+      void this.fallbackAdapter.disable().catch((err) =>
+        this.logger.error("Failed to disable previous fallback adapter", {
+          error: err instanceof Error ? err.message : err,
+        }),
+      );
     }
     this.fallbackAdapter = adapter;
     if (this.fallbackAdapter && this.state.diagnostics.fallbackActive) {
-      void this.fallbackAdapter
-        .enable()
-        .catch((err) =>
-          this.logger.error("Failed to enable fallback adapter", {
-            error: err instanceof Error ? err.message : err,
-          }),
-        );
+      void this.fallbackAdapter.enable().catch((err) =>
+        this.logger.error("Failed to enable fallback adapter", {
+          error: err instanceof Error ? err.message : err,
+        }),
+      );
     }
   }
 

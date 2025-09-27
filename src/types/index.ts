@@ -1,3 +1,12 @@
+/**
+ * @packageDocumentation
+ * Barrel exports for the VoicePilot type system.
+ *
+ * @remarks
+ * Re-exports shared type definitions and integration contracts so consumers can
+ * import from a single module without coupling to folder structure details.
+ */
+
 export * from "./audio-capture";
 export * from "./audio-errors";
 export * from "./configuration";
@@ -21,5 +30,6 @@ export type {
   ServiceEventCoordinator,
   ServiceLifecycleCoordinator,
   SessionIntegration,
-  WebRTCServiceDependencies,
+  WebRTCServiceDependencies
 } from "./service-integration";
+

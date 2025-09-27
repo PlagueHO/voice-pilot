@@ -96,9 +96,7 @@ export class AudioDeviceValidator {
     }
   }
 
-  private async testDeviceAccess(
-    deviceId: string,
-  ): Promise<{
+  private async testDeviceAccess(deviceId: string): Promise<{
     settings: MediaTrackSettings;
     capabilities?: MediaTrackCapabilities;
   } | null> {

@@ -162,10 +162,7 @@ export class Logger {
         try {
           entry.channel.dispose();
         } catch (error) {
-          console.warn(
-            "Logger failed to dispose output channel",
-            error,
-          );
+          console.warn("Logger failed to dispose output channel", error);
         }
       }
     }
@@ -176,7 +173,10 @@ export class Logger {
     isFallback: boolean;
   } {
     try {
-      return { channel: vscode.window.createOutputChannel(name), isFallback: false };
+      return {
+        channel: vscode.window.createOutputChannel(name),
+        isFallback: false,
+      };
     } catch (error) {
       console.warn(
         "Logger failed to create output channel; defaulting to console logging",

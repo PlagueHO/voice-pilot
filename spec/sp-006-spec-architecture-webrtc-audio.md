@@ -9,7 +9,7 @@ tags: [architecture, webrtc, audio, transport, realtime]
 
 # Introduction
 
-This specification defines the WebRTC Audio Transport Layer for VoicePilot's real-time voice interaction system, enabling low-latency, full-duplex audio communication with Azure OpenAI's GPT Realtime API. The WebRTC transport layer establishes peer connections, manages SDP negotiation, handles connection recovery, and provides a robust foundation for bidirectional audio streaming in VS Code webview contexts.
+This specification defines the WebRTC Audio Transport Layer for VoicePilot's real-time voice interaction system, enabling low-latency, full-duplex audio communication with Azure OpenAI's GPT Realtime API. The WebRTC transport layer establishes peer connections, manages SDP negotiation, handles connection recovery, and provides a robust foundation for bidirectional audio streaming in VS Code webview contexts. The transport works in tandem with a Web Audio API 1.1 graph to orchestrate microphone capture, in-browser processing, and playback within the webview sandbox.
 
 ## 1. Purpose & Scope
 
@@ -21,6 +21,7 @@ This specification defines the WebRTC transport layer requirements for VoicePilo
 - Connection state management, monitoring, and automatic reconnection strategies
 - Data channel integration for real-time event messaging alongside audio transport
 - Audio stream configuration (PCM16, 24kHz) and codec negotiation with Azure endpoints
+- Audio graph orchestration using Web Audio API 1.1 (AudioContext + MediaStream nodes) to normalize capture, processing, and playback
 - Network resilience patterns including connection recovery and quality adaptation
 
 **Intended Audience**: Extension developers, audio transport architects, and WebRTC integration specialists.
@@ -30,6 +31,7 @@ This specification defines the WebRTC transport layer requirements for VoicePilo
 - EphemeralKeyService provides valid authentication tokens (SP-004 dependency)
 - Session management coordinates transport lifecycle (SP-005 dependency)
 - VS Code webview context with Web API access for WebRTC functionality
+- Web Audio API 1.1 is available in the webview context for audio graph management (AudioContext, AudioWorklet, MediaStream nodes)
 - Understanding of WebRTC fundamentals and Azure OpenAI Realtime API patterns
 - Knowledge of audio processing requirements and real-time constraints
 
@@ -45,6 +47,7 @@ This specification defines the WebRTC transport layer requirements for VoicePilo
 - **Ephemeral Authentication**: Short-lived bearer token authentication for WebRTC session security
 - **Audio Codec**: PCM16 audio encoding format for Azure OpenAI Realtime API compatibility
 - **Connection Recovery**: Automatic reconnection logic for handling network disruptions
+- **Web Audio Graph**: AudioContext-managed network of AudioNode objects defined by Web Audio API 1.1 for capture, processing, and playback in the webview
 
 ## 3. Requirements, Constraints & Guidelines
 
@@ -71,6 +74,7 @@ This specification defines the WebRTC transport layer requirements for VoicePilo
 - **AUD-003**: Remote audio streams SHALL be received and made available for playback
 - **AUD-004**: Audio quality SHALL adapt to network conditions while maintaining real-time constraints
 - **AUD-005**: Audio interruption SHALL be supported for turn-taking and response cancellation
+- **AUD-006**: Audio capture and playback SHALL be routed through a Web Audio API 1.1 AudioContext using MediaStreamAudioSourceNode, MediaStreamAudioDestinationNode, and related nodes to ensure consistent processing prior to WebRTC transmission
 
 ### Connection Management Requirements
 
@@ -119,6 +123,7 @@ This specification defines the WebRTC transport layer requirements for VoicePilo
 - **GUD-002**: Implement state machine pattern for clear connection lifecycle management
 - **GUD-003**: Provide comprehensive event system for transport state notifications
 - **GUD-004**: Support diagnostic operations for connection troubleshooting
+- **GUD-005**: Construct the audio pipeline on a Web Audio API 1.1 graph (AudioContext, AudioWorkletNode, MediaStream nodes) for normalization, effects processing, and bridging to WebRTC tracks
 
 ### Design Patterns
 
@@ -130,6 +135,8 @@ This specification defines the WebRTC transport layer requirements for VoicePilo
 ## 4. Interfaces & Data Contracts
 
 ### WebRTC Transport Interface
+
+Implementations MUST create or reuse a Web Audio API 1.1 `AudioContext` to host microphone capture, processing, and playback nodes. The context SHOULD own any `AudioWorkletNode` processors, `MediaStreamAudioSourceNode` instances that feed WebRTC tracks, and `MediaStreamAudioDestinationNode` instances that render remote audio.
 
 ```typescript
 import { EphemeralKeyInfo } from '../types/ephemeral';
@@ -183,6 +190,8 @@ interface AudioConfiguration {
   echoCancellation?: boolean;
   noiseSuppression?: boolean;
   autoGainControl?: boolean;
+  audioContextProvider: () => Promise<AudioContext>; // Provides Web Audio API 1.1 context for graph management
+  workletModuleUrls?: string[]; // Optional AudioWorklet modules for preprocessing (e.g., VAD, normalization)
 }
 
 interface DataChannelConfiguration {
@@ -393,6 +402,7 @@ interface SessionIntegration {
 
 // Integration with Audio Pipeline (SP-007 future dependency)
 interface AudioPipelineIntegration {
+  audioContext: AudioContext; // Shared Web Audio API 1.1 context used for capture/playback graph
   onAudioInputRequired: () => Promise<MediaStreamTrack>;
   onAudioOutputReceived: (stream: MediaStream) => Promise<void>;
   onAudioQualityChanged: (quality: ConnectionQuality) => Promise<void>;
@@ -411,6 +421,7 @@ interface AudioPipelineIntegration {
 - **AC-008**: Given graceful shutdown, When closeConnection() is called, Then all resources are properly cleaned up
 - **AC-009**: Given SDP negotiation failure, When connection cannot be established, Then detailed diagnostics are provided
 - **AC-010**: Given data channel failure, When audio connection remains active, Then session continues with audio-only operation
+- **AC-011**: Given active audio graph, When microphone capture and remote playback flows are initiated, Then the Web Audio API 1.1 AudioContext routes both paths through the configured processing nodes without underruns
 
 ## 6. Test Automation Strategy
 
@@ -447,6 +458,7 @@ The architecture prioritizes real-time performance while maintaining security an
 
 - **PLT-001**: VS Code Webview Context - Required for Web API access and WebRTC functionality
 - **PLT-002**: Browser WebRTC APIs - Required for peer connection establishment and media handling
+- **PLT-003**: Web Audio API 1.1 - Required for AudioContext graph management, AudioWorklet execution, and MediaStream node integration
 
 ### Extension Internal Dependencies
 
@@ -478,6 +490,7 @@ The architecture prioritizes real-time performance while maintaining security an
 - **PERF-001**: Browser Media APIs - Required for audio stream capture and playback
 - **PERF-002**: WebRTC Statistics API - Required for connection quality monitoring
 - **PERF-003**: High-Resolution Timers - Required for latency measurement and optimization
+- **PERF-004**: Web Audio API 1.1 AudioWorklet threads - Required for low-latency preprocessing such as VAD and gain normalization
 
 ### Testing Dependencies
 
@@ -710,6 +723,24 @@ class ConnectionRecoveryManager {
 class AudioTrackManager {
   private localTracks = new Set<MediaStreamTrack>();
   private remoteStreams = new Map<string, MediaStream>();
+  private audioContext: AudioContext | null = null;
+  private remoteGainNode: GainNode | null = null;
+  private workletLoaded = false;
+
+  private ensureAudioContext(): AudioContext {
+    if (!this.audioContext) {
+      this.audioContext = new AudioContext({ sampleRate: 24000, latencyHint: 'interactive' });
+      this.remoteGainNode = this.audioContext.createGain();
+      this.remoteGainNode.gain.value = 1.0;
+      this.remoteGainNode.connect(this.audioContext.destination);
+    }
+
+    if (this.audioContext.state === 'suspended') {
+      void this.audioContext.resume();
+    }
+
+    return this.audioContext;
+  }
 
   async addMicrophoneTrack(transport: WebRTCTransport, constraints?: MediaTrackConstraints): Promise<MediaStreamTrack> {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -723,27 +754,47 @@ class AudioTrackManager {
       }
     });
 
-    const audioTrack = stream.getAudioTracks()[0];
+    const originalTrack = stream.getAudioTracks()[0];
 
-    if (!audioTrack) {
+    if (!originalTrack) {
       throw new Error('Failed to obtain audio track from microphone');
     }
 
-    await transport.addAudioTrack(audioTrack);
-    this.localTracks.add(audioTrack);
+    const context = this.ensureAudioContext();
+    const sourceNode = context.createMediaStreamSource(stream);
 
-    return audioTrack;
+    if (!this.workletLoaded) {
+      try {
+        await context.audioWorklet.addModule('/worklets/voice-normalizer.js');
+        this.workletLoaded = true;
+      } catch (workletError) {
+        console.warn('AudioWorklet module optional load failure', workletError);
+      }
+    }
+
+    const destinationNode = context.createMediaStreamDestination();
+    sourceNode.connect(destinationNode);
+
+    const processedTrack = destinationNode.stream.getAudioTracks()[0] ?? originalTrack;
+
+    await transport.addAudioTrack(processedTrack);
+
+    this.localTracks.add(processedTrack);
+    this.localTracks.add(originalTrack);
+
+    return processedTrack;
   }
 
   handleRemoteStream(stream: MediaStream): void {
     const streamId = stream.id;
     this.remoteStreams.set(streamId, stream);
 
-    // Set up audio playback
-    const audioElement = document.createElement('audio');
-    audioElement.srcObject = stream;
-    audioElement.autoplay = true;
-    audioElement.muted = false;
+    const context = this.ensureAudioContext();
+    const sourceNode = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+
+    sourceNode.connect(analyser);
+    analyser.connect(this.remoteGainNode ?? context.destination);
   }
 
   async stopAllTracks(): Promise<void> {
@@ -754,11 +805,41 @@ class AudioTrackManager {
     this.localTracks.clear();
 
     // Clean up remote streams
-    for (const [streamId, stream] of this.remoteStreams) {
+    for (const [, stream] of this.remoteStreams) {
       stream.getTracks().forEach(track => track.stop());
     }
     this.remoteStreams.clear();
+
+    if (this.audioContext) {
+      await this.audioContext.close();
+      this.audioContext = null;
+      this.remoteGainNode = null;
+      this.workletLoaded = false;
+    }
   }
+}
+```
+
+### Web Audio Graph Integration with WebRTC
+
+```typescript
+async function bridgeWebrtcWithWebAudio(
+  transport: WebRTCTransport,
+  context: AudioContext,
+  remoteStream: MediaStream
+): Promise<void> {
+  const inputSource = context.createMediaStreamSource(await navigator.mediaDevices.getUserMedia({ audio: true }));
+  const normalizer = context.createGain();
+  normalizer.gain.value = 0.9;
+
+  const outboundDestination = context.createMediaStreamDestination();
+  inputSource.connect(normalizer).connect(outboundDestination);
+
+  await transport.addAudioTrack(outboundDestination.stream.getAudioTracks()[0]);
+
+  const inboundSource = context.createMediaStreamSource(remoteStream);
+  const spatializer = new PannerNode(context, { panningModel: 'HRTF' });
+  inboundSource.connect(spatializer).connect(context.destination);
 }
 ```
 
@@ -853,6 +934,7 @@ class WebRTCErrorHandler {
 - Audio tracks are properly added and transmitted in PCM16 format at 24kHz
 - Data channels deliver real-time events with sub-100ms latency
 - Connection failures trigger automatic reconnection with exponential backoff
+- Web Audio API 1.1 AudioContext graph handles microphone capture, optional AudioWorklet processing, and remote playback consistently across sessions
 - Authentication errors are properly classified and handled with session renewal
 - Connection state changes are accurately reported to session management layer
 - Resource cleanup is performed completely during graceful disconnection
@@ -869,3 +951,4 @@ class WebRTCErrorHandler {
 - [Azure OpenAI Realtime API via WebRTC](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio-webrtc)
 - [WebRTC Specification](https://www.w3.org/TR/webrtc/)
 - [Azure OpenAI Realtime Audio Quickstart](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-quickstart?tabs=keyless%2Cwindows&pivots=programming-language-typescript)
+- [Web Audio API 1.1 Specification](https://webaudio.github.io/web-audio-api/)

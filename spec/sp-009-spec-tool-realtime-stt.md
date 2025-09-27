@@ -2,7 +2,7 @@
 title: Realtime Speech-to-Text Integration
 version: 1.0
 date_created: 2025-09-25
-last_updated: 2025-09-25
+last_updated: 2025-09-27
 owner: VoicePilot Project
 tags: [tool, speech-to-text, realtime, azure-openai, transcription]
 ---
@@ -27,6 +27,7 @@ This specification covers the functional, architectural, and operational require
 
 - WebRTC transport is already established with duplex audio streams (SP-006).
 - Audio capture pipeline produces PCM16 mono audio at 24 kHz with noise reduction enabled (SP-007).
+- The webview reuses the shared Web Audio API 1.1 `AudioContext` (default render quantum size 128 frames) provided by the capture pipeline; the STT layer MUST NOT create additional contexts.
 - Session Manager (SP-005) handles ephemeral key renewals and session lifecycle events.
 - UI components consume transcript deltas and status updates for display and accessibility feedback (UI.md, COMPONENTS.md).
 - Voice Activity Detection (SP-008) will supply turn-taking hints but is not yet available; interim logic relies on Azure server VAD.
@@ -58,6 +59,7 @@ This specification covers the functional, architectural, and operational require
 - **REQ-008**: STT service SHALL trigger `response.create` after configuring the session so that Azure begins emitting transcript deltas.
 - **REQ-009**: STT service SHALL configure `input_audio_transcription.model` (default `whisper-1`), `input_audio_format`, and `turn_detection` properties in `session.update` requests so that Azure emits transcription events and handles VAD per session settings.
 - **REQ-010**: STT service SHALL ingest `session.updated`, `input_audio_buffer.speech_*`, and `conversation.item.audio_transcription.*` events to keep local state synchronized with Azure Realtime API behavior.
+- **REQ-011**: STT service SHALL reuse the shared Web Audio API 1.1 `AudioContext`, validating `audioContext.renderQuantumSize` matches the negotiated frame size (default 128) before streaming audio.
 
 ### Speech-to-Text Specific Requirements
 
@@ -72,6 +74,7 @@ This specification covers the functional, architectural, and operational require
 - **STT-009**: STT service SHALL support selecting Azure realtime model identifiers (for example, `gpt-realtime`, `gpt-4o-realtime-preview`) and API versions (for example, `2025-08-28`) supplied by configuration.
 - **STT-010**: STT service SHALL expose configuration for `turn_detection` modes (`none`, `server_vad`, `semantic_vad`) including `create_response`, thresholds, padding, and silence duration parameters.
 - **STT-011**: STT service SHALL surface `input_audio_buffer.speech_started`, `speech_stopped`, and `committed` signals to downstream consumers (UI, interruption manager) within 200 ms of receipt.
+- **STT-012**: STT service SHALL route capture frames through `AudioWorkletNode` processors (Web Audio API 1.1) instead of deprecated `ScriptProcessorNode`, ensuring custom processing executes on the audio rendering thread.
 
 ### Security Requirements
 
@@ -93,6 +96,7 @@ This specification covers the functional, architectural, and operational require
 - **GUD-002**: Use structured logging with correlation IDs matching Session Manager and WebRTC connection IDs.
 - **GUD-003**: Provide localized status strings for UI states (`Listening`, `Thinking`, `Transcribing`) aligning with UI.md accessibility guidance.
 - **GUD-004**: Implement pluggable post-processing (e.g., capitalization, filler word removal) without tight coupling to Azure responses.
+- **GUD-005**: Stage AudioWorklet modules during initialization and share them through the singleton `AudioContext` so render quanta remain synchronized and duplicate module loads are avoided.
 
 ### Patterns
 
@@ -134,6 +138,8 @@ export interface TranscriptionOptions {
   apiVersion?: string; // Azure API version (e.g., '2025-08-28')
   transcriptionModel?: string; // Azure transcription model (e.g., 'whisper-1')
   turnDetection?: TurnDetectionConfig;
+  audioContext?: BaseAudioContext; // Shared Web Audio API 1.1 context provided by capture pipeline
+  expectedRenderQuantumSize?: number; // Defaults to 128 frames per Web Audio API 1.1
 }
 
 export interface UtteranceSnapshot {
@@ -319,6 +325,7 @@ export interface RedactionMatch {
 - **AC-009**: Given large utterances (>30 seconds), When finalization occurs, Then transcript chunking preserves order and timestamps without data loss.
 - **AC-010**: Given redaction rules cleared, When transcripts are exported to intent processor, Then no residual redaction metadata leaks to UI.
 - **AC-011**: Given `server_vad` turn detection, When Azure emits `input_audio_buffer.speech_started` and `speech_stopped`, Then the STT service forwards status updates within 200 ms and schedules `response.create` if `create_response` is false.
+- **AC-012**: Given Web Audio 1.1 capture integration, When transcription starts, Then telemetry confirms a single shared `AudioContext` with render quantum size 128 and no additional contexts are created by the STT layer.
 
 ## 6. Test Automation Strategy
 
@@ -328,6 +335,7 @@ export interface RedactionMatch {
 - **CI/CD Integration**: Automated tests triggered via `Test Unit` (mocked) and optional `Test Extension` scenario using prerecorded audio. Use feature flag to avoid live Azure dependency in CI.
 - **Coverage Requirements**: ≥95% statement coverage for transcript aggregation, ≥90% branch coverage on error handling paths.
 - **Performance Testing**: Measure latency using synthetic timestamps, stress test with bursty audio frames, benchmark reconnection replay.
+- **Web Audio Compliance Testing**: Assert that `AudioWorklet` processors run with 128-frame render quanta and fail builds if additional `AudioContext` instances or `ScriptProcessorNode` usage is detected.
 - **Localization Testing**: Validate status strings and transcripts for supported locales (initially `en-US`, `en-GB`).
 - **Security Testing**: Ensure redaction and profanity filters apply before persistence or UI emission; verify no raw audio buffers leak via logs.
 - **VAD Testing**: Simulate `server_vad` and `semantic_vad` event sequences to verify speech start/stop propagation and manual `response.create` dispatch when required.
@@ -365,6 +373,7 @@ Realtime transcription is central to the VoicePilot experience because it drives
 
 - **PLT-001**: VS Code Webview (Chromium-based) – Provides WebRTC, Web Audio APIs, and messaging channel to extension host.
 - **PLT-002**: Node.js extension host – Receives transcript events for Copilot integration and logging.
+- **PLT-003**: Web Audio API 1.1 runtime (Chromium) – Supplies `AudioContext`, `AudioWorklet`, and `renderQuantumSize` contracts consumed by the capture pipeline and STT layer.
 
 ### Compliance Dependencies
 
@@ -458,6 +467,36 @@ aggregator.on('delta', (event) => {
 });
 ```
 
+### Example: Sharing AudioWorklet Capture Frames
+
+```typescript
+const audioContext = options.audioContext ?? audioCapturePipeline.getAudioContext();
+const expectedQuantum = options.expectedRenderQuantumSize ?? 128;
+
+if (audioContext.renderQuantumSize !== expectedQuantum) {
+  telemetry.warn('Render quantum mismatch', {
+    expected: expectedQuantum,
+    actual: audioContext.renderQuantumSize,
+    sessionId
+  });
+}
+
+await audioContext.audioWorklet.addModule(context.asWebviewUri(workletModule).toString());
+const captureNode = new AudioWorkletNode(audioContext, 'voicepilot-capture-router', {
+  numberOfInputs: 1,
+  numberOfOutputs: 1,
+  outputChannelCount: [1],
+  processorOptions: { sessionId }
+});
+
+audioCapturePipeline.connectToWorklet(captureNode);
+captureNode.port.onmessage = ({ data }) => {
+  if (data.type === 'render-quantum') {
+    webRtcChannel.send(data.frame); // 128-frame quanta aligned with Web Audio API 1.1
+  }
+};
+```
+
 ### Edge Case: Packet Loss & Re-synchronization
 
 ```typescript
@@ -544,6 +583,7 @@ voiceControlPanel.onUserInterrupt(() => {
 - Logging includes correlation IDs and omits sensitive content.
 - `session.update` requests set `input_audio_transcription` and `turn_detection` values that Azure acknowledges via `session.updated` events.
 - `input_audio_buffer.speech_*` and `conversation.item.audio_transcription.*` events are surfaced to consumers and drive appropriate status transitions.
+- Web Audio API 1.1 contracts hold: a singleton `AudioContext`, render quanta of 128 frames, and AudioWorklet-based processing (no `ScriptProcessorNode`).
 
 ## 11. Related Specifications / Further Reading
 
@@ -557,3 +597,4 @@ voiceControlPanel.onUserInterrupt(() => {
 - [docs/design/COMPONENTS.md](../docs/design/COMPONENTS.md)
 - [Azure OpenAI Realtime Audio Quickstart](https://learn.microsoft.com/azure/ai-foundry/openai/realtime-audio-quickstart)
 - [Azure OpenAI Realtime Event Schema](https://learn.microsoft.com/azure/ai-foundry/openai/realtime-reference)
+- [Web Audio API 1.1 Specification](https://webaudio.github.io/web-audio-api/)

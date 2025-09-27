@@ -34,10 +34,10 @@ export class ChatPanel {
           enableScripts: true,
           localResourceRoots: [this.extensionUri],
         },
-    /**
-     * Appends a message to the chat webview if the panel is active.
-     * @param message - The text content to append in the webview transcript.
-     */
+        /**
+         * Appends a message to the chat webview if the panel is active.
+         * @param message - The text content to append in the webview transcript.
+         */
       );
 
       this.panel.webview.html = this.getWebviewContent();
