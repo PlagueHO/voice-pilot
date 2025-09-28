@@ -2,15 +2,15 @@
 goal: Achieve SP-006 WebRTC transport compliance
 version: 2025-09-27
 date_created: 2025-09-27
-last_updated: 2025-09-27
+last_updated: 2025-09-28
 owner: VoicePilot Engineering
-status: In Progress
+status: Completed
 tags: [architecture, audio, realtime]
 ---
 
 # Introduction
 
-![Status: In Progress](https://img.shields.io/badge/status-In%20Progress-gold)
+![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
 Establish a staged implementation plan that upgrades the WebRTC transport stack to satisfy SP-006 requirements, covering audio graph integration, transport contract updates, recovery strategies, telemetry, automation, and documentation.
 
@@ -50,9 +50,9 @@ Establish a staged implementation plan that upgrades the WebRTC transport stack 
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-005 | Modify `src/audio/webrtc-config-factory.ts` to populate `audioContextProvider` and `workletModuleUrls`, validate expiry windows, and surface configuration errors with `WebRTCErrorImpl`. | | |
-| TASK-006 | Update `src/audio/webrtc-transport.ts` so `addAudioTrack` accepts preprocessed tracks, exposes `getAudioContext()` for downstream inspection, and propagates audio graph lifecycle events (e.g., session update sends output format metadata). | | |
-| TASK-007 | Implement `AudioPipelineIntegration` interface in `src/audio/webrtc-audio-service.ts` and export integration hooks for session manager consumption, ensuring state updates fire Observer callbacks. | | |
+| TASK-005 | Modify `src/audio/webrtc-config-factory.ts` to populate `audioContextProvider` and `workletModuleUrls`, validate expiry windows, and surface configuration errors with `WebRTCErrorImpl`. | ✅ | 2025-09-28 |
+| TASK-006 | Update `src/audio/webrtc-transport.ts` so `addAudioTrack` accepts preprocessed tracks, exposes `getAudioContext()` for downstream inspection, and propagates audio graph lifecycle events (e.g., session update sends output format metadata). | ✅ | 2025-09-28 |
+| TASK-007 | Implement `AudioPipelineIntegration` interface in `src/audio/webrtc-audio-service.ts` and export integration hooks for session manager consumption, ensuring state updates fire Observer callbacks. | ✅ | 2025-09-28 |
 
 ### Implementation Phase 3
 
@@ -60,12 +60,14 @@ Establish a staged implementation plan that upgrades the WebRTC transport stack 
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-008a | Implement `restartIce()` orchestration in `src/audio/connection-recovery-manager.ts`, including exponential backoff with jitter, attempt ceilings, and persisted attempt counters. | | |
-| TASK-008b | Recreate unreliable data channels after failures, reapply negotiated parameters, and synchronise state observers so transport consumers see updated channel references. | | |
-| TASK-009a | Maintain audio-only fallback in `src/audio/webrtc-transport.ts`, keeping outbound audio active while data channels are unavailable and publishing fallback status to observers. | | |
-| TASK-009b | Buffer outbound signalling/events during fallback and flush the queue with ordering guarantees once data-channel connectivity resumes. | | |
-| TASK-010a | Route recovery callbacks through `src/audio/webrtc-error-handler.ts`, mapping transport failures to recovery strategies and notifying the session manager. | | |
-| TASK-010b | Emit structured telemetry (`reconnectAttempt`, `reconnectSuccess`, `fallbackActive`) from `webrtc-audio-service` and error handler, wiring Observer notifications for downstream consumers. | | |
+| TASK-008a | Implement `restartIce()` orchestration in `src/audio/connection-recovery-manager.ts`, including exponential backoff with jitter, attempt ceilings, and persisted attempt counters. | ✅ | 2025-09-28 |
+| TASK-008b | Recreate unreliable data channels after failures, reapply negotiated parameters, and synchronise state observers so transport consumers see updated channel references. | ✅ | 2025-09-28 |
+| TASK-009a | Maintain audio-only fallback in `src/audio/webrtc-transport.ts`, keeping outbound audio active while data channels are unavailable and publishing fallback status to observers. | ✅ | 2025-09-28 |
+| TASK-009b | Buffer outbound signalling/events during fallback and flush the queue with ordering guarantees once data-channel connectivity resumes. | ✅ | 2025-09-28 |
+| TASK-010a | Route recovery callbacks through `src/audio/webrtc-error-handler.ts`, mapping transport failures to recovery strategies and notifying the session manager. | ✅ | 2025-09-28 |
+| TASK-010b | Emit structured telemetry (`reconnectAttempt`, `reconnectSuccess`, `fallbackActive`) from `webrtc-audio-service` and error handler, wiring Observer notifications for downstream consumers. | ✅ | 2025-09-28 |
+
+**GOAL-003 status:** Completed on 2025-09-28 after verifying recovery orchestration (`connection-recovery-manager.ts`), data-channel resilience and fallback queueing (`webrtc-transport.ts`), and telemetry propagation through the audio service and error handler (`webrtc-audio-service.ts`, `webrtc-error-handler.ts`).
 
 ### Implementation Phase 4
 
@@ -73,12 +75,14 @@ Establish a staged implementation plan that upgrades the WebRTC transport stack 
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-011a | Add negotiation timer instrumentation to `WebRTCTransportImpl`, enforcing the five-second cutoff and surfacing `WebRTCErrorCode.SdpNegotiationFailed` with contextual metadata. | | |
-| TASK-011b | Sample latency and packet statistics via `RTCPeerConnection.getStats()`, logging structured metrics through `Logger` and exposing snapshots through telemetry observers. | | |
-| TASK-012a | Author unit tests in `src/test/unit/audio/audio-context-provider.test.ts` covering shared context reuse, worklet preloading, and cleanup semantics. | | |
-| TASK-012b | Add unit tests in `src/test/unit/audio/connection-recovery-manager.test.ts` validating ICE restart backoff, data-channel recreation, and telemetry counters. | | |
-| TASK-012c | Implement integration test `src/test/integration/webrtc-audio-session.integration.test.ts` simulating negotiation timeouts, reconnection within three attempts, and audio-only fallback behaviour. | | |
-| TASK-013 | Update documentation (`AGENTS.md`, `docs/design/FEATURE-PLAN.md`) with new workflow steps, configuration options, debugging guidance, and recovery telemetry outputs. | | |
+| TASK-011a | Add negotiation timer instrumentation to `WebRTCTransportImpl`, enforcing the five-second cutoff and surfacing `WebRTCErrorCode.SdpNegotiationFailed` with contextual metadata. | ✅ | 2025-09-28 |
+| TASK-011b | Sample latency and packet statistics via `RTCPeerConnection.getStats()`, logging structured metrics through `Logger` and exposing snapshots through telemetry observers. | ✅ | 2025-09-28 |
+| TASK-012a | Author unit tests in `src/test/unit/audio/audio-context-provider.test.ts` covering shared context reuse, worklet preloading, and cleanup semantics. | ✅ | 2025-09-28 |
+| TASK-012b | Add unit tests in `src/test/unit/audio/connection-recovery-manager.test.ts` validating ICE restart backoff, data-channel recreation, and telemetry counters. | ✅ | 2025-09-28 |
+| TASK-012c | Implement integration test `src/test/integration/webrtc-audio-session.integration.test.ts` simulating negotiation timeouts, reconnection within three attempts, and audio-only fallback behaviour. | ✅ | 2025-09-28 |
+| TASK-013 | Update documentation (`AGENTS.md`, `docs/design/FEATURE-PLAN.md`) with new workflow steps, configuration options, debugging guidance, and recovery telemetry outputs. | ✅ | 2025-09-28 |
+
+**GOAL-004 status:** Completed on 2025-09-28 following implementation of negotiation timeout diagnostics, stats sampling, comprehensive test coverage, and documentation updates validated by passing unit and headless integration suites.
 
 ## 3. Alternatives
 

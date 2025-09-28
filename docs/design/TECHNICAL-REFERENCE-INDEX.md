@@ -4,7 +4,7 @@ Centralized catalog of authoritative external documentation for VoicePilot desig
 
 | Title | URL | Description |
 | --- | --- | --- |
-| Azure OpenAI Realtime API Quickstart | [learn.microsoft.com](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-quickstart) | Official tutorial for deploying `gpt-realtime` and connecting via WebRTC or WebSockets. |
+| Azure OpenAI Realtime API Quickstart | [learn.microsoft.com](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-quickstart) | Official tutorial for deploying `gpt-realtime` and connecting via WebRTC (or WebSockets). WebRTC is being used for real-time audio streaming. WebSockets are not used. |
 | Azure OpenAI Realtime API Reference | [learn.microsoft.com](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-reference) | Complete event schema and component definitions for realtime audio sessions. |
 | Azure OpenAI Realtime API How-To (WebRTC & sessions) | [learn.microsoft.com](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/realtime-audio) | Deep guidance on session configuration, VAD, interruption, and conversation management. |
 | Azure OpenAI JavaScript SDK (AzureOpenAI) Guide | [learn.microsoft.com](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/javascript) | Usage patterns for the `openai` Node SDK when targeting Azure deployments. |

@@ -17,12 +17,21 @@ export class AudioSection {
     const legacyMode = c.get<string>('turnDetection.mode');
     const resolvedTypeRaw = configuredType ?? legacyMode ?? defaultTurnDetection.type;
     const resolvedType = (resolvedTypeRaw === 'manual' ? 'none' : resolvedTypeRaw) as TurnDetectionConfig['type'];
+    const latencyHint = c.get<string | number>('context.latencyHint', 'interactive');
+    const sharedContext = {
+      autoResume: c.get('context.autoResume', true),
+      requireGesture: c.get('context.requireGesture', true),
+      latencyHint: latencyHint as AudioContextLatencyCategory | number
+    };
+    const workletModules = c.get<string[]>('workletModuleUrls', []);
     return {
       inputDevice: c.get('inputDevice', 'default'),
       outputDevice: c.get('outputDevice', 'default'),
       noiseReduction: c.get('noiseReduction', true),
       echoCancellation: c.get('echoCancellation', true),
       sampleRate: c.get('sampleRate', 24000) as AudioConfig['sampleRate'],
+      sharedContext,
+      workletModules,
       turnDetection: {
         type: resolvedType,
         threshold: c.get('turnDetection.threshold', defaultTurnDetection.threshold),

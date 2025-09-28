@@ -4,18 +4,62 @@ import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { SessionManager } from "../session/session-manager";
 import type { RealtimeEvent } from "../types/realtime-events";
-import type { AudioConfiguration } from "../types/webrtc";
+import type { AudioPipelineIntegration } from "../types/service-integration";
+import type { AudioConfiguration, ConnectionStatistics } from "../types/webrtc";
 import {
-    ConnectionQuality,
-    WebRTCConnectionState,
-    WebRTCErrorImpl,
+  ConnectionDiagnosticsEvent,
+  ConnectionQuality,
+  DataChannelStateChangedEvent,
+  RecoveryStrategy,
+  WebRTCConnectionState,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
 } from "../types/webrtc";
 import { sharedAudioContextProvider } from "./audio-context-provider";
 import { AudioTrackManager } from "./audio-track-manager";
+import type { ConnectionRecoveryEvent } from "./connection-recovery-manager";
 import { RealtimeTurnEvent } from "./turn-detection-coordinator";
 import { WebRTCConfigFactory } from "./webrtc-config-factory";
 import { WebRTCErrorHandler } from "./webrtc-error-handler";
 import { WebRTCTransportImpl } from "./webrtc-transport";
+
+type RecoveryTelemetryEvent =
+  | {
+      type: "reconnectAttempt";
+      strategy: RecoveryStrategy;
+      attempt: number;
+      delayMs: number;
+    }
+  | {
+      type: "reconnectSucceeded";
+      strategy: RecoveryStrategy;
+      attempt: number;
+      durationMs: number;
+    }
+  | {
+      type: "reconnectFailed";
+      strategy: RecoveryStrategy;
+      attempt: number;
+      durationMs: number;
+      error?: unknown;
+    }
+  | {
+      type: "fallbackStateChanged";
+      fallbackActive: boolean;
+      queuedMessages: number;
+      reason?: string;
+    }
+  | {
+      type: "connectionDiagnostics";
+      statistics: ConnectionStatistics;
+      statsIntervalMs: number;
+      negotiation?: {
+        durationMs: number;
+        timeoutMs: number;
+        timedOut: boolean;
+        errorCode?: WebRTCErrorCode;
+      };
+    };
 
 /**
  * High-level audio service that orchestrates WebRTC transport with existing extension services
@@ -44,6 +88,16 @@ export class WebRTCAudioService implements ServiceInitializable {
   private isSessionActive = false;
   private currentMicrophoneTrack?: MediaStreamTrack;
   private currentAudioConfig?: AudioConfiguration;
+  private audioPipelineIntegration?: AudioPipelineIntegration;
+  private usingPipelineInputTrack = false;
+  private lastRemoteStream: MediaStream | null = null;
+  private readonly sessionStateObservers = new Set<
+    (state: WebRTCConnectionState) => void
+  >();
+  private recoveryObserverDisposable?: { dispose: () => void };
+  private readonly telemetryObservers = new Set<
+    (event: RecoveryTelemetryEvent) => void
+  >();
 
   // Event callbacks
   private onSessionStateChangedCallback?: (state: string) => Promise<void>;
@@ -73,6 +127,11 @@ export class WebRTCAudioService implements ServiceInitializable {
       sharedAudioContextProvider,
     );
     this.errorHandler = new WebRTCErrorHandler(this.logger);
+    this.recoveryObserverDisposable = this.errorHandler.onRecoveryEvent(
+      (event) => {
+        this.handleRecoveryTelemetry(event);
+      },
+    );
 
     this.setupEventHandlers();
   }
@@ -129,6 +188,10 @@ export class WebRTCAudioService implements ServiceInitializable {
     });
 
     this.currentAudioConfig = undefined;
+    this.recoveryObserverDisposable?.dispose();
+  this.recoveryObserverDisposable = undefined;
+    this.telemetryObservers.clear();
+    this.errorHandler.dispose();
 
     this.initialized = false;
     this.logger.info("WebRTC Audio Service disposed");
@@ -171,19 +234,50 @@ export class WebRTCAudioService implements ServiceInitializable {
         );
       }
 
-      // Capture microphone
-      this.currentMicrophoneTrack = await this.audioManager.captureMicrophone();
+      let microphoneTrack: MediaStreamTrack | undefined;
 
-      // Add audio track to transport
-      await this.audioManager.addTrackToTransport(
-        this.transport,
-        this.currentMicrophoneTrack,
-      );
+      if (this.audioPipelineIntegration) {
+        try {
+          microphoneTrack = await this.audioPipelineIntegration.onAudioInputRequired();
+          this.usingPipelineInputTrack = !!microphoneTrack;
+        } catch (error: any) {
+          this.logger.warn("Audio pipeline failed to provide input track", {
+            error: error?.message,
+          });
+          this.usingPipelineInputTrack = false;
+        }
+      }
+
+      if (!microphoneTrack) {
+        microphoneTrack = await this.audioManager.captureMicrophone();
+        this.usingPipelineInputTrack = false;
+        await this.audioManager.addTrackToTransport(
+          this.transport,
+          microphoneTrack,
+        );
+      } else {
+        await this.transport.addAudioTrack(microphoneTrack, {
+          metadata: { source: "audio-pipeline" },
+        });
+      }
+
+      this.currentMicrophoneTrack = microphoneTrack;
 
       // Handle remote audio stream
       const remoteStream = this.transport.getRemoteAudioStream();
       if (remoteStream) {
-        this.audioManager.handleRemoteStream(remoteStream);
+        this.lastRemoteStream = remoteStream;
+        if (this.audioPipelineIntegration) {
+          void this.audioPipelineIntegration
+            .onAudioOutputReceived(remoteStream)
+            .catch((error) => {
+              this.logger.warn("Audio pipeline output handler failed", {
+                error: error?.message ?? error,
+              });
+            });
+        } else {
+          this.audioManager.handleRemoteStream(remoteStream);
+        }
       }
 
       this.isSessionActive = true;
@@ -215,13 +309,28 @@ export class WebRTCAudioService implements ServiceInitializable {
 
       // Stop audio capture
       if (this.currentMicrophoneTrack) {
-        this.audioManager.stopTrack(this.currentMicrophoneTrack.id);
+        if (this.usingPipelineInputTrack) {
+          try {
+            await this.transport.removeAudioTrack(this.currentMicrophoneTrack);
+          } catch (error: any) {
+            this.logger.warn("Failed to remove pipeline-provided track", {
+              error: error?.message,
+            });
+          }
+          if (this.currentMicrophoneTrack.readyState === "live") {
+            this.currentMicrophoneTrack.stop();
+          }
+        } else {
+          this.audioManager.stopTrack(this.currentMicrophoneTrack.id);
+        }
         this.currentMicrophoneTrack = undefined;
+        this.usingPipelineInputTrack = false;
       }
 
       // Close WebRTC connection
       await this.transport.closeConnection();
 
+      this.lastRemoteStream = null;
   await this.suspendAudioContext();
 
       this.isSessionActive = false;
@@ -274,6 +383,8 @@ export class WebRTCAudioService implements ServiceInitializable {
     connectionQuality: ConnectionQuality;
     hasAudio: boolean;
     statistics: any;
+    fallbackActive: boolean;
+    dataChannelState: RTCDataChannelState | "unavailable";
   } {
     return {
       isActive: this.isSessionActive,
@@ -282,6 +393,8 @@ export class WebRTCAudioService implements ServiceInitializable {
         this.transport.getConnectionStatistics().connectionQuality,
       hasAudio: !!this.currentMicrophoneTrack,
       statistics: this.transport.getConnectionStatistics(),
+      fallbackActive: this.transport.isDataChannelFallbackActive(),
+      dataChannelState: this.transport.getDataChannelState(),
     };
   }
 
@@ -346,6 +459,61 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.onTurnEventCallback = callback;
   }
 
+  registerAudioPipelineIntegration(
+    integration: AudioPipelineIntegration,
+  ): { dispose: () => void } {
+    this.audioPipelineIntegration = integration;
+
+    const statistics = this.transport.getConnectionStatistics();
+    void integration
+      .onAudioQualityChanged(statistics.connectionQuality)
+      .catch((error) => {
+        this.logger.warn("Audio pipeline quality handler failed", {
+          error: error?.message ?? error,
+        });
+      });
+
+    if (this.lastRemoteStream) {
+      void integration
+        .onAudioOutputReceived(this.lastRemoteStream)
+        .catch((error) => {
+          this.logger.warn("Audio pipeline output handler failed", {
+            error: error?.message ?? error,
+          });
+        });
+    }
+
+    return {
+      dispose: () => {
+        if (this.audioPipelineIntegration === integration) {
+          this.audioPipelineIntegration = undefined;
+        }
+      },
+    };
+  }
+
+  addSessionStateObserver(
+    observer: (state: WebRTCConnectionState) => void,
+  ): { dispose: () => void } {
+    this.sessionStateObservers.add(observer);
+    observer(this.transport.getConnectionState());
+
+    return {
+      dispose: () => {
+        this.sessionStateObservers.delete(observer);
+      },
+    };
+  }
+
+  addTelemetryObserver(
+    observer: (event: RecoveryTelemetryEvent) => void,
+  ): { dispose: () => void } {
+    this.telemetryObservers.add(observer);
+    return {
+      dispose: () => this.telemetryObservers.delete(observer),
+    };
+  }
+
   // Private implementation methods
   private setupEventHandlers(): void {
     // Transport connection state changes
@@ -353,6 +521,8 @@ export class WebRTCAudioService implements ServiceInitializable {
       this.logger.debug("Transport connection state changed", {
         state: event.data.currentState,
       });
+
+      this.notifySessionStateObservers(event.data.currentState);
 
       // Handle connection failures
       if (event.data.currentState === WebRTCConnectionState.Failed) {
@@ -370,12 +540,163 @@ export class WebRTCAudioService implements ServiceInitializable {
       "connectionQualityChanged",
       async (event) => {
         this.audioManager.adjustAudioQuality(event.data.currentQuality);
+        if (this.audioPipelineIntegration) {
+          void this.audioPipelineIntegration
+            .onAudioQualityChanged(event.data.currentQuality)
+            .catch((error) => {
+              this.logger.warn("Audio pipeline quality handler failed", {
+                error: error?.message ?? error,
+              });
+            });
+        }
+      },
+    );
+
+    this.transport.addEventListener("connectionDiagnostics", (event) => {
+      this.handleConnectionDiagnostics(event as ConnectionDiagnosticsEvent);
+    });
+
+    this.transport.addEventListener("audioTrackAdded", async (event) => {
+      if (!event.data.isRemote) {
+        return;
+      }
+
+      this.lastRemoteStream = event.data.stream;
+
+      if (this.audioPipelineIntegration) {
+        void this.audioPipelineIntegration
+          .onAudioOutputReceived(event.data.stream)
+          .catch((error) => {
+            this.logger.warn("Audio pipeline output handler failed", {
+              error: error?.message ?? error,
+            });
+          });
+      } else {
+        this.audioManager.handleRemoteStream(event.data.stream);
+      }
+    });
+
+    this.transport.addEventListener("audioTrackRemoved", async (event) => {
+      if (!event.data.isRemote) {
+        return;
+      }
+      if (this.lastRemoteStream === event.data.stream) {
+        this.lastRemoteStream = null;
+      }
+    });
+
+    this.transport.addEventListener(
+      "fallbackStateChanged",
+      (event: any) => {
+        this.handleFallbackTelemetry(event as DataChannelStateChangedEvent);
       },
     );
 
     // Transport errors
     this.transport.addEventListener("error", async (event) => {
       await this.handleTransportError(event.data);
+    });
+  }
+
+  private handleRecoveryTelemetry(event: ConnectionRecoveryEvent): void {
+    switch (event.type) {
+      case "attempt":
+        this.logger.info("Recovery attempt scheduled", {
+          strategy: event.strategy,
+          attempt: event.attempt,
+          delayMs: event.delayMs,
+        });
+        this.emitTelemetry({
+          type: "reconnectAttempt",
+          strategy: event.strategy,
+          attempt: event.attempt,
+          delayMs: event.delayMs,
+        });
+        break;
+      case "success":
+        this.logger.info("Recovery succeeded", {
+          strategy: event.strategy,
+          attempt: event.attempt,
+          durationMs: event.durationMs,
+        });
+        this.emitTelemetry({
+          type: "reconnectSucceeded",
+          strategy: event.strategy,
+          attempt: event.attempt,
+          durationMs: event.durationMs,
+        });
+        break;
+      case "failure":
+        this.logger.warn("Recovery attempt failed", {
+          strategy: event.strategy,
+          attempt: event.attempt,
+          durationMs: event.durationMs,
+          error:
+            event.error && typeof event.error === "object"
+              ? (event.error as any).message
+              : event.error,
+        });
+        this.emitTelemetry({
+          type: "reconnectFailed",
+          strategy: event.strategy,
+          attempt: event.attempt,
+          durationMs: event.durationMs,
+          error: event.error,
+        });
+        break;
+      default:
+        ((unhandled: never) => {
+          this.logger.debug("Unhandled recovery telemetry event", {
+            event: unhandled,
+          });
+        })(event);
+    }
+  }
+
+  private handleFallbackTelemetry(
+    event: DataChannelStateChangedEvent,
+  ): void {
+    this.logger.info("Fallback state changed", {
+      fallbackActive: event.data.fallbackActive,
+      queuedMessages: event.data.queuedMessages,
+      reason: event.data.reason,
+    });
+
+    this.emitTelemetry({
+      type: "fallbackStateChanged",
+      fallbackActive: event.data.fallbackActive,
+      queuedMessages: event.data.queuedMessages,
+      reason: event.data.reason,
+    });
+  }
+
+  private emitTelemetry(event: RecoveryTelemetryEvent): void {
+    for (const observer of Array.from(this.telemetryObservers)) {
+      try {
+        observer(event);
+      } catch (error: any) {
+        this.logger.warn("Telemetry observer failed", {
+          error: error?.message ?? error,
+          event,
+        });
+      }
+    }
+  }
+
+  private handleConnectionDiagnostics(
+    event: ConnectionDiagnosticsEvent,
+  ): void {
+    this.logger.debug("Connection diagnostics sample", {
+      intervalMs: event.data.statsIntervalMs,
+      negotiation: event.data.negotiation,
+      statistics: event.data.statistics,
+    });
+
+    this.emitTelemetry({
+      type: "connectionDiagnostics",
+      statistics: event.data.statistics,
+      statsIntervalMs: event.data.statsIntervalMs,
+      negotiation: event.data.negotiation,
     });
   }
 
@@ -628,6 +949,20 @@ export class WebRTCAudioService implements ServiceInitializable {
 
     if (!this.isSessionActive) {
       throw new Error("No active voice session. Call startSession() first.");
+    }
+  }
+
+  private notifySessionStateObservers(
+    state: WebRTCConnectionState,
+  ): void {
+    for (const observer of Array.from(this.sessionStateObservers)) {
+      try {
+        observer(state);
+      } catch (error: any) {
+        this.logger.warn("Session state observer failed", {
+          error: error?.message ?? error,
+        });
+      }
     }
   }
 }

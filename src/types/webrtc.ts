@@ -2,51 +2,166 @@ import { EphemeralKeyInfo } from "./ephemeral";
 import type { RealtimeEvent } from "./realtime-events";
 
 /**
- * WebRTC transport interface for Azure OpenAI Realtime API
- * Provides low-latency, full-duplex audio communication with WebRTC peer connections
+ * Contract for a realtime WebRTC transport that communicates with the Azure OpenAI Realtime API.
+ *
+ * @remarks
+ * Implementations must remain resilient to transient network failures, support audio-first
+ * operation during data-channel outages, and emit telemetry describing recovery attempts.
  */
 export interface WebRTCTransport {
   // Connection lifecycle
+  /**
+   * Establishes the underlying peer connection and negotiates audio/data channels.
+   *
+   * @param config - Complete transport configuration including endpoint and session details.
+   * @returns Resolves with the negotiated connection result when successful.
+   */
   establishConnection(config: WebRTCConfig): Promise<ConnectionResult>;
+  /**
+   * Closes the active peer connection and disposes any associated resources.
+   */
   closeConnection(): Promise<void>;
+  /**
+   * Attempts to restart ICE using the supplied configuration.
+   *
+   * @param config - Connection configuration containing ICE server options.
+   * @returns Resolves with `true` when the restart completed successfully.
+   */
+  restartIce(config: WebRTCConfig): Promise<boolean>;
+  /**
+   * Recreates the realtime data channel after a failure.
+   *
+   * @param config - Connection configuration containing channel options.
+   * @returns The newly created RTC data channel or `null` when creation fails.
+   */
+  recreateDataChannel(config: WebRTCConfig): Promise<RTCDataChannel | null>;
 
   // Connection state
+  /**
+   * Retrieves the current aggregate connection state.
+   */
   getConnectionState(): WebRTCConnectionState;
+  /**
+   * Returns the latest observed connection statistics snapshot.
+   */
   getConnectionStatistics(): ConnectionStatistics;
+  /**
+   * Provides the current data channel state or "unavailable" when no channel is present.
+   */
+  getDataChannelState(): RTCDataChannelState | "unavailable";
+  /**
+   * Indicates whether the transport is currently operating in audio-only fallback mode.
+   */
+  isDataChannelFallbackActive(): boolean;
+  /**
+   * Publishes a recovery telemetry event to interested observers.
+   *
+   * @param event - Telemetry payload describing the recovery outcome.
+   */
+  publishRecoveryEvent(event: RecoveryEventPayload): void;
 
   // Audio stream management
-  addAudioTrack(track: MediaStreamTrack): Promise<void>;
+  /**
+   * Registers a new outbound microphone track with the peer connection.
+   *
+   * @param track - The audio track to attach.
+   * @param options - Optional metadata describing the track.
+   */
+  addAudioTrack(
+    track: MediaStreamTrack,
+    options?: AudioTrackRegistrationOptions,
+  ): Promise<void>;
+  /**
+   * Swaps an existing audio track with a new track while maintaining processing metadata.
+   *
+   * @param oldTrack - Track currently attached to the peer connection.
+   * @param newTrack - Replacement track that should be attached.
+   * @param options - Optional metadata describing the track replacement.
+   */
+  replaceAudioTrack?(
+    oldTrack: MediaStreamTrack,
+    newTrack: MediaStreamTrack,
+    options?: AudioTrackRegistrationOptions,
+  ): Promise<void>;
+  /**
+   * Removes an outbound audio track from the peer connection.
+   *
+   * @param track - Track to detach.
+   */
   removeAudioTrack(track: MediaStreamTrack): Promise<void>;
+  /**
+   * Obtains the remote media stream that contains synthesized audio from the service.
+   */
   getRemoteAudioStream(): MediaStream | null;
+  /**
+   * Returns the active `AudioContext`, when available, used for playback or processing.
+   */
+  getAudioContext(): AudioContext | null;
 
   // Data channel operations
+  /**
+   * Sends a realtime event over the data channel, applying queueing behaviour when needed.
+   *
+   * @param message - Event payload to send to the remote peer.
+   */
   sendDataChannelMessage(message: RealtimeEvent): Promise<void>;
 
   // Event handling
+  /**
+   * Registers a handler for changes emitted by the transport.
+   *
+   * @param type - Event type of interest.
+   * @param handler - Callback to invoke when the event fires.
+   */
   addEventListener(type: WebRTCEventType, handler: WebRTCEventHandler): void;
+  /**
+   * Removes an existing event handler.
+   *
+   * @param type - Event type originally registered.
+   * @param handler - Callback to remove.
+   */
   removeEventListener(type: WebRTCEventType, handler: WebRTCEventHandler): void;
 }
 
+/**
+ * Aggregate configuration necessary to start a realtime WebRTC session with Azure OpenAI.
+ */
 export interface WebRTCConfig {
+  /** Endpoint metadata describing the Azure regional deployment. */
   endpoint: WebRTCEndpoint;
+  /** Ephemeral credential bundle required to authenticate the session. */
   authentication: EphemeralAuthentication;
+  /** Audio capture and playback configuration. */
   audioConfig: AudioConfiguration;
+  /** Session-specific options such as locale, voice, and turn detection. */
+  sessionConfig: WebRTCSessionConfiguration;
+  /** Optional configuration for the signalling data channel. */
   dataChannelConfig?: DataChannelConfiguration;
+  /** Optional connection retry and timeout configuration. */
   connectionConfig?: ConnectionConfiguration;
 }
 
+/**
+ * Identifies the Azure OpenAI realtime endpoint that should service the WebRTC session.
+ */
 export interface WebRTCEndpoint {
   region: "eastus2" | "swedencentral";
   url: string; // e.g., https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc
   deployment: string; // e.g., gpt-4o-realtime-preview
 }
 
+/**
+ * Ephemeral authentication material returned by the Azure OpenAI session service.
+ */
 export interface EphemeralAuthentication {
   ephemeralKey: string;
   expiresAt: Date;
   keyInfo: EphemeralKeyInfo;
 }
 
+/**
+ * Configuration describing how the shared `AudioContext` should be provisioned and resumed.
+ */
 export interface AudioContextProviderConfiguration {
   /**
    * Strategy identifier for downstream services. Currently only a shared provider is supported.
@@ -66,6 +181,9 @@ export interface AudioContextProviderConfiguration {
   requiresUserGesture: boolean;
 }
 
+/**
+ * Audio capture settings required by the realtime transport layer.
+ */
 export interface AudioConfiguration {
   sampleRate: 24000;
   format: "pcm16";
@@ -77,6 +195,42 @@ export interface AudioConfiguration {
   workletModuleUrls: ReadonlyArray<string>;
 }
 
+/**
+ * Options that tailor the behaviour of the GPT Realtime session, including locale and VAD.
+ */
+export interface WebRTCSessionConfiguration {
+  voice?: string;
+  locale?: string;
+  inputAudioFormat: "pcm16" | "pcm24" | "pcm32";
+  outputAudioFormat: "pcm16" | "pcm24" | "pcm32";
+  transcriptionModel?: string;
+  turnDetection?: {
+    type: "server_vad" | "semantic_vad" | "none";
+    threshold?: number;
+    prefixPaddingMs?: number;
+    silenceDurationMs?: number;
+    createResponse?: boolean;
+    interruptResponse?: boolean;
+    eagerness?: "low" | "auto" | "high";
+  };
+}
+
+/**
+ * Metadata associated with locally produced audio tracks registered with the transport.
+ */
+export interface AudioTrackRegistrationOptions {
+  processedStream?: MediaStream;
+  sourceStream?: MediaStream;
+  audioContext?: AudioContext;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Validates an `AudioConfiguration` and returns a list of problems if the configuration is invalid.
+ *
+ * @param configuration - Audio configuration to validate.
+ * @returns An array of error messages; empty when the configuration is valid.
+ */
 export function validateAudioConfiguration(
   configuration: AudioConfiguration,
 ): ReadonlyArray<string> {
@@ -118,12 +272,18 @@ export function validateAudioConfiguration(
   return errors;
 }
 
+/**
+ * Controls how the realtime signalling data channel should be created.
+ */
 export interface DataChannelConfiguration {
   channelName: string; // Default: 'realtime-channel'
   ordered: boolean; // Default: true for reliable event delivery
   maxRetransmits?: number;
 }
 
+/**
+ * Defines retry and timeout behaviour for the peer connection.
+ */
 export interface ConnectionConfiguration {
   iceServers?: RTCIceServer[];
   reconnectAttempts: number; // Default: 3
@@ -131,6 +291,9 @@ export interface ConnectionConfiguration {
   connectionTimeoutMs: number; // Default: 5000
 }
 
+/**
+ * Represents the coarse status of the peer connection lifecycle.
+ */
 export enum WebRTCConnectionState {
   Disconnected = "disconnected",
   Connecting = "connecting",
@@ -140,6 +303,9 @@ export enum WebRTCConnectionState {
   Closed = "closed",
 }
 
+/**
+ * Result of attempting to establish a realtime connection with Azure OpenAI.
+ */
 export interface ConnectionResult {
   success: boolean;
   connectionId: string;
@@ -150,6 +316,9 @@ export interface ConnectionResult {
   error?: WebRTCError;
 }
 
+/**
+ * Snapshot of transport-level metrics captured from the peer connection.
+ */
 export interface ConnectionStatistics {
   connectionId: string;
   connectionDurationMs: number;
@@ -163,8 +332,14 @@ export interface ConnectionStatistics {
   dataChannelState: RTCDataChannelState;
   iceConnectionState: RTCIceConnectionState;
   connectionQuality: ConnectionQuality;
+  negotiationLatencyMs?: number;
+  statsIntervalMs?: number;
+  timestamp?: number;
 }
 
+/**
+ * Qualitative indicator of overall realtime connection health.
+ */
 export enum ConnectionQuality {
   Excellent = "excellent",
   Good = "good",
@@ -173,6 +348,9 @@ export enum ConnectionQuality {
   Failed = "failed",
 }
 
+/**
+ * Structured error raised by transport components when failures occur.
+ */
 export interface WebRTCError {
   code: WebRTCErrorCode;
   message: string;
@@ -181,6 +359,9 @@ export interface WebRTCError {
   timestamp: Date;
 }
 
+/**
+ * Error wrapper that exposes typed metadata while behaving like a native `Error`.
+ */
 export class WebRTCErrorImpl extends Error implements WebRTCError {
   public readonly code: WebRTCErrorCode;
   public readonly details?: any;
@@ -197,6 +378,9 @@ export class WebRTCErrorImpl extends Error implements WebRTCError {
   }
 }
 
+/**
+ * Enumerates well-known WebRTC failures surfaced by the transport layer.
+ */
 export enum WebRTCErrorCode {
   AuthenticationFailed = "AUTHENTICATION_FAILED",
   SdpNegotiationFailed = "SDP_NEGOTIATION_FAILED",
@@ -208,6 +392,9 @@ export enum WebRTCErrorCode {
   ConfigurationInvalid = "CONFIGURATION_INVALID",
 }
 
+/**
+ * Event types emitted by the transport to describe connection and recovery changes.
+ */
 export type WebRTCEventType =
   | "connectionStateChanged"
   | "audioTrackAdded"
@@ -215,13 +402,23 @@ export type WebRTCEventType =
   | "dataChannelMessage"
   | "dataChannelStateChanged"
   | "connectionQualityChanged"
+  | "connectionDiagnostics"
   | "reconnectAttempt"
+  | "reconnectSucceeded"
+  | "reconnectFailed"
+  | "fallbackStateChanged"
   | "error";
 
+/**
+ * Signature for callbacks registered against transport events.
+ */
 export interface WebRTCEventHandler {
   (event: WebRTCEvent): Promise<void> | void;
 }
 
+/**
+ * Base shape for transport events propagated to observers.
+ */
 export interface WebRTCEvent {
   type: WebRTCEventType;
   connectionId: string;
@@ -229,6 +426,9 @@ export interface WebRTCEvent {
   data?: any;
 }
 
+/**
+ * Event describing a transition between two connection states.
+ */
 export interface ConnectionStateChangedEvent extends WebRTCEvent {
   type: "connectionStateChanged";
   data: {
@@ -238,15 +438,24 @@ export interface ConnectionStateChangedEvent extends WebRTCEvent {
   };
 }
 
+/**
+ * Event published when audio tracks are added to or removed from the peer connection.
+ */
 export interface AudioTrackEvent extends WebRTCEvent {
   type: "audioTrackAdded" | "audioTrackRemoved";
   data: {
     track: MediaStreamTrack;
     stream: MediaStream;
     isRemote: boolean;
+    processedStream?: MediaStream;
+    sourceStream?: MediaStream;
+    metadata?: Record<string, unknown>;
   };
 }
 
+/**
+ * Event emitted for inbound data channel messages containing realtime events.
+ */
 export interface DataChannelMessageEvent extends WebRTCEvent {
   type: "dataChannelMessage";
   data: {
@@ -255,6 +464,9 @@ export interface DataChannelMessageEvent extends WebRTCEvent {
   };
 }
 
+/**
+ * Event highlighting a change in measured connection quality.
+ */
 export interface ConnectionQualityChangedEvent extends WebRTCEvent {
   type: "connectionQualityChanged";
   data: {
@@ -263,3 +475,91 @@ export interface ConnectionQualityChangedEvent extends WebRTCEvent {
     statistics: ConnectionStatistics;
   };
 }
+
+/**
+ * Diagnostic sample emitted when fresh connection statistics are collected.
+ */
+export interface ConnectionDiagnosticsEvent extends WebRTCEvent {
+  type: "connectionDiagnostics";
+  data: {
+    statistics: ConnectionStatistics;
+    statsIntervalMs: number;
+    negotiation?: {
+      durationMs: number;
+      timeoutMs: number;
+      timedOut: boolean;
+      errorCode?: WebRTCErrorCode;
+    };
+  };
+}
+
+/**
+ * Recovery operations attempted by the transport during fault handling.
+ */
+export type RecoveryStrategy =
+  | "retry_connection"
+  | "restart_ice"
+  | "recreate_datachannel"
+  | "full_reconnect";
+
+/**
+ * Telemetry emitted before a recovery attempt is executed.
+ */
+export interface ReconnectAttemptEvent extends WebRTCEvent {
+  type: "reconnectAttempt";
+  data: {
+    strategy: RecoveryStrategy;
+    attempt: number;
+    delayMs: number;
+  };
+}
+
+/**
+ * Telemetry emitted after a recovery attempt completes, indicating success or failure.
+ */
+export interface ReconnectResultEvent extends WebRTCEvent {
+  type: "reconnectSucceeded" | "reconnectFailed";
+  data: {
+    strategy: RecoveryStrategy;
+    attempt: number;
+    durationMs: number;
+    error?: WebRTCError;
+  };
+}
+
+/**
+ * Event triggered when the data channel transitions between states or enters fallback mode.
+ */
+export interface DataChannelStateChangedEvent extends WebRTCEvent {
+  type: "dataChannelStateChanged" | "fallbackStateChanged";
+  data: {
+    state: RTCDataChannelState | "unavailable";
+    fallbackActive: boolean;
+    queuedMessages: number;
+    reason?: string;
+  };
+}
+
+/**
+ * Payload forwarded to telemetry observers describing recovery lifecycle milestones.
+ */
+export type RecoveryEventPayload =
+  | {
+      type: "reconnectAttempt";
+      strategy: RecoveryStrategy;
+      attempt: number;
+      delayMs: number;
+    }
+  | {
+      type: "reconnectSucceeded";
+      strategy: RecoveryStrategy;
+      attempt: number;
+      durationMs: number;
+    }
+  | {
+      type: "reconnectFailed";
+      strategy: RecoveryStrategy;
+      attempt: number;
+      durationMs: number;
+      error?: WebRTCError | unknown;
+    };

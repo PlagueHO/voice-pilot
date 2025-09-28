@@ -1,11 +1,15 @@
 import { Logger } from "../core/logger";
 import {
-  WebRTCConfig,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  WebRTCTransport,
+    WebRTCConfig,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    WebRTCTransport,
 } from "../types/webrtc";
-import { ConnectionRecoveryManager } from "./connection-recovery-manager";
+import {
+    ConnectionRecoveryEvent,
+    ConnectionRecoveryManager,
+    ConnectionRecoveryObserver,
+} from "./connection-recovery-manager";
 
 /**
  * Handles WebRTC errors with classification, recovery, and reporting
@@ -13,6 +17,8 @@ import { ConnectionRecoveryManager } from "./connection-recovery-manager";
 export class WebRTCErrorHandler {
   private logger: Logger;
   private recoveryManager: ConnectionRecoveryManager;
+  private readonly recoveryObservers = new Set<ConnectionRecoveryObserver>();
+  private readonly recoverySubscription: { dispose: () => void };
 
   // Error tracking
   private errorHistory: ErrorHistoryEntry[] = [];
@@ -28,6 +34,9 @@ export class WebRTCErrorHandler {
   constructor(logger?: Logger) {
     this.logger = logger || new Logger("WebRTCErrorHandler");
     this.recoveryManager = new ConnectionRecoveryManager(logger);
+    this.recoverySubscription = this.recoveryManager.addObserver((event) => {
+      this.notifyRecoveryObservers(event);
+    });
   }
 
   /**
@@ -223,6 +232,20 @@ export class WebRTCErrorHandler {
     this.recoveryManager.configure(options);
   }
 
+  onRecoveryEvent(
+    observer: ConnectionRecoveryObserver,
+  ): { dispose: () => void } {
+    this.recoveryObservers.add(observer);
+    return {
+      dispose: () => this.recoveryObservers.delete(observer),
+    };
+  }
+
+  dispose(): void {
+    this.recoverySubscription.dispose();
+    this.recoveryObservers.clear();
+  }
+
   // Private error handling methods
   private async handleAuthenticationError(
     error: WebRTCErrorImpl,
@@ -265,20 +288,26 @@ export class WebRTCErrorHandler {
   ): Promise<void> {
     this.logger.warn("Handling data channel error", { error: error.code });
 
-    // Data channel failures might be recoverable by continuing with audio-only
-    if (this.isDataChannelOptional()) {
-      this.logger.info(
-        "Continuing with audio-only mode after data channel failure",
-      );
-      return;
-    }
-
-    // Attempt recovery if data channel is critical
-    await this.recoveryManager.handleConnectionFailure(
+    const recovered = await this.recoveryManager.handleConnectionFailure(
       transport,
       config,
       error,
     );
+
+    if (recovered) {
+      return;
+    }
+
+    if (this.isDataChannelOptional()) {
+      this.logger.info(
+        "Audio-only fallback active after data channel recovery failure",
+      );
+      return;
+    }
+
+    if (this.onConnectionErrorCallback) {
+      await this.onConnectionErrorCallback(error);
+    }
   }
 
   private async handleSdpError(
@@ -431,6 +460,19 @@ export class WebRTCErrorHandler {
     );
 
     return recentErrors.length;
+  }
+
+  private notifyRecoveryObservers(event: ConnectionRecoveryEvent): void {
+    for (const observer of Array.from(this.recoveryObservers)) {
+      try {
+        observer(event);
+      } catch (error: any) {
+        this.logger.debug("Recovery observer failed", {
+          error: error?.message ?? error,
+          event,
+        });
+      }
+    }
   }
 }
 

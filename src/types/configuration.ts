@@ -54,6 +54,17 @@ export interface AudioConfig {
   echoCancellation: boolean;
   /** PCM sampling rate negotiated with the audio capture pipeline. */
   sampleRate: 16000 | 24000 | 48000;
+  /** Optional shared AudioContext preferences for the capture/playback pipeline. */
+  sharedContext?: {
+    /** Automatically resume the shared AudioContext when voice sessions activate. */
+    autoResume: boolean;
+    /** Require an explicit user gesture before resuming the shared AudioContext. */
+    requireGesture: boolean;
+    /** Latency hint forwarded to the AudioContext constructor. */
+    latencyHint?: AudioContextLatencyCategory | number;
+  };
+  /** AudioWorklet module URLs to preload into the shared AudioContext. */
+  workletModules?: ReadonlyArray<string>;
   /** Voice activity detection tuning for turn awareness. */
   turnDetection: TurnDetectionConfig;
   /** Text-to-speech transport and persona configuration. */

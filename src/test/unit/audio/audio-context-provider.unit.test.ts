@@ -96,4 +96,41 @@ describe("AudioContextProvider", () => {
 
     assert.deepStrictEqual(observedStates, ["suspended", "running", "suspended", "closed"]);
   });
+
+  it("cleans up resources and reloads worklets after close", async () => {
+    const provider = new AudioContextProvider();
+    const configWithWorklet: AudioConfiguration = {
+      ...baseAudioConfig,
+      workletModuleUrls: [
+        "https://example.com/worklet.js",
+      ] as ReadonlyArray<string>,
+    };
+
+    provider.configure(configWithWorklet);
+
+    const firstContext = await provider.getOrCreateContext();
+    const firstContextId = (firstContext as any).id;
+
+    const initialLoadCount = env.workletModules.filter(
+      (url) => url === "https://example.com/worklet.js",
+    ).length;
+
+    await provider.close();
+
+    const secondContext = await provider.getOrCreateContext();
+    const secondContextId = (secondContext as any).id;
+
+    assert.notStrictEqual(secondContextId, firstContextId, "Provider should create a new AudioContext after close");
+    assert.strictEqual(env.createdContexts.length, 2, "A fresh AudioContext should be instantiated after cleanup");
+
+    const totalLoadCount = env.workletModules.filter(
+      (url) => url === "https://example.com/worklet.js",
+    ).length;
+
+    assert.strictEqual(
+      totalLoadCount,
+      initialLoadCount + 1,
+      "Worklet modules should reload when the provider is reinitialized",
+    );
+  });
 });

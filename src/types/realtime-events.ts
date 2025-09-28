@@ -16,11 +16,12 @@ export interface SessionUpdateEvent extends RealtimeEvent {
   session: {
     modalities?: ["audio"] | ["text"] | ["audio", "text"];
     instructions?: string;
-    voice?: "alloy" | "shimmer" | "nova" | "echo" | "fable" | "onyx";
-    input_audio_format?: "pcm16" | "g711_ulaw" | "g711_alaw";
-    output_audio_format?: "pcm16" | "g711_ulaw" | "g711_alaw";
+    voice?: string;
+    locale?: string;
+    input_audio_format?: "pcm16" | "pcm24" | "pcm32" | "g711_ulaw" | "g711_alaw";
+    output_audio_format?: "pcm16" | "pcm24" | "pcm32" | "g711_ulaw" | "g711_alaw";
     input_audio_transcription?: {
-      model?: "whisper-1";
+      model?: string;
     };
     turn_detection?: {
       type: "server_vad" | "semantic_vad" | "none";

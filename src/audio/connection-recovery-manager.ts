@@ -1,9 +1,10 @@
 import { Logger } from "../core/logger";
 import {
-  WebRTCConfig,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  WebRTCTransport,
+    RecoveryStrategy,
+    WebRTCConfig,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    WebRTCTransport,
 } from "../types/webrtc";
 
 /**
@@ -18,6 +19,7 @@ export class ConnectionRecoveryManager {
   private baseDelayMs = 1000;
   private maxDelayMs = 10000;
   private backoffMultiplier = 2;
+  private readonly observers = new Set<ConnectionRecoveryObserver>();
 
   // Recovery state tracking
   private lastConnectionTime: number = 0;
@@ -26,6 +28,16 @@ export class ConnectionRecoveryManager {
 
   constructor(logger?: Logger) {
     this.logger = logger || new Logger("ConnectionRecoveryManager");
+  }
+
+  addObserver(observer: ConnectionRecoveryObserver): { dispose: () => void } {
+    this.observers.add(observer);
+
+    return {
+      dispose: () => {
+        this.observers.delete(observer);
+      },
+    };
   }
 
   /**
@@ -167,39 +179,106 @@ export class ConnectionRecoveryManager {
       this.currentAttempt++;
 
       const delay = this.calculateBackoffDelay();
+      const strategy = this.selectRecoveryStrategy(originalError);
 
       this.logger.info("Starting recovery attempt", {
         attempt: this.currentAttempt,
         maxAttempts: this.maxAttempts,
         delayMs: delay,
         originalError: originalError.code,
+        strategy,
       });
 
-      // Wait before attempting recovery
+      this.notifyObservers({
+        type: "attempt",
+        attempt: this.currentAttempt,
+        strategy,
+        delayMs: delay,
+      });
+      transport.publishRecoveryEvent({
+        type: "reconnectAttempt",
+        attempt: this.currentAttempt,
+        strategy,
+        delayMs: delay,
+      });
+
       if (delay > 0) {
         await this.delay(delay);
       }
 
+      const attemptStartedAt = Date.now();
+
       try {
-        // Apply recovery strategy based on error type
-        const recoveryStrategy = this.selectRecoveryStrategy(originalError);
         const success = await this.executeRecoveryStrategy(
           transport,
           config,
-          recoveryStrategy,
+          strategy,
         );
+
+        const durationMs = Date.now() - attemptStartedAt;
 
         if (success) {
           this.logger.info("Recovery successful", {
             attempt: this.currentAttempt,
-            strategy: recoveryStrategy,
+            strategy,
+            durationMs,
           });
+
+          this.notifyObservers({
+            type: "success",
+            attempt: this.currentAttempt,
+            strategy,
+            durationMs,
+          });
+          transport.publishRecoveryEvent({
+            type: "reconnectSucceeded",
+            attempt: this.currentAttempt,
+            strategy,
+            durationMs,
+          });
+
           return true;
         }
+
+        this.logger.warn("Recovery attempt did not succeed", {
+          attempt: this.currentAttempt,
+          strategy,
+          durationMs,
+        });
+
+        this.notifyObservers({
+          type: "failure",
+          attempt: this.currentAttempt,
+          strategy,
+          durationMs,
+        });
+        transport.publishRecoveryEvent({
+          type: "reconnectFailed",
+          attempt: this.currentAttempt,
+          strategy,
+          durationMs,
+        });
       } catch (error: any) {
+        const durationMs = Date.now() - attemptStartedAt;
         this.logger.warn("Recovery attempt failed", {
           attempt: this.currentAttempt,
           error: error.message,
+          strategy,
+        });
+
+        this.notifyObservers({
+          type: "failure",
+          attempt: this.currentAttempt,
+          strategy,
+          durationMs,
+          error,
+        });
+        transport.publishRecoveryEvent({
+          type: "reconnectFailed",
+          attempt: this.currentAttempt,
+          strategy,
+          durationMs,
+          error,
         });
       }
     }
@@ -285,9 +364,13 @@ export class ConnectionRecoveryManager {
     config: WebRTCConfig,
   ): Promise<boolean> {
     try {
-      // Note: This would require access to peer connection internals
-      // For now, fall back to full reconnect
-      return this.fullReconnect(transport, config);
+      const restarted = await transport.restartIce(config);
+
+      if (!restarted) {
+        this.logger.warn("ICE restart request returned unsuccessful flag");
+      }
+
+      return restarted;
     } catch (error: any) {
       this.logger.warn("ICE restart failed", { error: error.message });
       return false;
@@ -302,9 +385,13 @@ export class ConnectionRecoveryManager {
     config: WebRTCConfig,
   ): Promise<boolean> {
     try {
-      // Note: This would require access to peer connection internals
-      // For now, fall back to full reconnect
-      return this.fullReconnect(transport, config);
+      const channel = await transport.recreateDataChannel(config);
+
+      if (!channel) {
+        this.logger.warn("Data channel recreation returned null channel");
+      }
+
+      return !!channel;
     } catch (error: any) {
       this.logger.warn("Data channel recreation failed", {
         error: error.message,
@@ -386,10 +473,35 @@ export class ConnectionRecoveryManager {
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  private notifyObservers(event: ConnectionRecoveryEvent): void {
+    for (const observer of Array.from(this.observers)) {
+      try {
+        observer(event);
+      } catch (error: any) {
+        this.logger.debug("Recovery observer threw", {
+          error: error?.message ?? error,
+        });
+      }
+    }
+  }
 }
 
-type RecoveryStrategy =
-  | "retry_connection"
-  | "restart_ice"
-  | "recreate_datachannel"
-  | "full_reconnect";
+export type ConnectionRecoveryEvent =
+  | {
+      type: "attempt";
+      attempt: number;
+      strategy: RecoveryStrategy;
+      delayMs: number;
+    }
+  | {
+      type: "success" | "failure";
+      attempt: number;
+      strategy: RecoveryStrategy;
+      durationMs: number;
+      error?: unknown;
+    };
+
+export type ConnectionRecoveryObserver = (
+  event: ConnectionRecoveryEvent,
+) => void;

@@ -1,17 +1,19 @@
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import { Logger } from "../core/logger";
-import { EphemeralKeyInfo } from "../types/ephemeral";
+import type { AudioConfig, AzureRealtimeConfig } from "../types/configuration";
+import { EphemeralKeyInfo, RealtimeSessionInfo } from "../types/ephemeral";
 import {
     AudioConfiguration,
     ConnectionConfiguration,
     DataChannelConfiguration,
     EphemeralAuthentication,
-    validateAudioConfiguration,
     WebRTCConfig,
     WebRTCEndpoint,
     WebRTCErrorCode,
     WebRTCErrorImpl,
+    WebRTCSessionConfiguration,
+    validateAudioConfiguration,
 } from "../types/webrtc";
 
 /**
@@ -33,34 +35,35 @@ export class WebRTCConfigFactory {
     ephemeralKeyService: EphemeralKeyServiceImpl,
   ): Promise<WebRTCConfig> {
     try {
-      // Get Azure OpenAI configuration
       const azureConfig = configManager.getAzureOpenAIConfig();
+      const realtimePreferences = configManager.getAzureRealtimeConfig();
+      const audioPreferences = configManager.getAudioConfig();
 
-      // Create realtime session and get ephemeral key
       const realtimeSession = await ephemeralKeyService.createRealtimeSession();
+      this.assertSessionExpiryWindow(realtimeSession);
 
-      // Map Azure region to WebRTC endpoint
       const endpoint = this.createEndpoint(
         azureConfig.region,
         azureConfig.deploymentName,
       );
 
-      // Create ephemeral authentication
       const authentication = this.createAuthentication(realtimeSession);
+      const audioConfig = this.createAudioConfiguration(audioPreferences);
+      this.ensureAudioConfiguration(audioConfig);
 
-      // Create audio configuration
-      const audioConfig = this.createAudioConfiguration();
+      const sessionConfig = this.createSessionConfiguration(
+        audioPreferences,
+        realtimePreferences,
+      );
 
-      // Create data channel configuration
       const dataChannelConfig = this.createDataChannelConfiguration();
-
-      // Create connection configuration
       const connectionConfig = this.createConnectionConfiguration();
 
       const config: WebRTCConfig = {
         endpoint,
         authentication,
         audioConfig,
+        sessionConfig,
         dataChannelConfig,
         connectionConfig,
       };
@@ -69,10 +72,15 @@ export class WebRTCConfigFactory {
         endpoint: endpoint.url,
         region: endpoint.region,
         deployment: endpoint.deployment,
+        audioSampleRate: audioConfig.sampleRate,
+        workletModules: audioConfig.workletModuleUrls.length,
       });
 
       return config;
     } catch (error: any) {
+      if (error instanceof WebRTCErrorImpl) {
+        throw error;
+      }
       this.logger.error("Failed to create WebRTC configuration", {
         error: error.message,
       });
@@ -144,22 +152,105 @@ export class WebRTCConfigFactory {
   /**
    * Create audio configuration optimized for voice interaction
    */
-  private createAudioConfiguration(): AudioConfiguration {
+  private createAudioConfiguration(
+    audioPreferences: AudioConfig,
+  ): AudioConfiguration {
+    if (audioPreferences.sampleRate !== 24000) {
+      this.logger.warn("Audio sample rate adjusted to 24 kHz for transport compliance", {
+        requestedSampleRate: audioPreferences.sampleRate,
+      });
+    }
+
+    const sharedContext = audioPreferences.sharedContext ?? {
+      autoResume: true,
+      requireGesture: true,
+      latencyHint: "interactive" as AudioContextLatencyCategory,
+    };
+
+    const workletModuleUrls = Object.freeze(
+      Array.from(new Set(audioPreferences.workletModules ?? [])),
+    ) as ReadonlyArray<string>;
+
     return {
       sampleRate: 24000,
       format: "pcm16",
       channels: 1,
-      echoCancellation: true,
-      noiseSuppression: true,
+      echoCancellation: audioPreferences.echoCancellation,
+      noiseSuppression: audioPreferences.noiseReduction,
       autoGainControl: true,
       audioContextProvider: {
         strategy: "shared",
-        latencyHint: "interactive",
-        resumeOnActivation: true,
-        requiresUserGesture: true,
+        latencyHint: (sharedContext.latencyHint ?? "interactive") as
+          | AudioContextLatencyCategory
+          | number,
+        resumeOnActivation: sharedContext.autoResume,
+        requiresUserGesture: sharedContext.requireGesture,
       },
-      workletModuleUrls: [] as ReadonlyArray<string>,
+      workletModuleUrls,
     };
+  }
+
+  private ensureAudioConfiguration(audioConfig: AudioConfiguration): void {
+    const errors = validateAudioConfiguration(audioConfig);
+    if (errors.length > 0) {
+      throw new WebRTCErrorImpl({
+        code: WebRTCErrorCode.ConfigurationInvalid,
+        message: `Invalid audio configuration: ${errors.join("; ")}`,
+        details: { errors },
+        recoverable: false,
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  private createSessionConfiguration(
+    audioPreferences: AudioConfig,
+    realtimePreferences: AzureRealtimeConfig,
+  ): WebRTCSessionConfiguration {
+    const turnDetection = audioPreferences.turnDetection;
+    const turnDetectionConfig =
+      turnDetection.type === "none"
+        ? undefined
+        : {
+            type: turnDetection.type,
+            threshold: turnDetection.threshold,
+            prefixPaddingMs: turnDetection.prefixPaddingMs,
+            silenceDurationMs: turnDetection.silenceDurationMs,
+            createResponse: turnDetection.createResponse,
+            interruptResponse: turnDetection.interruptResponse,
+            eagerness: turnDetection.eagerness,
+          };
+
+    return {
+      voice: audioPreferences.tts.voice.name,
+      locale: realtimePreferences.locale,
+      inputAudioFormat: realtimePreferences.inputAudioFormat,
+      outputAudioFormat: realtimePreferences.inputAudioFormat,
+      transcriptionModel: realtimePreferences.transcriptionModel,
+      turnDetection: turnDetectionConfig,
+    };
+  }
+
+  private assertSessionExpiryWindow(
+    realtimeSession: RealtimeSessionInfo,
+  ): void {
+    const millisecondsRemaining =
+      realtimeSession.expiresAt.getTime() - Date.now();
+    const MINIMUM_SAFE_WINDOW_MS = 20000;
+
+    if (millisecondsRemaining <= MINIMUM_SAFE_WINDOW_MS) {
+      throw new WebRTCErrorImpl({
+        code: WebRTCErrorCode.AuthenticationFailed,
+        message: `Ephemeral session ${realtimeSession.sessionId} expires too soon (${Math.max(millisecondsRemaining, 0)}ms remaining).`,
+        details: {
+          sessionId: realtimeSession.sessionId,
+          expiresAt: realtimeSession.expiresAt,
+          millisRemaining: millisecondsRemaining,
+        },
+        recoverable: true,
+        timestamp: new Date(),
+      });
+    }
   }
 
   /**
@@ -251,6 +342,10 @@ export class WebRTCConfigFactory {
         throw new Error("Invalid audio configuration");
       }
 
+      if (!config.sessionConfig) {
+        throw new Error("Invalid realtime session configuration");
+      }
+
       const audioConfigErrors = validateAudioConfiguration(config.audioConfig);
       if (audioConfigErrors.length > 0) {
         throw new Error(
@@ -291,6 +386,55 @@ export class WebRTCConfigFactory {
       },
     };
 
+    const audioPreferences: AudioConfig = {
+      inputDevice: "default",
+      outputDevice: "default",
+      noiseReduction: true,
+      echoCancellation: true,
+      sampleRate: 24000,
+      sharedContext: {
+        autoResume: true,
+        requireGesture: true,
+        latencyHint: "interactive",
+      },
+      workletModules: [],
+      turnDetection: {
+        type: "server_vad",
+        threshold: 0.5,
+        prefixPaddingMs: 300,
+        silenceDurationMs: 200,
+        createResponse: true,
+        interruptResponse: true,
+        eagerness: "auto",
+      },
+      tts: {
+        transport: "webrtc",
+        apiVersion: "2025-04-01-preview",
+        fallbackMode: "retry",
+        maxInitialLatencyMs: 300,
+        voice: {
+          name: "alloy",
+          locale: "en-US",
+          style: "conversational",
+          gender: "unspecified",
+        },
+      },
+    };
+
+    const realtimePreferences: AzureRealtimeConfig = {
+      model: "gpt-realtime",
+      apiVersion: "2025-08-28",
+      transcriptionModel: "whisper-1",
+      inputAudioFormat: "pcm16",
+      locale: "en-US",
+      profanityFilter: "medium",
+      interimDebounceMs: 250,
+      maxTranscriptHistorySeconds: 120,
+    };
+
+    const audioConfig = this.createAudioConfiguration(audioPreferences);
+    this.ensureAudioConfiguration(audioConfig);
+
     return {
       endpoint: {
         region: "eastus2",
@@ -298,7 +442,11 @@ export class WebRTCConfigFactory {
         deployment: "gpt-4o-realtime-preview",
       },
       authentication: testAuthentication,
-      audioConfig: this.createAudioConfiguration(),
+      audioConfig,
+      sessionConfig: this.createSessionConfiguration(
+        audioPreferences,
+        realtimePreferences,
+      ),
       dataChannelConfig: this.createDataChannelConfiguration(),
       connectionConfig: this.createConnectionConfiguration(),
     };

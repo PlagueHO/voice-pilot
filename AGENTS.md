@@ -350,6 +350,13 @@ async function initRealtime({ endpoint, deployment, apiVersion }: { endpoint: st
 
 Legacy `sttService.ts` and `ttsService.ts` are deprecated and scheduled for removal after full migration.
 
+#### Realtime Transport Diagnostics
+
+- `WebRTCTransportImpl` now enforces a five-second SDP negotiation timeout. When the deadline is exceeded the transport logs structured metadata, raises `WebRTCErrorCode.SdpNegotiationFailed`, and queues recovery so reconnect flows can react deterministically.
+- A dedicated `connectionDiagnostics` transport event emits every statistics sample (default: 5 s) and negotiation milestone. Each payload contains the current `ConnectionStatistics` snapshot with `audioPacketsSent/Received`, byte counters, `packetsLost`, jitter and round-trip time (both in milliseconds), `negotiationLatencyMs`, and the active data-channel/ICE state.
+- `WebRTCAudioService.addTelemetryObserver(...)` forwards these diagnostics to session consumers. Subscribe in the extension host or tests to monitor negotiation progress, fallback entry/exit, and recovery strategies without attaching debuggers to the webview.
+- For reference workflows, see the updated unit specs (`audio-context-provider.unit.test.ts`, `connection-recovery-manager.unit.test.ts`) and the integration scenario (`webrtc-audio-session.integration.test.ts`) that validate timeout handling, exponential backoff, telemetry ordering, and audio-only fallback behaviour.
+
 ### VS Code Extension Patterns
 
 **Extension Development Guidelines**: Follow VS Code extension best practices for lifecycle and UI

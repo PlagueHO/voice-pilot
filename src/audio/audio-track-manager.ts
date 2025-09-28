@@ -3,6 +3,7 @@ import { ServiceInitializable } from "../core/service-initializable";
 import { AudioTrackState, AudioTrackStatistics } from "../types/audio-capture";
 import {
     AudioConfiguration,
+    AudioTrackRegistrationOptions,
     ConnectionQuality,
     ConnectionStatistics,
     WebRTCErrorCode,
@@ -229,7 +230,20 @@ export class AudioTrackManager implements ServiceInitializable {
     track: MediaStreamTrack,
   ): Promise<void> {
     try {
-      await transport.addAudioTrack(track);
+      const processedStream = this.trackStreams.get(track.id);
+      const captureContext = this.captureGraphs.get(track.id);
+      const audioContext = await this.audioContextProvider.getOrCreateContext();
+
+      const registrationOptions: AudioTrackRegistrationOptions = {
+        processedStream,
+        sourceStream: captureContext?.inputStream,
+        audioContext,
+        metadata: {
+          graphNodes: captureContext?.graph ? "active" : "missing",
+        },
+      };
+
+      await transport.addAudioTrack(track, registrationOptions);
       this.logger.debug("Audio track added to transport", {
         trackId: track.id,
       });
@@ -276,12 +290,23 @@ export class AudioTrackManager implements ServiceInitializable {
       : undefined;
 
     try {
+      const audioContext = await this.audioContextProvider.getOrCreateContext();
+      const registrationOptions: AudioTrackRegistrationOptions = {
+        processedStream,
+        sourceStream: captureContext.inputStream,
+        audioContext,
+        metadata: {
+          graphNodes: "active",
+        },
+      };
+
       const supportsReplace =
         typeof (
           transport as unknown as {
             replaceAudioTrack?: (
               oldTrack: MediaStreamTrack,
               newTrack: MediaStreamTrack,
+              options?: AudioTrackRegistrationOptions,
             ) => Promise<void>;
           }
         ).replaceAudioTrack === "function";
@@ -292,9 +317,10 @@ export class AudioTrackManager implements ServiceInitializable {
             replaceAudioTrack: (
               oldTrack: MediaStreamTrack,
               newTrack: MediaStreamTrack,
+              options?: AudioTrackRegistrationOptions,
             ) => Promise<void>;
           }
-        ).replaceAudioTrack(existingTrack, newTrack);
+        ).replaceAudioTrack(existingTrack, newTrack, registrationOptions);
         this.logger.debug(
           "Replaced audio track using transport replaceAudioTrack",
           { oldTrackId: existingTrack.id, newTrackId: newTrack.id },
@@ -307,7 +333,7 @@ export class AudioTrackManager implements ServiceInitializable {
           });
         }
 
-        await transport.addAudioTrack(newTrack);
+        await transport.addAudioTrack(newTrack, registrationOptions);
         this.logger.debug("Added new audio track to transport", {
           trackId: newTrack.id,
         });

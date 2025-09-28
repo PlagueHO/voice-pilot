@@ -2,7 +2,7 @@
 title: Feature Plan & Roadmap
 version: 1.0
 date_created: 2025-09-19
-last_updated: 2025-09-27
+last_updated: 2025-09-28
 owner: VoicePilot Project
 tags: [process, backlog, roadmap]
 ---
@@ -87,4 +87,5 @@ This document lists all planned features in implementation phase order. It will 
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-09-28 | Documented GOAL-004 transport diagnostics implementation | system |
 | 2025-09-19 | Initial backlog created | system |

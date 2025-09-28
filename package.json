@@ -168,6 +168,32 @@
           ],
           "description": "Audio sample rate in Hz"
         },
+        "voicepilot.audio.context.autoResume": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically resume the shared AudioContext when voice sessions activate"
+        },
+        "voicepilot.audio.context.requireGesture": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require an explicit user gesture before resuming the shared AudioContext"
+        },
+        "voicepilot.audio.context.latencyHint": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "default": "interactive",
+          "markdownDescription": "Latency hint applied when creating the shared AudioContext. Accepts standard Web Audio latency categories (`interactive`, `balanced`, `playback`) or a numeric hint in seconds."
+        },
+        "voicepilot.audio.workletModuleUrls": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "AudioWorklet module URLs to preload into the shared AudioContext"
+        },
         "voicepilot.audio.turnDetection.type": {
           "type": "string",
           "default": "server_vad",
