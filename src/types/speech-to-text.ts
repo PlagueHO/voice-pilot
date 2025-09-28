@@ -209,17 +209,22 @@ export interface AzureAnnotation {
 export interface AzureRealtimeTranscriptMessage {
   type:
     | "response.output_audio_transcript.delta"
+    | "response.output_audio_transcription.delta"
+    | "response.output_text.delta"
     | "response.done"
     | "session.updated"
     | "conversation.item.audio_transcription.delta"
     | "conversation.item.audio_transcription.completed";
   response_id: string;
   item_id: string;
-  delta?: {
-    text?: string;
-    confidence?: number;
-    annotations?: AzureAnnotation[];
-  };
+  delta?:
+    | string
+    | {
+        text?: string;
+        transcript?: string;
+        confidence?: number;
+        annotations?: AzureAnnotation[];
+      };
   final?: {
     text: string;
     confidence?: number;

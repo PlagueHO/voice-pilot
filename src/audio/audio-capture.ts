@@ -12,6 +12,11 @@ import {
   VoiceActivityResult,
 } from "../types/audio-capture";
 import { AudioErrorCode, AudioProcessingError } from "../types/audio-errors";
+import { AudioConfiguration } from "../types/webrtc";
+import {
+  AudioContextProvider,
+  sharedAudioContextProvider,
+} from "./audio-context-provider";
 import { createEmptyMetrics, mergeMetrics } from "./audio-metrics";
 import { WebAudioProcessingChain } from "./audio-processing-chain";
 import { AudioDeviceValidator } from "./device-validator";
@@ -38,11 +43,25 @@ const DEFAULT_PROCESSING_CONFIG: AudioProcessingConfig = {
 type EventHandlerSet = Set<AudioCaptureEventHandler>;
 
 /**
+ * Optional dependency overrides that allow the capture pipeline to run with custom collaborators.
+ *
+ * @remarks
+ * Providing overrides is primarily intended for tests or advanced scenarios where the default
+ * singleton {@link sharedAudioContextProvider} or processing chain must be replaced.
+ */
+interface AudioCaptureDependencies {
+  audioContextProvider?: AudioContextProvider;
+  processingChain?: WebAudioProcessingChain;
+  deviceValidator?: AudioDeviceValidator;
+}
+
+/**
  * Audio capture service implementing the audio capture pipeline contract.
  * Provides microphone capture with noise suppression, audio metrics, and PCM output suitable for Azure OpenAI Realtime API.
  */
 export class AudioCapture implements AudioCapturePipeline {
   private readonly logger: Logger;
+  private readonly audioContextProvider: AudioContextProvider;
   private readonly processingChain: WebAudioProcessingChain;
   private readonly deviceValidator: AudioDeviceValidator;
   private readonly listeners = new Map<
@@ -65,17 +84,31 @@ export class AudioCapture implements AudioCapturePipeline {
   private metricsTimerId?: ReturnType<typeof setInterval>;
 
   private onErrorCallback?: (error: Error) => void;
+  private contextStateSubscription?: {
+    context: AudioContext;
+    listener: () => void;
+  };
 
   /**
    * Creates a new audio capture pipeline instance.
    *
    * @param config - Optional capture configuration overrides applied to the defaults.
    * @param logger - Optional logger instance; if omitted a scoped logger is created.
+   * @param dependencies - Optional dependency overrides enabling test seams or custom audio context providers.
    */
-  constructor(config: Partial<AudioCaptureConfig> = {}, logger?: Logger) {
+  constructor(
+    config: Partial<AudioCaptureConfig> = {},
+    logger?: Logger,
+    dependencies: AudioCaptureDependencies = {},
+  ) {
     this.logger = logger || new Logger("AudioCapture");
-    this.processingChain = new WebAudioProcessingChain(this.logger);
-    this.deviceValidator = new AudioDeviceValidator(this.logger);
+    this.audioContextProvider =
+      dependencies.audioContextProvider ?? sharedAudioContextProvider;
+    this.processingChain =
+      dependencies.processingChain ??
+      new WebAudioProcessingChain(this.logger, this.audioContextProvider);
+    this.deviceValidator =
+      dependencies.deviceValidator ?? new AudioDeviceValidator(this.logger);
     this.captureConfig = { ...DEFAULT_CAPTURE_CONFIG, ...config };
     this.processingConfig = { ...DEFAULT_PROCESSING_CONFIG };
   }
@@ -99,6 +132,8 @@ export class AudioCapture implements AudioCapturePipeline {
       this.processingConfig = { ...this.processingConfig, ...processingConfig };
     }
 
+    this.configureAudioContextProvider();
+
     if (!navigator?.mediaDevices?.getUserMedia) {
       throw new Error(
         "MediaDevices.getUserMedia is not available in this environment",
@@ -120,6 +155,17 @@ export class AudioCapture implements AudioCapturePipeline {
    */
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  /**
+   * Releases internal resources, stops capture, and clears handlers.
+   */
+  dispose(): void {
+    void this.stopCapture();
+    this.listeners.clear();
+    this.audioDataCallbacks.clear();
+    this.onErrorCallback = undefined;
+    this.initialized = false;
   }
 
   /**
@@ -160,13 +206,13 @@ export class AudioCapture implements AudioCapturePipeline {
         this.processingConfig,
       );
       await this.ensureContextIsRunning(graph.context);
-      this.registerContextStateHandler(graph.context);
+    this.registerContextStateHandler(graph.context);
 
-      this.stream = stream;
-      this.track = stream.getAudioTracks()[0] ?? null;
-      this.processingGraph = graph;
+    this.stream = stream;
+    this.track = stream.getAudioTracks()[0] ?? null;
+    this.processingGraph = graph;
 
-  this.registerWorkletMessageHandler();
+    this.registerWorkletMessageHandler();
       await this.updateLatencyMetric();
       this.startMetricsMonitor();
 
@@ -218,7 +264,7 @@ export class AudioCapture implements AudioCapturePipeline {
     this.stopMetricsMonitor();
 
     if (this.processingGraph) {
-      this.processingGraph.context.onstatechange = null;
+      this.unregisterContextStateHandler();
       this.processingChain.disposeGraph(this.processingGraph);
     }
     this.processingGraph = null;
@@ -293,7 +339,7 @@ export class AudioCapture implements AudioCapturePipeline {
 
       this.stopMetricsMonitor();
       if (this.processingGraph) {
-        this.processingGraph.context.onstatechange = null;
+        this.unregisterContextStateHandler();
         this.processingChain.disposeGraph(this.processingGraph);
         this.processingGraph = null;
       }
@@ -304,13 +350,13 @@ export class AudioCapture implements AudioCapturePipeline {
         this.processingConfig,
       );
       await this.ensureContextIsRunning(candidateGraph.context);
-      this.registerContextStateHandler(candidateGraph.context);
+    this.registerContextStateHandler(candidateGraph.context);
 
-      this.stream = candidateStream;
-      this.track = candidateTrack;
-      this.processingGraph = candidateGraph;
+    this.stream = candidateStream;
+    this.track = candidateTrack;
+    this.processingGraph = candidateGraph;
 
-  this.registerWorkletMessageHandler();
+    this.registerWorkletMessageHandler();
       await this.updateLatencyMetric();
       this.startMetricsMonitor();
 
@@ -355,6 +401,7 @@ export class AudioCapture implements AudioCapturePipeline {
     config: Partial<AudioCaptureConfig>,
   ): Promise<void> {
     this.captureConfig = { ...this.captureConfig, ...config };
+    this.configureAudioContextProvider();
 
     if (this.isCapturing) {
       await this.restartCapture();
@@ -491,16 +538,11 @@ export class AudioCapture implements AudioCapturePipeline {
   }
 
   /**
-   * Releases internal resources, stops capture, and clears handlers.
+   * Requests a media stream from the browser using the active capture configuration.
+   *
+   * @param deviceId - Optional audio input device identifier to target.
+   * @throws {@link AudioProcessingError} When the browser rejects the request.
    */
-  dispose(): void {
-    void this.stopCapture();
-    this.listeners.clear();
-    this.audioDataCallbacks.clear();
-    this.onErrorCallback = undefined;
-    this.initialized = false;
-  }
-
   private async acquireStream(deviceId?: string): Promise<MediaStream> {
     const constraints: MediaStreamConstraints = {
       audio: {
@@ -521,6 +563,12 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Registers handlers for PCM payloads emitted by the audio worklet backing the processing graph.
+   *
+   * @remarks
+   * The worklet posts raw PCM16 buffers that are forwarded to registered audio data callbacks while capture is active.
+   */
   private registerWorkletMessageHandler(): void {
     if (!this.processingGraph) {
       return;
@@ -563,6 +611,39 @@ export class AudioCapture implements AudioCapturePipeline {
     };
   }
 
+  /**
+   * Derives the audio configuration used to provision the shared {@link AudioContextProvider} instance.
+   *
+   * @remarks
+   * The Web Audio specification requires that consumers reuse a single `AudioContext` per document when possible.
+   * This method synchronizes capture preferences with the shared provider before streams are acquired.
+   */
+  private configureAudioContextProvider(): void {
+    const sampleRate = (this.captureConfig.sampleRate ?? 24000) as 24000;
+    const audioConfiguration: AudioConfiguration = {
+      sampleRate,
+      format: "pcm16",
+      channels: 1,
+      echoCancellation: this.captureConfig.enableEchoCancellation,
+      noiseSuppression: this.captureConfig.enableNoiseSuppression,
+      autoGainControl: this.captureConfig.enableAutoGainControl,
+      audioContextProvider: {
+        strategy: "shared",
+        latencyHint: this.captureConfig.latencyHint ?? "interactive",
+        resumeOnActivation: true,
+        requiresUserGesture: false,
+      },
+      workletModuleUrls: [],
+    };
+
+    this.audioContextProvider.configure(audioConfiguration);
+  }
+
+  /**
+   * Delivers a PCM buffer to registered audio data subscribers, shielding each callback from failures.
+   *
+   * @param audioData - PCM16 buffer emitted by the audio worklet.
+   */
   private notifyAudioCallbacks(audioData: Buffer): void {
     for (const callback of this.audioDataCallbacks) {
       try {
@@ -575,6 +656,9 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Starts periodic metric sampling for audio levels, latency, and voice activity detection.
+   */
   private startMetricsMonitor(): void {
     const interval =
       this.processingConfig.analysisIntervalMs ??
@@ -584,6 +668,9 @@ export class AudioCapture implements AudioCapturePipeline {
     }, interval);
   }
 
+  /**
+   * Stops the periodic metric sampling timer when capture is paused or disposed.
+   */
   private stopMetricsMonitor(): void {
     if (typeof this.metricsTimerId !== "undefined") {
       clearInterval(this.metricsTimerId);
@@ -591,6 +678,9 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Updates aggregate audio metrics and emits telemetry events for listeners.
+   */
   private async updateMetrics(): Promise<void> {
     if (!this.processingGraph) {
       return;
@@ -618,6 +708,9 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Refreshes the latency estimate for the active audio context.
+   */
   private async updateLatencyMetric(): Promise<void> {
     if (!this.processingGraph) {
       return;
@@ -629,6 +722,9 @@ export class AudioCapture implements AudioCapturePipeline {
     this.metrics = mergeMetrics(this.metrics, { latencyEstimate: latency });
   }
 
+  /**
+   * Stops the active media stream and clears cached track references.
+   */
   private stopStream(): void {
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
@@ -638,6 +734,9 @@ export class AudioCapture implements AudioCapturePipeline {
     this.track = null;
   }
 
+  /**
+   * Restarts capture when configuration changes require pipeline re-initialization.
+   */
   private async restartCapture(): Promise<void> {
     const wasCapturing = this.isCapturing;
     await this.stopCapture();
@@ -646,6 +745,9 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Emits a typed capture pipeline event to registered listeners with best-effort error isolation.
+   */
   private emitEvent<TType extends AudioCapturePipelineEvent["type"]>(
     type: TType,
     data?: Extract<AudioCapturePipelineEvent, { type: TType }>["data"],
@@ -671,6 +773,12 @@ export class AudioCapture implements AudioCapturePipeline {
     });
   }
 
+  /**
+   * Normalizes `getUserMedia` failures into the audio processing error contract.
+   *
+   * @param error - Browser error raised by `navigator.mediaDevices.getUserMedia`.
+   * @param deviceId - Optional device identifier associated with the request.
+   */
   private mapGetUserMediaError(
     error: any,
     deviceId?: string,
@@ -718,6 +826,9 @@ export class AudioCapture implements AudioCapturePipeline {
     return this.createProcessingError(code, message, recoverable, error);
   }
 
+  /**
+   * Resumes a suspended audio context and surfaces failures as processing errors.
+   */
   private async ensureContextIsRunning(context: AudioContext): Promise<void> {
     if (context.state === "suspended") {
       try {
@@ -735,8 +846,13 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  /**
+   * Subscribes to the shared audio context state and attempts recovery when browsers suspend the context.
+   */
   private registerContextStateHandler(context: AudioContext): void {
-    context.onstatechange = () => {
+    this.unregisterContextStateHandler();
+
+    const listener = () => {
       if (context.state === "suspended") {
         void context.resume().catch((error) => {
           const processingError = this.createProcessingError(
@@ -752,8 +868,27 @@ export class AudioCapture implements AudioCapturePipeline {
         });
       }
     };
+
+    context.addEventListener("statechange", listener);
+    this.contextStateSubscription = { context, listener };
   }
 
+  /**
+   * Removes the active audio context state listener, if present.
+   */
+  private unregisterContextStateHandler(): void {
+    if (!this.contextStateSubscription) {
+      return;
+    }
+
+    const { context, listener } = this.contextStateSubscription;
+    context.removeEventListener("statechange", listener);
+    this.contextStateSubscription = undefined;
+  }
+
+  /**
+   * Builds a structured {@link AudioProcessingError} with contextual metadata for diagnostics.
+   */
   private createProcessingError(
     code: AudioErrorCode,
     message: string,
@@ -778,6 +913,9 @@ export class AudioCapture implements AudioCapturePipeline {
     };
   }
 
+  /**
+   * Routes errors through the pipeline’s error channel and invokes the external error callback.
+   */
   private handleError(message: string, cause: any): void {
     if (this.isProcessingError(cause)) {
       this.emitEvent("processingError", cause);
@@ -798,6 +936,9 @@ export class AudioCapture implements AudioCapturePipeline {
     this.onErrorCallback?.(error);
   }
 
+  /**
+   * Type guard ensuring an unknown value conforms to {@link AudioProcessingError} shape.
+   */
   private isProcessingError(value: unknown): value is AudioProcessingError {
     return Boolean(
       value &&

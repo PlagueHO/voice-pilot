@@ -18,6 +18,7 @@ import {
 import { sharedAudioContextProvider } from "./audio-context-provider";
 import { AudioTrackManager } from "./audio-track-manager";
 import type { ConnectionRecoveryEvent } from "./connection-recovery-manager";
+import { extractTranscriptText } from "./realtime-transcript-utils";
 import { RealtimeTurnEvent } from "./turn-detection-coordinator";
 import { WebRTCConfigFactory } from "./webrtc-config-factory";
 import { WebRTCErrorHandler } from "./webrtc-error-handler";
@@ -777,12 +778,6 @@ export class WebRTCAudioService implements ServiceInitializable {
 
     try {
       switch (message.type) {
-        case "response.text.delta":
-          if (this.onTranscriptReceivedCallback && "delta" in message) {
-            await this.onTranscriptReceivedCallback(message.delta as string);
-          }
-          break;
-
         case "response.audio.delta":
           if (this.onAudioReceivedCallback && "delta" in message) {
             const audioBuffer = Buffer.from(message.delta as string, "base64");
@@ -790,9 +785,21 @@ export class WebRTCAudioService implements ServiceInitializable {
           }
           break;
 
+        case "response.text.delta":
+        case "response.output_text.delta":
         case "response.audio_transcript.delta":
-          if (this.onTranscriptReceivedCallback && "delta" in message) {
-            await this.onTranscriptReceivedCallback(message.delta as string);
+        case "response.output_audio_transcript.delta":
+        case "response.output_audio_transcription.delta":
+        case "conversation.item.audio_transcription.delta":
+          if (this.onTranscriptReceivedCallback) {
+            const transcript = extractTranscriptText(message);
+            if (transcript !== undefined) {
+              await this.onTranscriptReceivedCallback(transcript);
+            } else {
+              this.logger.debug("Transcript delta missing textual payload", {
+                type: message.type,
+              });
+            }
           }
           break;
 

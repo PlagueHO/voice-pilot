@@ -7,10 +7,19 @@ const MEDIA_KIND_AUDIO_INPUT = "audioinput";
 export class AudioDeviceValidator {
   private readonly logger: Logger;
 
+  /**
+   * Creates a new audio device validator that logs diagnostic information.
+   * @param logger - Optional logger instance for emitting structured logs.
+   */
   constructor(logger?: Logger) {
     this.logger = logger || new Logger("AudioDeviceValidator");
   }
 
+  /**
+   * Validates that a microphone device is present and accessible by the browser.
+   * @param deviceId - Optional identifier of the audio input device to validate.
+   * @returns Validation result including device metadata or a structured error.
+   */
   async validateDevice(deviceId?: string): Promise<DeviceValidationResult> {
     if (!navigator?.mediaDevices) {
       return {
@@ -96,6 +105,11 @@ export class AudioDeviceValidator {
     }
   }
 
+  /**
+   * Attempts to acquire the specified device to verify capabilities and settings.
+   * @param deviceId - Identifier of the audio device being tested.
+   * @returns Capture settings and capabilities when successful; otherwise `null`.
+   */
   private async testDeviceAccess(deviceId: string): Promise<{
     settings: MediaTrackSettings;
     capabilities?: MediaTrackCapabilities;
@@ -135,6 +149,11 @@ export class AudioDeviceValidator {
     }
   }
 
+  /**
+   * Maps a browser error to the corresponding audio error code classification.
+   * @param error - Error thrown while accessing media devices.
+   * @returns Audio-specific error code representing the failure.
+   */
   private mapErrorToCode(error: any): AudioErrorCode {
     const name = error?.name;
     switch (name) {
@@ -154,6 +173,14 @@ export class AudioDeviceValidator {
     }
   }
 
+  /**
+   * Creates a standardized audio processing error payload for downstream handling.
+   * @param code - Error code describing the failure category.
+   * @param message - Human-readable description of the failure.
+   * @param recoverable - Indicates whether the failure can be retried safely.
+   * @param cause - Optional underlying error for diagnostic purposes.
+   * @returns Structured audio processing error.
+   */
   private createError(
     code: AudioErrorCode,
     message: string,

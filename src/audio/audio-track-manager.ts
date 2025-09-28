@@ -2,18 +2,18 @@ import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { AudioTrackState, AudioTrackStatistics } from "../types/audio-capture";
 import {
-    AudioConfiguration,
-    AudioTrackRegistrationOptions,
-    ConnectionQuality,
-    ConnectionStatistics,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
-    WebRTCTransport,
+  AudioConfiguration,
+  AudioTrackRegistrationOptions,
+  ConnectionQuality,
+  ConnectionStatistics,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+  WebRTCTransport,
 } from "../types/webrtc";
 import {
-    AudioContextProvider,
-    AudioGraphNodes,
-    sharedAudioContextProvider,
+  AudioContextProvider,
+  AudioGraphNodes,
+  sharedAudioContextProvider,
 } from "./audio-context-provider";
 
 const QUALITY_MONITOR_DEFAULT_INTERVAL_MS = 2000;
@@ -68,12 +68,21 @@ export class AudioTrackManager implements ServiceInitializable {
     autoGainControl: true,
   };
 
+  /**
+   * Creates a new audio track manager that coordinates capture, processing, and playback resources.
+   * @param logger - Optional logger for emitting diagnostic messages.
+   * @param audioContextProvider - Optional provider that supplies shared audio graph resources.
+   */
   constructor(logger?: Logger, audioContextProvider?: AudioContextProvider) {
     this.logger = logger || new Logger("AudioTrackManager");
     this.audioContextProvider =
       audioContextProvider ?? sharedAudioContextProvider;
   }
 
+  /**
+   * Applies the supplied audio configuration and primes the audio graph for future captures.
+   * @param configuration - The configuration describing sample rate, channels, and DSP options.
+   */
   setAudioConfiguration(configuration: AudioConfiguration): void {
     this.audioConfiguration = configuration;
     this.audioContextProvider.configure(configuration);
@@ -87,6 +96,10 @@ export class AudioTrackManager implements ServiceInitializable {
     };
   }
 
+  /**
+   * Initializes the manager and validates that required browser APIs are available.
+   * @throws {Error} If the execution environment does not expose `navigator.mediaDevices`.
+   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -102,10 +115,17 @@ export class AudioTrackManager implements ServiceInitializable {
     this.logger.info("AudioTrackManager initialized successfully");
   }
 
+  /**
+   * Indicates whether the manager has completed the initialization sequence.
+   * @returns `true` when initialization succeeded, otherwise `false`.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Releases all active audio resources and resets handler registrations.
+   */
   dispose(): void {
     this.logger.info("Disposing AudioTrackManager");
 
@@ -122,6 +142,12 @@ export class AudioTrackManager implements ServiceInitializable {
     this.logger.info("AudioTrackManager disposed");
   }
 
+  /**
+   * Captures audio from the microphone, applies processing, and returns a managed track.
+   * @param customConstraints - Optional media constraints to merge with the configured defaults.
+   * @returns The processed microphone track ready to add to a transport.
+   * @throws {WebRTCErrorImpl} When device access fails or the capture pipeline cannot be built.
+   */
   async captureMicrophone(
     customConstraints?: MediaTrackConstraints,
   ): Promise<MediaStreamTrack> {
@@ -146,9 +172,9 @@ export class AudioTrackManager implements ServiceInitializable {
 
     this.logger.debug("Requesting microphone access", { constraints });
 
-  let inputStream: MediaStream | undefined;
-  let processedStream: MediaStream | undefined;
-  let captureContext: CaptureGraphContext | undefined;
+    let inputStream: MediaStream | undefined;
+    let processedStream: MediaStream | undefined;
+    let captureContext: CaptureGraphContext | undefined;
 
     try {
       inputStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -225,6 +251,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Registers a processed audio track with the provided WebRTC transport.
+   * @param transport - The transport responsible for publishing audio frames.
+   * @param track - The processed track created by this manager.
+   */
   async addTrackToTransport(
     transport: WebRTCTransport,
     track: MediaStreamTrack,
@@ -255,6 +286,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Removes a track from the transport and disposes of associated resources.
+   * @param transport - The transport that currently owns the track.
+   * @param track - The track instance to remove.
+   */
   async removeTrackFromTransport(
     transport: WebRTCTransport,
     track: MediaStreamTrack,
@@ -275,6 +311,14 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Swaps the active transport track with a newly processed capture stream.
+   * @param transport - The transport that should publish the new track.
+   * @param newTrack - The replacement audio track.
+   * @param processedStream - The processed stream associated with the replacement track.
+   * @param captureContext - Graph and source metadata used for diagnostics and disposal.
+   * @param currentTrackId - Optional identifier of the track to replace when not using the primary.
+   */
   async replaceTrack(
     transport: WebRTCTransport,
     newTrack: MediaStreamTrack,
@@ -355,6 +399,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Registers an incoming remote stream and primes it for playback through the shared audio context.
+   * @param stream - The remote media stream received from the transport.
+   * @param streamId - Optional identifier to use when tracking the stream internally.
+   */
   handleRemoteStream(stream: MediaStream, streamId?: string): void {
     const id = streamId ?? stream.id;
     this.remoteStreams.set(id, stream);
@@ -365,14 +414,26 @@ export class AudioTrackManager implements ServiceInitializable {
     void this.setupAudioPlayback(stream, id);
   }
 
+  /**
+   * Returns all locally managed tracks that are currently active.
+   * @returns An array containing each local media stream track.
+   */
   getLocalTracks(): MediaStreamTrack[] {
     return Array.from(this.localTracks.values());
   }
 
+  /**
+   * Returns all remote streams that have been registered for playback.
+   * @returns An array of remote media streams.
+   */
   getRemoteStreams(): MediaStream[] {
     return Array.from(this.remoteStreams.values());
   }
 
+  /**
+   * Stops the specified local track and disposes its processing graph.
+   * @param trackId - Identifier of the track to stop.
+   */
   stopTrack(trackId: string): void {
     const track = this.localTracks.get(trackId);
     if (!track) {
@@ -386,6 +447,9 @@ export class AudioTrackManager implements ServiceInitializable {
     this.logger.debug("Audio track stopped", { trackId });
   }
 
+  /**
+   * Stops and clears all locally managed tracks along with their processed streams.
+   */
   stopAllLocalTracks(): void {
     const trackIds = Array.from(this.localTracks.keys());
     for (const trackId of trackIds) {
@@ -406,6 +470,11 @@ export class AudioTrackManager implements ServiceInitializable {
     this.logger.info("All local audio tracks stopped");
   }
 
+  /**
+   * Updates the muted state of the specified track and reflects the change downstream.
+   * @param trackId - Identifier of the track to control.
+   * @param muted - Indicates whether the track should be muted.
+   */
   setTrackMuted(trackId: string, muted: boolean): void {
     const track = this.localTracks.get(trackId);
     if (!track) {
@@ -422,6 +491,12 @@ export class AudioTrackManager implements ServiceInitializable {
     this.logger.debug("Track mute state changed", { trackId, muted });
   }
 
+  /**
+   * Builds a snapshot of intrinsic track details and optional transport statistics.
+   * @param track - The media track to inspect.
+   * @param statistics - Connection statistics reported by the transport layer, if available.
+   * @returns Track metadata and derived metrics such as bitrate and jitter.
+   */
   getTrackStatistics(
     track: MediaStreamTrack,
     statistics?: ConnectionStatistics,
@@ -461,6 +536,11 @@ export class AudioTrackManager implements ServiceInitializable {
     };
   }
 
+  /**
+   * Retrieves the current lifecycle state for a managed track.
+   * @param trackId - Identifier of the track of interest.
+   * @returns The track state when managed or `null` if the track is unknown.
+   */
   getTrackState(trackId: string): AudioTrackState | null {
     const track = this.localTracks.get(trackId);
     if (!track) {
@@ -477,6 +557,10 @@ export class AudioTrackManager implements ServiceInitializable {
     };
   }
 
+  /**
+   * Adjusts capture constraints based on observed connection quality and notifies listeners.
+   * @param quality - The quality classification reported by the transport diagnostics.
+   */
   adjustAudioQuality(quality: ConnectionQuality): void {
     switch (quality) {
       case ConnectionQuality.Excellent:
@@ -518,6 +602,10 @@ export class AudioTrackManager implements ServiceInitializable {
     });
   }
 
+  /**
+   * Enumerates available audio input devices, returning only microphone-capable entries.
+   * @returns A filtered list of media devices representing audio inputs.
+   */
   async getAudioInputDevices(): Promise<MediaDeviceInfo[]> {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -530,6 +618,12 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Switches the active audio input to the specified device and updates the transport when supplied.
+   * @param deviceId - Identifier of the desired audio input device.
+   * @param transport - Optional transport to receive the newly captured track.
+   * @returns The processed track sourced from the selected device.
+   */
   async switchAudioDevice(
     deviceId: string,
     transport?: WebRTCTransport,
@@ -609,6 +703,10 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Registers a handler that is invoked when aggregate connection quality changes.
+   * @param handler - Callback receiving the updated quality classification and optional statistics.
+   */
   onTrackQualityChanged(
     handler: (
       quality: ConnectionQuality,
@@ -618,16 +716,29 @@ export class AudioTrackManager implements ServiceInitializable {
     this.trackQualityHandlers.add(handler);
   }
 
+  /**
+   * Registers a handler to observe state transitions for managed tracks.
+   * @param handler - Callback receiving the track identifier and its derived state information.
+   */
   onTrackStateChanged(
     handler: (trackId: string, state: AudioTrackState) => void,
   ): void {
     this.trackStateHandlers.add(handler);
   }
 
+  /**
+   * Registers a handler that fires when a track's mute status changes locally or via device events.
+   * @param handler - Callback receiving the track identifier and the new muted flag.
+   */
   onTrackMuted(handler: (trackId: string, muted: boolean) => void): void {
     this.trackMuteHandlers.add(handler);
   }
 
+  /**
+   * Starts polling the transport for connection statistics on a fixed interval.
+   * @param transport - The WebRTC transport that exposes connection statistics.
+   * @param intervalMs - Optional polling cadence in milliseconds.
+   */
   startQualityMonitor(
     transport: WebRTCTransport,
     intervalMs = QUALITY_MONITOR_DEFAULT_INTERVAL_MS,
@@ -641,6 +752,9 @@ export class AudioTrackManager implements ServiceInitializable {
     );
   }
 
+  /**
+   * Stops the quality monitor and clears any cached diagnostics.
+   */
   stopQualityMonitor(): void {
     if (this.qualityMonitorTimer) {
       clearInterval(this.qualityMonitorTimer);
@@ -650,6 +764,10 @@ export class AudioTrackManager implements ServiceInitializable {
     this.lastConnectionQuality = undefined;
   }
 
+  /**
+   * Polls the active transport for fresh connection statistics and emits
+   * quality change notifications when the classification has shifted.
+   */
   private pollConnectionQuality(): void {
     if (!this.qualityMonitorTransport) {
       return;
@@ -675,6 +793,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Notifies listeners that the aggregate connection quality has changed.
+   * @param quality - Latest quality classification determined by the transport.
+   * @param statistics - Optional connection statistics associated with the sample.
+   */
   private emitQualityChanged(
     quality: ConnectionQuality,
     statistics?: ConnectionStatistics,
@@ -690,6 +813,10 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Emits a lifecycle snapshot for the provided media track to registered listeners.
+   * @param track - Media track whose state should be announced.
+   */
   private emitTrackState(track: MediaStreamTrack): void {
     const state: AudioTrackState = {
       trackId: track.id,
@@ -711,6 +838,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Emits a lifecycle snapshot for a track by identifier when the underlying track is unavailable.
+   * @param trackId - Identifier of the track whose state is being synthesized.
+   * @param ended - Indicates whether the track has completed playback.
+   */
   private emitTrackStateById(trackId: string, ended: boolean): void {
     const state: AudioTrackState = {
       trackId,
@@ -732,6 +864,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Notifies listeners that the mute state for a track has changed.
+   * @param trackId - Identifier of the track whose mute state changed.
+   * @param muted - Current mute flag for the track.
+   */
   private emitTrackMuted(trackId: string, muted: boolean): void {
     for (const handler of this.trackMuteHandlers) {
       try {
@@ -744,6 +881,10 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Registers listeners on the supplied track to react to lifecycle events and propagate updates.
+   * @param track - Media track that should be monitored for lifecycle changes.
+   */
   private setupTrackEventHandlers(track: MediaStreamTrack): void {
     track.addEventListener("ended", () => {
       this.logger.warn("Audio track ended", { trackId: track.id });
@@ -765,6 +906,11 @@ export class AudioTrackManager implements ServiceInitializable {
     });
   }
 
+  /**
+   * Connects the provided stream to the shared audio context for playback and stores its source node.
+   * @param stream - Remote media stream that should be rendered to the destination.
+   * @param streamId - Identifier used to track the playback resources associated with the stream.
+   */
   private async setupAudioPlayback(
     stream: MediaStream,
     streamId: string,
@@ -783,6 +929,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Creates a processed audio track by routing the provided stream through the configured graph.
+   * @param stream - Raw media stream that will be processed.
+   * @returns Processed track, its owning stream, and the constructed graph nodes.
+   */
   private async createProcessedTrackForStream(
     stream: MediaStream,
   ): Promise<{
@@ -814,6 +965,12 @@ export class AudioTrackManager implements ServiceInitializable {
     return { processedTrack, processedStream, graph };
   }
 
+  /**
+   * Registers a processed track and its associated resources for lifecycle management.
+   * @param track - Processed audio track produced by the capture pipeline.
+   * @param processedStream - Media stream that owns the processed track.
+   * @param context - Capture graph and source information used for disposal.
+   */
   private registerProcessedTrack(
     track: MediaStreamTrack,
     processedStream: MediaStream,
@@ -827,6 +984,10 @@ export class AudioTrackManager implements ServiceInitializable {
     this.emitTrackState(track);
   }
 
+  /**
+   * Disposes the capture graph and associated streams for the specified track identifier.
+   * @param trackId - Identifier of the track whose capture graph should be released.
+   */
   private disposeCaptureGraph(trackId: string): void {
     const context = this.captureGraphs.get(trackId);
     if (!context) {
@@ -870,6 +1031,11 @@ export class AudioTrackManager implements ServiceInitializable {
     this.captureGraphs.delete(trackId);
   }
 
+  /**
+   * Disposes a capture context that failed to register completely, stopping any temporary streams.
+   * @param context - Capture graph context containing the partially constructed nodes.
+   * @param processedStream - Stream associated with the processed track that needs to be stopped.
+   */
   private disposePendingCaptureContext(
     context: CaptureGraphContext,
     processedStream: MediaStream,
@@ -903,6 +1069,9 @@ export class AudioTrackManager implements ServiceInitializable {
     processedStream.getTracks().forEach((track) => track.stop());
   }
 
+  /**
+   * Clears all registered remote streams and detaches their playback nodes.
+   */
   private clearRemoteStreams(): void {
     for (const [streamId, stream] of this.remoteStreams) {
       const sourceNode = this.remotePlaybackSources.get(streamId);
@@ -923,6 +1092,10 @@ export class AudioTrackManager implements ServiceInitializable {
     this.remoteStreams.clear();
   }
 
+  /**
+   * Ensures the manager has been initialized before executing operations that require setup.
+   * @throws {Error} When the manager has not completed initialization.
+   */
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error(
@@ -931,6 +1104,10 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Stops and removes the processed stream associated with the provided track identifier.
+   * @param trackId - Identifier of the track whose processed stream should be halted.
+   */
   private stopStreamForTrack(trackId: string): void {
     const stream = this.trackStreams.get(trackId);
     if (stream) {
@@ -941,12 +1118,20 @@ export class AudioTrackManager implements ServiceInitializable {
     this.disposeCaptureGraph(trackId);
   }
 
+  /**
+   * Retrieves the identifier of the first managed track, typically representing the primary capture path.
+   * @returns Identifier of the primary track when available; otherwise `undefined`.
+   */
   private getPrimaryTrackId(): string | undefined {
     const iterator = this.localTracks.keys();
     const result = iterator.next();
     return result.done ? undefined : result.value;
   }
 
+  /**
+   * Safely retrieves connection statistics from the monitored transport, logging on failure.
+   * @returns Current connection statistics when available.
+   */
   private tryGetConnectionStatistics(): ConnectionStatistics | undefined {
     try {
       return this.qualityMonitorTransport?.getConnectionStatistics();
@@ -958,6 +1143,11 @@ export class AudioTrackManager implements ServiceInitializable {
     }
   }
 
+  /**
+   * Estimates an audio level heuristic for the provided connection quality classification.
+   * @param quality - Connection quality classification used to derive the audio level.
+   * @returns Normalized audio level in the range `[0, 1]`.
+   */
   private estimateAudioLevel(quality: ConnectionQuality): number {
     switch (quality) {
       case ConnectionQuality.Excellent:

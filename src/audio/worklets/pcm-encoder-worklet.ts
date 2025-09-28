@@ -29,6 +29,16 @@ registerProcessor('${PCM_ENCODER_WORKLET_NAME}', VoicePilotPcmEncoderProcessor);
 
 const registeredContexts = new WeakSet<AudioContext>();
 
+/**
+ * Registers the inline PCM encoder worklet with the provided `AudioContext` if it
+ * has not already been registered for that instance.
+ *
+ * @param context - The `AudioContext` that should host the encoder worklet.
+ * @returns A promise that resolves once the worklet is available within the
+ * context.
+ * @throws {Error} When `AudioWorklet` is unavailable in the current environment,
+ * preventing the worklet module from being loaded.
+ */
 export async function ensurePcmEncoderWorklet(context: AudioContext): Promise<void> {
   if (registeredContexts.has(context)) {
     return;

@@ -10,6 +10,15 @@ export interface RealtimeEvent {
   [key: string]: any;
 }
 
+export type RealtimeDeltaPayload =
+  | string
+  | {
+      text?: string;
+      transcript?: string;
+      confidence?: number;
+      [key: string]: unknown;
+    };
+
 // Session management events
 export interface SessionUpdateEvent extends RealtimeEvent {
   type: "session.update";
@@ -303,7 +312,7 @@ export interface ResponseTextDeltaEvent extends RealtimeEvent {
   item_id: string;
   output_index: number;
   content_index: number;
-  delta: string;
+  delta: RealtimeDeltaPayload;
 }
 
 export interface ResponseTextDoneEvent extends RealtimeEvent {
@@ -321,7 +330,7 @@ export interface ResponseAudioTranscriptDeltaEvent extends RealtimeEvent {
   item_id: string;
   output_index: number;
   content_index: number;
-  delta: string;
+  delta: RealtimeDeltaPayload;
 }
 
 export interface ResponseAudioTranscriptDoneEvent extends RealtimeEvent {
@@ -331,6 +340,50 @@ export interface ResponseAudioTranscriptDoneEvent extends RealtimeEvent {
   output_index: number;
   content_index: number;
   transcript: string;
+}
+
+export interface ResponseOutputTextDeltaEvent extends RealtimeEvent {
+  type: "response.output_text.delta";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index?: number;
+  delta: RealtimeDeltaPayload;
+}
+
+export interface ResponseOutputTextDoneEvent extends RealtimeEvent {
+  type: "response.output_text.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index?: number;
+  text?: string;
+}
+
+export interface ResponseOutputAudioTranscriptDeltaEvent
+  extends RealtimeEvent
+{
+  type:
+    | "response.output_audio_transcript.delta"
+    | "response.output_audio_transcription.delta";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index?: number;
+  delta: RealtimeDeltaPayload;
+}
+
+export interface ResponseOutputAudioTranscriptDoneEvent
+  extends RealtimeEvent
+{
+  type:
+    | "response.output_audio_transcript.done"
+    | "response.output_audio_transcription.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index?: number;
+  transcript?: string;
 }
 
 export interface ResponseAudioDeltaEvent extends RealtimeEvent {
@@ -418,8 +471,12 @@ export type AnyRealtimeEvent =
   | ResponseContentPartDoneEvent
   | ResponseTextDeltaEvent
   | ResponseTextDoneEvent
+  | ResponseOutputTextDeltaEvent
+  | ResponseOutputTextDoneEvent
   | ResponseAudioTranscriptDeltaEvent
   | ResponseAudioTranscriptDoneEvent
+  | ResponseOutputAudioTranscriptDeltaEvent
+  | ResponseOutputAudioTranscriptDoneEvent
   | ResponseAudioDeltaEvent
   | ResponseAudioDoneEvent
   | ResponseFunctionCallArgumentsDeltaEvent

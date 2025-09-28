@@ -1,10 +1,10 @@
 import { Logger } from "../core/logger";
 import {
-    RecoveryStrategy,
-    WebRTCConfig,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
-    WebRTCTransport,
+  RecoveryStrategy,
+  WebRTCConfig,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+  WebRTCTransport,
 } from "../types/webrtc";
 
 /**
@@ -30,6 +30,11 @@ export class ConnectionRecoveryManager {
     this.logger = logger || new Logger("ConnectionRecoveryManager");
   }
 
+  /**
+   * Registers an observer that will be notified of recovery lifecycle events.
+   * @param observer - Function invoked when recovery attempts progress or conclude.
+   * @returns Disposable handle for unregistering the observer.
+   */
   addObserver(observer: ConnectionRecoveryObserver): { dispose: () => void } {
     this.observers.add(observer);
 
@@ -41,7 +46,8 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Configure recovery strategy parameters
+   * Configures recovery strategy parameters, overriding any previously supplied values.
+   * @param options - Partial set of recovery tuning parameters to apply.
    */
   configure(options: {
     maxAttempts?: number;
@@ -64,7 +70,11 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Handle connection failure and attempt recovery
+   * Handles a transport failure by executing the configured recovery workflow.
+   * @param transport - WebRTC transport for issuing recovery operations.
+   * @param config - Current transport configuration used when re-establishing connections.
+   * @param error - Error that triggered the recovery sequence.
+   * @returns `true` when recovery succeeds, otherwise `false`.
    */
   async handleConnectionFailure(
     transport: WebRTCTransport,
@@ -118,7 +128,7 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Reset recovery state
+   * Resets internal state so future recovery attempts start from the initial attempt count.
    */
   reset(): void {
     this.isRecovering = false;
@@ -128,7 +138,8 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Get recovery statistics
+   * Builds a snapshot of the current recovery metrics.
+   * @returns Recovery status, counters, and timestamps.
    */
   getRecoveryStats(): {
     isRecovering: boolean;
@@ -147,7 +158,9 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Check if an error is recoverable
+   * Determines whether the supplied error can be handled by the recovery workflow.
+   * @param error - Error raised by the transport.
+   * @returns `true` if the error is recoverable.
    */
   private isRecoverableError(error: WebRTCErrorImpl): boolean {
     switch (error.code) {
@@ -168,7 +181,11 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Attempt connection recovery with exponential backoff
+   * Attempts transport recovery using exponential backoff and strategy selection.
+   * @param transport - Transport instance to recover.
+   * @param config - Transport configuration for reconnection.
+   * @param originalError - Error that initiated the recovery process.
+   * @returns `true` when recovery is successful.
    */
   private async attemptRecovery(
     transport: WebRTCTransport,
@@ -292,7 +309,9 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Select appropriate recovery strategy based on error type
+   * Selects the appropriate recovery strategy based on the originating error code.
+   * @param error - Error thrown by the transport.
+   * @returns Recovery strategy identifier.
    */
   private selectRecoveryStrategy(error: WebRTCErrorImpl): RecoveryStrategy {
     switch (error.code) {
@@ -311,7 +330,11 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Execute specific recovery strategy
+   * Executes the supplied recovery strategy against the transport.
+   * @param transport - WebRTC transport targeted for recovery.
+   * @param config - Active transport configuration.
+   * @param strategy - Strategy to execute for recovery.
+   * @returns `true` when the strategy completes successfully.
    */
   private async executeRecoveryStrategy(
     transport: WebRTCTransport,
@@ -340,7 +363,10 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Retry connection with current configuration
+   * Attempts to reconnect the transport using the existing configuration.
+   * @param transport - WebRTC transport to reconnect.
+   * @param config - WebRTC configuration used for reconnection.
+   * @returns `true` when the connection is re-established successfully.
    */
   private async retryConnection(
     transport: WebRTCTransport,
@@ -357,7 +383,10 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Restart ICE connection
+   * Requests an ICE restart from the transport.
+   * @param transport - WebRTC transport undergoing recovery.
+   * @param config - Transport configuration passed to the restart call.
+   * @returns `true` when the restart succeeds.
    */
   private async restartIceConnection(
     transport: WebRTCTransport,
@@ -378,7 +407,10 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Recreate data channel
+   * Recreates the transport data channel.
+   * @param transport - WebRTC transport in recovery.
+   * @param config - Configuration context for the data channel recreation.
+   * @returns `true` when a channel is available after recreation.
    */
   private async recreateDataChannel(
     transport: WebRTCTransport,
@@ -401,7 +433,10 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Full reconnection with clean state
+   * Tears down the transport and establishes a fresh connection.
+   * @param transport - WebRTC transport to reconnect.
+   * @param config - Configuration for the new connection attempt.
+   * @returns `true` when reconnection succeeds.
    */
   private async fullReconnect(
     transport: WebRTCTransport,
@@ -424,7 +459,8 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Calculate exponential backoff delay
+   * Calculates the delay for the next recovery attempt using exponential backoff with jitter.
+   * @returns Delay in milliseconds before the next attempt.
    */
   private calculateBackoffDelay(): number {
     if (this.currentAttempt === 1) {
@@ -444,7 +480,7 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Handle successful recovery
+   * Updates state following a successful recovery attempt.
    */
   private onRecoverySuccess(): void {
     this.lastConnectionTime = Date.now();
@@ -458,7 +494,7 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Handle recovery failure
+   * Logs and retains state when a recovery attempt fails.
    */
   private onRecoveryFailure(): void {
     this.logger.warn("Connection recovery failed", {
@@ -468,12 +504,17 @@ export class ConnectionRecoveryManager {
   }
 
   /**
-   * Utility method for delays
+   * Suspends execution for the specified duration.
+   * @param ms - Number of milliseconds to wait.
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  /**
+   * Notifies registered observers of the latest recovery lifecycle event.
+   * @param event - Recovery event to broadcast.
+   */
   private notifyObservers(event: ConnectionRecoveryEvent): void {
     for (const observer of Array.from(this.observers)) {
       try {

@@ -6,6 +6,10 @@ import {
   AudioProcessingGraph,
 } from "../types/audio-capture";
 import {
+  AudioContextProvider,
+  sharedAudioContextProvider,
+} from "./audio-context-provider";
+import {
   calculatePeak,
   calculateRms,
   computeBufferHealth,
@@ -26,30 +30,43 @@ interface MetricsState {
 }
 
 const DEFAULT_ANALYSIS_INTERVAL_MS = 100;
-const DEFAULT_LATENCY_HINT: AudioContextLatencyCategory = "interactive";
 
+/**
+ * Creates and manages a Web Audio graph for microphone capture and analysis.
+ */
 export class WebAudioProcessingChain implements AudioProcessingChain {
   private readonly logger: Logger;
+  private readonly audioContextProvider: AudioContextProvider;
   private readonly metricsState = new WeakMap<
     AudioProcessingGraph,
     MetricsState
   >();
 
-  constructor(logger?: Logger) {
+  /**
+   * Constructs a processing chain with optional overrides for logging and audio context provisioning.
+   *
+   * @param logger - Logger instance used for diagnostics; defaults to a scoped logger when omitted.
+   * @param audioContextProvider - Provider responsible for supplying shared audio contexts.
+   */
+  constructor(logger?: Logger, audioContextProvider?: AudioContextProvider) {
     this.logger = logger || new Logger("WebAudioProcessingChain");
+    this.audioContextProvider =
+      audioContextProvider ?? sharedAudioContextProvider;
   }
 
+  /**
+   * Creates the Web Audio processing graph for the supplied media stream and configuration.
+   *
+   * @param stream - Input media stream containing audio tracks to process.
+   * @param config - Processing configuration including gain and analysis parameters.
+   * @returns Promise resolving with the constructed processing graph.
+   */
   async createProcessingGraph(
     stream: MediaStream,
     config: AudioProcessingConfig,
   ): Promise<AudioProcessingGraph> {
     try {
-      const latencyHint: AudioContextLatencyCategory | number =
-        typeof config.analysisIntervalMs === "number"
-          ? Math.max(config.analysisIntervalMs / 1000, 0.001)
-          : DEFAULT_LATENCY_HINT;
-
-      const context = new AudioContext({ latencyHint });
+      const context = await this.audioContextProvider.getOrCreateContext();
       const source = context.createMediaStreamSource(stream);
       const gainNode = context.createGain();
       const analyserNode = context.createAnalyser();
@@ -99,6 +116,12 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     }
   }
 
+  /**
+   * Applies updated processing parameters to an existing audio graph.
+   *
+   * @param graph - Existing graph whose nodes should be reconfigured.
+   * @param config - Partial configuration with parameters to override.
+   */
   async updateProcessingParameters(
     graph: AudioProcessingGraph,
     config: Partial<AudioProcessingConfig>,
@@ -108,6 +131,12 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     this.logger.debug("Audio processing parameters updated", { config });
   }
 
+  /**
+   * Analyses the current audio level and aggregates metrics for the provided graph.
+   *
+   * @param graph - Graph whose analyser node should be sampled.
+   * @returns The most recent set of audio metrics.
+   */
   analyzeAudioLevel(graph: AudioProcessingGraph): AudioMetrics {
     const state = this.metricsState.get(graph);
     if (!state) {
@@ -143,12 +172,23 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     return metrics;
   }
 
+  /**
+   * Estimates end-to-end audio latency for the given context.
+   *
+   * @param context - Audio context from which to read latency properties.
+   * @returns Total latency in seconds derived from base and output latency values.
+   */
   async measureLatency(context: AudioContext): Promise<number> {
     const baseLatency = context.baseLatency ?? 0;
     const outputLatency = (context as any).outputLatency ?? 0;
     return baseLatency + outputLatency;
   }
 
+  /**
+   * Disconnects and disposes of the nodes associated with the supplied processing graph.
+   *
+   * @param graph - Graph whose resources should be cleaned up.
+   */
   disposeGraph(graph: AudioProcessingGraph): void {
     try {
       graph.source.disconnect();
@@ -170,11 +210,16 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       });
     }
 
-    void graph.context.close();
     this.metricsState.delete(graph);
     this.logger.debug("Audio processing graph disposed");
   }
 
+  /**
+   * Derives gain levels based on configuration presets and applies them to the provided node.
+   *
+   * @param gainNode - Gain node whose value should be adjusted.
+   * @param config - Partial processing configuration containing the desired automatic gain level.
+   */
   private applyProcessingLevels(
     gainNode: GainNode,
     config: Partial<AudioProcessingConfig>,
