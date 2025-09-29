@@ -70,11 +70,19 @@ export class WebRTCTransportImpl
   // Current configuration
   private config: WebRTCConfig | null = null;
 
+  /**
+   * Creates a new WebRTC transport for handling realtime audio sessions.
+   * @param logger Optional logger instance for emitting diagnostic output.
+   */
   constructor(logger?: Logger) {
     this.logger = logger || new Logger("WebRTCTransport");
     this.connectionId = this.generateConnectionId();
   }
 
+  /**
+   * Initializes the transport and prepares it for connection establishment.
+   * @returns A promise that resolves when initialization has completed.
+   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -84,10 +92,17 @@ export class WebRTCTransportImpl
     this.initialized = true;
   }
 
+  /**
+   * Indicates whether the transport has been initialized.
+   * @returns True when {@link initialize} has been called successfully.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Disposes all resources associated with the transport instance.
+   */
   dispose(): void {
     this.logger.info("Disposing WebRTC transport");
     this.closeConnection();
@@ -96,6 +111,11 @@ export class WebRTCTransportImpl
   }
 
   // Connection lifecycle
+  /**
+   * Establishes a new WebRTC connection using the provided configuration.
+   * @param config WebRTC configuration containing endpoint and session details.
+   * @returns Connection result describing success and any associated metadata.
+   */
   async establishConnection(config: WebRTCConfig): Promise<ConnectionResult> {
     this.ensureInitialized();
 
@@ -187,6 +207,10 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Closes the active WebRTC connection and releases associated resources.
+   * @returns A promise that resolves when teardown has completed.
+   */
   async closeConnection(): Promise<void> {
     this.logger.info("Closing WebRTC connection");
 
@@ -225,6 +249,11 @@ export class WebRTCTransportImpl
     this.setConnectionState(WebRTCConnectionState.Closed);
   }
 
+  /**
+   * Attempts to restart ICE negotiation using the current peer connection.
+   * @param config WebRTC configuration used for renewed negotiation.
+   * @returns True when ICE restarts successfully; otherwise false.
+   */
   async restartIce(config: WebRTCConfig): Promise<boolean> {
     if (!this.peerConnection) {
       this.logger.warn("Cannot restart ICE without peer connection");
@@ -281,6 +310,11 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Recreates the data channel with the provided configuration.
+   * @param config WebRTC configuration that supplies the data channel options.
+   * @returns The newly opened data channel, or null if recreation failed.
+   */
   async recreateDataChannel(config: WebRTCConfig): Promise<RTCDataChannel | null> {
     if (!this.peerConnection) {
       this.logger.warn("Cannot recreate data channel without peer connection");
@@ -328,14 +362,26 @@ export class WebRTCTransportImpl
     return newChannel;
   }
 
+  /**
+   * Gets the current data channel state or "unavailable" when no channel exists.
+   * @returns The current {@link RTCDataChannelState} or a sentinel string value.
+   */
   getDataChannelState(): RTCDataChannelState | "unavailable" {
     return this.dataChannel?.readyState ?? "unavailable";
   }
 
+  /**
+   * Indicates whether the transport is operating in data-channel fallback mode.
+   * @returns True when fallback is active due to channel unavailability.
+   */
   isDataChannelFallbackActive(): boolean {
     return this.fallbackActive;
   }
 
+  /**
+   * Publishes a recovery event to listening observers.
+   * @param event Recovery event payload describing reconnect attempts/outcomes.
+   */
   publishRecoveryEvent(event: RecoveryEventPayload): void {
     const timestamp = new Date();
 
@@ -374,10 +420,18 @@ export class WebRTCTransportImpl
   }
 
   // Connection state
+  /**
+   * Retrieves the current WebRTC connection state.
+   * @returns The current {@link WebRTCConnectionState} value.
+   */
   getConnectionState(): WebRTCConnectionState {
     return this.connectionState;
   }
 
+  /**
+   * Returns the latest sampled connection statistics.
+   * @returns A copy of the connection statistics snapshot.
+   */
   getConnectionStatistics(): ConnectionStatistics {
     const snapshot =
       this.latestConnectionStatistics ?? this.computeConnectionStatistics();
@@ -386,6 +440,12 @@ export class WebRTCTransportImpl
   }
 
   // Audio stream management
+  /**
+   * Adds an audio track to the active peer connection.
+   * @param track Media stream track to register.
+   * @param options Optional registration metadata and related streams.
+   * @throws {@link WebRTCErrorImpl} when the track fails to register.
+   */
   async addAudioTrack(
     track: MediaStreamTrack,
     options?: AudioTrackRegistrationOptions,
@@ -445,6 +505,13 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Replaces an existing audio track with a new one on the peer connection.
+   * @param oldTrack Track currently registered with the connection.
+   * @param newTrack Replacement track to attach.
+   * @param options Optional registration details for the new track.
+   * @throws {@link WebRTCErrorImpl} when replacement fails.
+   */
   async replaceAudioTrack(
     oldTrack: MediaStreamTrack,
     newTrack: MediaStreamTrack,
@@ -517,6 +584,11 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Removes an audio track from the peer connection and stops the local track.
+   * @param track Media stream track to remove.
+   * @throws {@link WebRTCErrorImpl} when removal fails.
+   */
   async removeAudioTrack(track: MediaStreamTrack): Promise<void> {
     if (!this.peerConnection) {
       throw new Error("No active peer connection");
@@ -562,15 +634,28 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Gets the remote audio stream exposed by the peer connection.
+   * @returns Remote audio stream when available, otherwise null.
+   */
   getRemoteAudioStream(): MediaStream | null {
     return this.remoteStream;
   }
 
+  /**
+   * Retrieves the audio context associated with registered tracks, if any.
+   * @returns Shared {@link AudioContext} instance or null when not assigned.
+   */
   getAudioContext(): AudioContext | null {
     return this.audioContextRef;
   }
 
   // Data channel operations
+  /**
+   * Sends a realtime event through the data channel or queues it if unavailable.
+   * @param message Realtime event payload to transmit.
+   * @throws {@link WebRTCErrorImpl} when transmission ultimately fails.
+   */
   async sendDataChannelMessage(message: RealtimeEvent): Promise<void> {
     const channel = this.dataChannel;
 
@@ -616,6 +701,11 @@ export class WebRTCTransportImpl
   }
 
   // Event handling
+  /**
+   * Registers an event listener for the specified event type.
+   * @param type WebRTC event type to subscribe to.
+   * @param handler Callback invoked when the event is emitted.
+   */
   addEventListener(type: WebRTCEventType, handler: WebRTCEventHandler): void {
     if (!this.eventHandlers.has(type)) {
       this.eventHandlers.set(type, new Set());
@@ -623,6 +713,11 @@ export class WebRTCTransportImpl
     this.eventHandlers.get(type)!.add(handler);
   }
 
+  /**
+   * Removes a previously registered event listener.
+   * @param type Event type originally registered.
+   * @param handler Handler instance to unregister.
+   */
   removeEventListener(
     type: WebRTCEventType,
     handler: WebRTCEventHandler,
@@ -634,6 +729,13 @@ export class WebRTCTransportImpl
   }
 
   // Private implementation methods
+  /**
+   * Performs SDP negotiation with Azure while enforcing a timeout.
+   * @param config WebRTC configuration containing endpoint details.
+   * @param offer Local session description offer to send for negotiation.
+   * @returns The SDP answer provided by the Azure service.
+   * @throws {@link WebRTCErrorImpl} when negotiation times out or fails.
+   */
   private async performNegotiationWithTimeout(
     config: WebRTCConfig,
     offer: RTCSessionDescriptionInit,
@@ -701,6 +803,13 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Wraps a promise with an SDP negotiation timeout guard.
+   * @param promise Negotiation promise to monitor.
+   * @param startedAt Millisecond timestamp used to compute duration.
+   * @returns The resolved promise value when it completes in time.
+   * @throws {@link WebRTCErrorImpl} when timeout elapses before resolution.
+   */
   private async withNegotiationTimeout<T>(
     promise: Promise<T>,
     startedAt: number,
@@ -736,6 +845,9 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Clears any pending negotiation timeout to avoid spurious failures.
+   */
   private clearNegotiationTimer(): void {
     if (this.negotiationTimeoutHandle) {
       clearTimeout(this.negotiationTimeoutHandle);
@@ -743,6 +855,12 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Posts the SDP offer to the Azure endpoint and returns the response.
+   * @param config WebRTC configuration, including endpoint and authentication.
+   * @param offer Local SDP offer to forward to Azure.
+   * @returns Object containing the SDP answer text.
+   */
   private async negotiateWithAzure(
     config: WebRTCConfig,
     offer: RTCSessionDescriptionInit,
@@ -768,6 +886,9 @@ export class WebRTCTransportImpl
     return { sdp };
   }
 
+  /**
+   * Attaches standard event handlers to the peer connection instance.
+   */
   private setupPeerConnectionHandlers(): void {
     if (!this.peerConnection) {
       return;
@@ -794,6 +915,11 @@ export class WebRTCTransportImpl
     };
   }
 
+  /**
+   * Attaches the data channel to the transport and wires event handlers.
+   * @param channel Data channel received or created by the peer connection.
+   * @param origin Indicates whether the channel originated locally or remotely.
+   */
   private attachDataChannel(
     channel: RTCDataChannel,
     origin: "local" | "remote",
@@ -821,6 +947,10 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Removes all event handlers from a data channel instance.
+   * @param channel Data channel whose callbacks should be cleared.
+   */
   private detachDataChannelHandlers(channel: RTCDataChannel): void {
     channel.onopen = null;
     channel.onclose = null;
@@ -828,6 +958,10 @@ export class WebRTCTransportImpl
     channel.onmessage = null;
   }
 
+  /**
+   * Configures event handlers for an active data channel.
+   * @param channel Data channel to configure.
+   */
   private setupDataChannelHandlers(channel: RTCDataChannel): void {
     channel.onopen = () => {
       this.handleDataChannelOpen();
@@ -846,6 +980,9 @@ export class WebRTCTransportImpl
     };
   }
 
+  /**
+   * Handles data channel open events by flushing queued messages.
+   */
   private handleDataChannelOpen(): void {
     this.logger.debug("Data channel opened");
     this.updateFallbackState(false, "Data channel opened");
@@ -853,11 +990,19 @@ export class WebRTCTransportImpl
     void this.flushQueuedMessages();
   }
 
+  /**
+   * Handles data channel closing and switches the transport to fallback mode.
+   * @param reason Human-readable explanation for the closure.
+   */
   private handleDataChannelClose(reason: string): void {
     this.logger.debug("Data channel closed", { reason });
     this.updateFallbackState(true, reason);
   }
 
+  /**
+   * Emits a transport error when the data channel encounters an issue.
+   * @param error Error object raised by the data channel implementation.
+   */
   private handleDataChannelError(error: unknown): void {
     const message =
       error && typeof error === "object" && "message" in error
@@ -881,6 +1026,11 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Updates fallback mode state and emits corresponding diagnostics.
+   * @param active True when fallback mode should be enabled.
+   * @param reason Description explaining why fallback state changed.
+   */
   private updateFallbackState(active: boolean, reason: string): void {
     const previous = this.fallbackActive;
     this.fallbackActive = active;
@@ -902,6 +1052,10 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Emits a data channel state change event with optional contextual reason.
+   * @param reason Optional description for the state change.
+   */
   private emitDataChannelState(reason?: string): void {
     this.emitEvent({
       type: "dataChannelStateChanged",
@@ -916,6 +1070,11 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Adds a message to the queue when immediate transmission is not possible.
+   * @param message Realtime event payload awaiting transmission.
+   * @param reason Explanation associated with the queuing decision.
+   */
   private enqueueDataChannelMessage(
     message: RealtimeEvent,
     reason: string,
@@ -929,6 +1088,9 @@ export class WebRTCTransportImpl
     this.updateFallbackState(true, reason);
   }
 
+  /**
+   * Attempts to send all queued data channel messages.
+   */
   private async flushQueuedMessages(): Promise<void> {
     if (this.isFlushingQueue) {
       return;
@@ -966,6 +1128,12 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Waits for the provided data channel to transition to the open state.
+   * @param channel Data channel to monitor.
+   * @param timeoutMs Maximum time to wait before giving up.
+   * @returns True when the channel opens before timing out.
+   */
   private async waitForDataChannelOpen(
     channel: RTCDataChannel,
     timeoutMs: number,
@@ -993,6 +1161,9 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Reacts to ICE connection state transitions and updates transport state.
+   */
   private handleIceConnectionStateChange(): void {
     if (!this.peerConnection) {
       return;
@@ -1020,6 +1191,10 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Handles remote track events by exposing the remote audio stream.
+   * @param event Track event emitted by the peer connection.
+   */
   private handleRemoteTrack(event: RTCTrackEvent): void {
     const [stream] = event.streams;
     this.remoteStream = stream;
@@ -1038,6 +1213,10 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Handles a remotely created data channel by attaching it to the transport.
+   * @param channel Data channel provided by the remote peer.
+   */
   private handleDataChannelReceived(channel: RTCDataChannel): void {
     this.logger.debug("Data channel received from remote", {
       label: channel.label,
@@ -1045,6 +1224,10 @@ export class WebRTCTransportImpl
     this.attachDataChannel(channel, "remote");
   }
 
+  /**
+   * Processes inbound data channel messages from the remote peer.
+   * @param event Message event containing serialized realtime payload.
+   */
   private handleDataChannelMessage(event: MessageEvent): void {
     try {
       const message = JSON.parse(event.data) as RealtimeEvent;
@@ -1069,6 +1252,12 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Merges existing and updated track registration options.
+   * @param existing Previously stored registration details.
+   * @param updates New values to overlay on the existing configuration.
+   * @returns Combined registration options when available.
+   */
   private mergeRegistrationOptions(
     existing?: AudioTrackRegistrationOptions,
     updates?: AudioTrackRegistrationOptions,
@@ -1095,6 +1284,12 @@ export class WebRTCTransportImpl
     return merged;
   }
 
+  /**
+   * Determines whether a media stream already contains the provided track.
+   * @param stream Media stream to inspect.
+   * @param track Track to look for within the stream.
+   * @returns True when the stream includes the track.
+   */
   private streamContainsTrack(
     stream: MediaStream,
     track: MediaStreamTrack,
@@ -1102,6 +1297,11 @@ export class WebRTCTransportImpl
     return stream.getTracks().some((candidate) => candidate.id === track.id);
   }
 
+  /**
+   * Adds a track to a stream if it is not already present.
+   * @param stream Stream that should contain the track.
+   * @param track Track to guarantee within the stream.
+   */
   private ensureStreamContainsTrack(
     stream: MediaStream,
     track: MediaStreamTrack,
@@ -1111,6 +1311,12 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Emits a local audio track event with the associated metadata.
+   * @param type Event type being emitted.
+   * @param track Track associated with the event.
+   * @param options Optional registration information for the track.
+   */
   private emitLocalTrackEvent(
     type: "audioTrackAdded" | "audioTrackRemoved",
     track: MediaStreamTrack,
@@ -1145,6 +1351,9 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Sends the initial session update event through the data channel.
+   */
   private async sendInitialSessionUpdate(): Promise<void> {
     if (!this.config) {
       return;
@@ -1162,6 +1371,11 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Composes a session update event based on the provided configuration.
+   * @param config Complete WebRTC configuration.
+   * @returns Session update event to deliver to the realtime service.
+   */
   private composeSessionUpdateEvent(config: WebRTCConfig): SessionUpdateEvent {
     const sessionPayload = this.buildSessionPayload(config.sessionConfig);
 
@@ -1179,6 +1393,11 @@ export class WebRTCTransportImpl
     };
   }
 
+  /**
+   * Builds the realtime session payload from the session configuration.
+   * @param sessionConfig Session configuration supplied by the caller.
+   * @returns Session payload describing modalities and audio formats.
+   */
   private buildSessionPayload(
     sessionConfig: WebRTCSessionConfiguration,
   ): SessionUpdateEvent["session"] {
@@ -1212,6 +1431,11 @@ export class WebRTCTransportImpl
     return payload;
   }
 
+  /**
+   * Maps turn detection configuration into the schema expected by the API.
+   * @param turnDetection Turn detection configuration from settings.
+   * @returns Normalized turn detection payload for realtime sessions.
+   */
   private mapTurnDetectionConfig(
     turnDetection: NonNullable<WebRTCSessionConfiguration["turnDetection"]>,
   ): NonNullable<SessionUpdateEvent["session"]["turn_detection"]> {
@@ -1226,6 +1450,12 @@ export class WebRTCTransportImpl
     };
   }
 
+  /**
+   * Waits for the ICE connection to reach a connected state.
+   * @param timeoutMs Timeout applied to the wait operation.
+   * @returns Resolves when a connected state has been reached.
+   * @throws {@link WebRTCErrorImpl} when connection fails or times out.
+   */
   private async waitForConnection(timeoutMs: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const startedAt = Date.now();
@@ -1276,6 +1506,10 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Updates the tracked connection state and emits a state change event.
+   * @param newState State value to record.
+   */
   private setConnectionState(newState: WebRTCConnectionState): void {
     const previousState = this.connectionState;
     this.connectionState = newState;
@@ -1296,6 +1530,10 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Emits an event to all registered listeners with error isolation.
+   * @param event Event payload to broadcast.
+   */
   private emitEvent(event: WebRTCEvent): void {
     const handlers = this.eventHandlers.get(event.type);
     if (handlers) {
@@ -1312,6 +1550,12 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Constructs a {@link ConnectionResult} snapshot for callers.
+   * @param success Indicates whether the operation succeeded.
+   * @param error Optional error describing failure details.
+   * @returns Structured connection result for callers.
+   */
   private createConnectionResult(
     success: boolean,
     error?: WebRTCErrorImpl,
@@ -1327,10 +1571,19 @@ export class WebRTCTransportImpl
     };
   }
 
+  /**
+   * Generates a unique connection identifier for diagnostic correlation.
+   * @returns Randomized connection identifier string.
+   */
   private generateConnectionId(): string {
     return `webrtc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  /**
+   * Classifies an error into a {@link WebRTCErrorCode} value.
+   * @param error Error object thrown during WebRTC operations.
+   * @returns Matching error code based on heuristics and known types.
+   */
   private classifyError(error: any): WebRTCErrorCode {
     if (error instanceof WebRTCErrorImpl) {
       return error.code;
@@ -1373,6 +1626,11 @@ export class WebRTCTransportImpl
     return WebRTCErrorCode.ConfigurationInvalid;
   }
 
+  /**
+   * Determines whether an error is considered recoverable.
+   * @param error Error instance to classify for recovery handling.
+   * @returns True when the error supports recovery strategies.
+   */
   private isRecoverableError(error: any): boolean {
     const code = this.classifyError(error);
 
@@ -1392,6 +1650,9 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Starts periodic collection of WebRTC statistics from the peer connection.
+   */
   private startStatisticsMonitoring(): void {
     this.stopStatisticsMonitoring();
     this.statsIntervalMs = 5000;
@@ -1416,6 +1677,9 @@ export class WebRTCTransportImpl
     }, this.statsIntervalMs);
   }
 
+  /**
+   * Stops the periodic statistics monitoring task if active.
+   */
   private stopStatisticsMonitoring(): void {
     if (this.statsInterval) {
       clearInterval(this.statsInterval);
@@ -1424,6 +1688,10 @@ export class WebRTCTransportImpl
     this.statsCollectionInProgress = false;
   }
 
+  /**
+   * Processes an RTC statistics report and emits diagnostics events.
+   * @param stats Statistics report retrieved from the peer connection.
+   */
   private processStatistics(stats: RTCStatsReport): void {
     const statistics = this.computeConnectionStatistics(stats);
     const previousQuality =
@@ -1450,6 +1718,11 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Computes the current connection statistics snapshot.
+   * @param statsReport Optional raw stats report from the peer connection.
+   * @returns Structured {@link ConnectionStatistics} snapshot.
+   */
   private computeConnectionStatistics(
     statsReport?: RTCStatsReport,
   ): ConnectionStatistics {
@@ -1547,6 +1820,10 @@ export class WebRTCTransportImpl
     return snapshot;
   }
 
+  /**
+   * Emits connection diagnostic events with the latest statistics and metadata.
+   * @param options Diagnostic options including statistics or negotiation data.
+   */
   private emitConnectionDiagnostics(options: {
     statistics?: ConnectionStatistics;
     negotiation?: {
@@ -1571,6 +1848,10 @@ export class WebRTCTransportImpl
     });
   }
 
+  /**
+   * Calculates qualitative connection health based on ICE state.
+   * @returns Connection quality classification.
+   */
   private calculateConnectionQuality(): ConnectionQuality {
     if (!this.peerConnection) {
       return ConnectionQuality.Failed;
@@ -1594,6 +1875,10 @@ export class WebRTCTransportImpl
     }
   }
 
+  /**
+   * Throws if the transport has not yet been initialized.
+   * @throws Error when {@link initialize} has not been called.
+   */
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error(

@@ -1,14 +1,14 @@
 import { Logger } from "../core/logger";
 import {
-    WebRTCConfig,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
-    WebRTCTransport,
+  WebRTCConfig,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+  WebRTCTransport,
 } from "../types/webrtc";
 import {
-    ConnectionRecoveryEvent,
-    ConnectionRecoveryManager,
-    ConnectionRecoveryObserver,
+  ConnectionRecoveryEvent,
+  ConnectionRecoveryManager,
+  ConnectionRecoveryObserver,
 } from "./connection-recovery-manager";
 
 /**
@@ -31,6 +31,11 @@ export class WebRTCErrorHandler {
   private onConnectionErrorCallback?: (error: WebRTCErrorImpl) => Promise<void>;
   private onFatalErrorCallback?: (error: WebRTCErrorImpl) => Promise<void>;
 
+  /**
+   * Create a new error handler wired to the shared recovery manager and logger.
+   *
+   * @param logger - Optional logger instance; defaults to a scoped logger when omitted.
+   */
   constructor(logger?: Logger) {
     this.logger = logger || new Logger("WebRTCErrorHandler");
     this.recoveryManager = new ConnectionRecoveryManager(logger);
@@ -40,7 +45,11 @@ export class WebRTCErrorHandler {
   }
 
   /**
-   * Handle WebRTC error with appropriate response strategy
+   * Handle a classified WebRTC error using the appropriate recovery or escalation strategy.
+   *
+   * @param error - Error instance to process.
+   * @param transport - Transport impacted by the failure.
+   * @param config - Connection configuration providing retry context.
    */
   async handleError(
     error: WebRTCErrorImpl,
@@ -91,7 +100,10 @@ export class WebRTCErrorHandler {
   }
 
   /**
-   * Classify error type from generic error
+   * Classify an arbitrary error into a WebRTC error code.
+   *
+   * @param error - Unknown error thrown by the media pipeline or browser APIs.
+   * @returns Matching WebRTC error code used for downstream handling.
    */
   classifyError(error: any): WebRTCErrorCode {
     // Permission errors
@@ -164,7 +176,11 @@ export class WebRTCErrorHandler {
   }
 
   /**
-   * Create WebRTC error from generic error
+   * Create a structured WebRTC error wrapper around an unknown error.
+   *
+   * @param error - Source error thrown by the transport or related APIs.
+   * @param recoverable - Optional override for the recoverable flag.
+   * @returns Structured WebRTC error with metadata for logging and recovery.
    */
   createWebRTCError(error: any, recoverable?: boolean): WebRTCErrorImpl {
     const code = this.classifyError(error);
@@ -180,7 +196,9 @@ export class WebRTCErrorHandler {
   }
 
   /**
-   * Get error statistics
+   * Summarize recent error history for diagnostics.
+   *
+   * @returns Aggregate error metrics including counts, history, and last occurrence.
    */
   getErrorStatistics(): ErrorStatistics {
     const totalErrors = this.errorHistory.length;
@@ -204,7 +222,9 @@ export class WebRTCErrorHandler {
   }
 
   /**
-   * Set error callbacks
+   * Register a callback for authentication failures requiring token refresh.
+   *
+   * @param callback - Handler invoked when authentication fails.
    */
   onAuthenticationError(
     callback: (error: WebRTCErrorImpl) => Promise<void>,
@@ -212,16 +232,28 @@ export class WebRTCErrorHandler {
     this.onAuthenticationErrorCallback = callback;
   }
 
+  /**
+   * Register a callback that runs after connection recovery attempts fail.
+   *
+   * @param callback - Handler invoked when a recoverable transport failure persists.
+   */
   onConnectionError(callback: (error: WebRTCErrorImpl) => Promise<void>): void {
     this.onConnectionErrorCallback = callback;
   }
 
+  /**
+   * Register a callback that runs when a non-recoverable error is detected.
+   *
+   * @param callback - Handler invoked for fatal errors that require user intervention.
+   */
   onFatalError(callback: (error: WebRTCErrorImpl) => Promise<void>): void {
     this.onFatalErrorCallback = callback;
   }
 
   /**
    * Configure recovery manager
+   *
+   * @param options - Overrides for retry attempt count, delays, and backoff.
    */
   configureRecovery(options: {
     maxAttempts?: number;
@@ -232,6 +264,12 @@ export class WebRTCErrorHandler {
     this.recoveryManager.configure(options);
   }
 
+  /**
+   * Subscribe to recovery lifecycle events emitted by the recovery manager.
+   *
+   * @param observer - Callback notified on recovery attempt progress and results.
+   * @returns Disposable used to stop receiving recovery notifications.
+   */
   onRecoveryEvent(
     observer: ConnectionRecoveryObserver,
   ): { dispose: () => void } {
@@ -241,12 +279,22 @@ export class WebRTCErrorHandler {
     };
   }
 
+  /**
+   * Dispose of recovery subscriptions and observers held by the handler.
+   */
   dispose(): void {
     this.recoverySubscription.dispose();
     this.recoveryObservers.clear();
   }
 
   // Private error handling methods
+  /**
+   * Resolve authentication-related failures by reissuing credentials if possible.
+   *
+   * @param error - Classified WebRTC error instance.
+   * @param transport - Active transport experiencing the failure.
+   * @param config - WebRTC configuration used for the connection.
+   */
   private async handleAuthenticationError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
@@ -262,6 +310,13 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Attempt transport recovery for ICE or timeout failures before surfacing the error.
+   *
+   * @param error - Classified WebRTC error instance.
+   * @param transport - Active transport experiencing the failure.
+   * @param config - WebRTC configuration used for the connection.
+   */
   private async handleConnectionError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
@@ -281,6 +336,13 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Attempt recovery for data channel failures and fall back to audio-only when allowed.
+   *
+   * @param error - Classified WebRTC error instance.
+   * @param transport - Active transport experiencing the failure.
+   * @param config - WebRTC configuration used for the connection.
+   */
   private async handleDataChannelError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
@@ -310,6 +372,13 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Escalate SDP negotiation failures, which are treated as non-recoverable.
+   *
+   * @param error - Classified WebRTC error instance.
+   * @param transport - Active transport experiencing the failure.
+   * @param config - WebRTC configuration used for the connection.
+   */
   private async handleSdpError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
@@ -321,6 +390,13 @@ export class WebRTCErrorHandler {
     await this.handleFatalError(error);
   }
 
+  /**
+   * Surface audio track failures so the caller can prompt the user for remediation.
+   *
+   * @param error - Classified WebRTC error instance.
+   * @param transport - Active transport experiencing the failure.
+   * @param config - WebRTC configuration used for the connection.
+   */
   private async handleAudioTrackError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
@@ -334,6 +410,11 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Surface fatal errors via the registered callback without attempting recovery.
+   *
+   * @param error - Classified WebRTC error instance.
+   */
   private async handleFatalError(error: WebRTCErrorImpl): Promise<void> {
     this.logger.error("Handling fatal error", { error: error.code });
 
@@ -342,6 +423,13 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Attempt recovery for unclassified errors when marked recoverable, otherwise escalate.
+   *
+   * @param error - Classified WebRTC error instance.
+   * @param transport - Active transport experiencing the failure.
+   * @param config - WebRTC configuration used for the connection.
+   */
   private async handleUnknownError(
     error: WebRTCErrorImpl,
     transport: WebRTCTransport,
@@ -361,6 +449,12 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Determine whether the supplied error code should trigger automated recovery.
+   *
+   * @param code - Error code to evaluate.
+   * @returns True when automated recovery is appropriate.
+   */
   private isRecoverableErrorCode(code: WebRTCErrorCode): boolean {
     switch (code) {
       case WebRTCErrorCode.NetworkTimeout:
@@ -380,12 +474,22 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Identify whether the data channel is optional for the current runtime configuration.
+   *
+   * @returns True when the session can continue in audio-only mode.
+   */
   private isDataChannelOptional(): boolean {
     // In most cases, data channel is critical for realtime events
     // This could be configurable based on application requirements
     return false;
   }
 
+  /**
+   * Emit structured logs with severity derived from the error code.
+   *
+   * @param error - Error to log with metadata.
+   */
   private logError(error: WebRTCErrorImpl): void {
     const logLevel = this.getLogLevel(error.code);
     const message = `WebRTC Error: ${error.code} - ${error.message}`;
@@ -412,6 +516,12 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Map an error code to the desired log level for downstream telemetry.
+   *
+   * @param code - Error code to classify.
+   * @returns Log level string understood by the logger.
+   */
   private getLogLevel(
     code: WebRTCErrorCode,
   ): "error" | "warn" | "info" | "debug" {
@@ -435,6 +545,11 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Record the error in the bounded in-memory history.
+   *
+   * @param error - Error instance to persist in the ring buffer.
+   */
   private addToErrorHistory(error: WebRTCErrorImpl): void {
     this.errorHistory.push({
       error,
@@ -447,6 +562,11 @@ export class WebRTCErrorHandler {
     }
   }
 
+  /**
+   * Compute average errors per hour using the recent error history window.
+   *
+   * @returns Number of errors observed within the last hour.
+   */
   private calculateAverageErrorsPerHour(): number {
     if (this.errorHistory.length === 0) {
       return 0;
@@ -462,6 +582,11 @@ export class WebRTCErrorHandler {
     return recentErrors.length;
   }
 
+  /**
+   * Notify each registered recovery observer while protecting the handler from exceptions.
+   *
+   * @param event - Recovery lifecycle event to broadcast to observers.
+   */
   private notifyRecoveryObservers(event: ConnectionRecoveryEvent): void {
     for (const observer of Array.from(this.recoveryObservers)) {
       try {

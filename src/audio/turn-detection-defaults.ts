@@ -1,5 +1,13 @@
 import { TurnDetectionConfig } from "../types/configuration";
 
+/**
+ * Immutable baseline values for the turn detection engine.
+ *
+ * @remarks
+ * The configuration mirrors the server-side VAD defaults expected by the
+ * realtime audio service. Consumers should call
+ * {@link createDefaultTurnDetectionConfig} before mutating values.
+ */
 export const DEFAULT_TURN_DETECTION_CONFIG: Readonly<TurnDetectionConfig> =
   Object.freeze({
     type: "server_vad",
@@ -11,10 +19,23 @@ export const DEFAULT_TURN_DETECTION_CONFIG: Readonly<TurnDetectionConfig> =
     eagerness: "auto",
   });
 
+/**
+ * Returns a mutable copy of the default turn detection configuration.
+ *
+ * @returns A new {@link TurnDetectionConfig} instance seeded with the default
+ * values.
+ */
 export function createDefaultTurnDetectionConfig(): TurnDetectionConfig {
   return { ...DEFAULT_TURN_DETECTION_CONFIG };
 }
 
+/**
+ * Normalizes user-provided turn detection configuration against defaults and
+ * clamps numeric ranges to safe values.
+ *
+ * @param config - Optional partial configuration supplied by the caller.
+ * @returns A complete {@link TurnDetectionConfig} containing validated values.
+ */
 export function normalizeTurnDetectionConfig(
   config?: Partial<TurnDetectionConfig>,
 ): TurnDetectionConfig {

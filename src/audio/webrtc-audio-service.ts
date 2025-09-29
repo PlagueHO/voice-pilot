@@ -137,6 +137,17 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.setupEventHandlers();
   }
 
+  /**
+   * Initializes underlying transport, audio, and error handling components.
+   *
+   * @remarks
+   * This method is idempotent; repeated calls after a successful initialization
+   * are no-ops. All dependent services must be initialized before invoking
+   * this method.
+   *
+   * @throws Error if mandatory dependencies are unavailable or component
+   * initialization fails.
+   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -167,10 +178,21 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
   }
 
+  /**
+   * Indicates whether the service completed initialization.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Releases resources, stops active sessions, and disposes managed components.
+   *
+   * @remarks
+   * After disposal the service can be re-initialized by calling
+   * {@link initialize}. Active sessions are stopped before tearing down
+   * transports to avoid resource leaks.
+   */
   dispose(): void {
     this.logger.info("Disposing WebRTC Audio Service");
 
@@ -190,7 +212,7 @@ export class WebRTCAudioService implements ServiceInitializable {
 
     this.currentAudioConfig = undefined;
     this.recoveryObserverDisposable?.dispose();
-  this.recoveryObserverDisposable = undefined;
+    this.recoveryObserverDisposable = undefined;
     this.telemetryObservers.clear();
     this.errorHandler.dispose();
 
@@ -332,7 +354,7 @@ export class WebRTCAudioService implements ServiceInitializable {
       await this.transport.closeConnection();
 
       this.lastRemoteStream = null;
-  await this.suspendAudioContext();
+    await this.suspendAudioContext();
 
       this.isSessionActive = false;
       this.onSessionStateChangedCallback?.("inactive");
@@ -438,28 +460,65 @@ export class WebRTCAudioService implements ServiceInitializable {
   }
 
   // Event handler setters
+  /**
+   * Registers a callback invoked whenever the session state transitions.
+   *
+   * @param callback - Async handler receiving the new session state string.
+   */
   onSessionStateChanged(callback: (state: string) => Promise<void>): void {
     this.onSessionStateChangedCallback = callback;
   }
 
+  /**
+   * Registers a callback notified when transcript text is received from the
+   * realtime data channel.
+   *
+   * @param callback - Async handler that processes the latest transcript.
+   */
   onTranscriptReceived(callback: (transcript: string) => Promise<void>): void {
     this.onTranscriptReceivedCallback = callback;
   }
 
+  /**
+   * Registers a callback to receive decoded audio payloads streamed from the
+   * realtime service.
+   *
+   * @param callback - Async handler invoked with PCM audio buffers.
+   */
   onAudioReceived(callback: (audioData: Buffer) => Promise<void>): void {
     this.onAudioReceivedCallback = callback;
   }
 
+  /**
+   * Registers a callback that receives surfaced errors encountered during the
+   * WebRTC session lifecycle.
+   *
+   * @param callback - Async handler invoked with error instances.
+   */
   onError(callback: (error: Error) => Promise<void>): void {
     this.onErrorCallback = callback;
   }
 
+  /**
+   * Registers a callback for realtime turn-detection events originating from
+   * the server.
+   *
+   * @param callback - Handler that receives turn events and may return a
+   * promise for async follow-up work.
+   */
   onTurnEvent(
     callback: (event: RealtimeTurnEvent) => Promise<void> | void,
   ): void {
     this.onTurnEventCallback = callback;
   }
 
+  /**
+   * Integrates an external audio pipeline for providing microphone input or
+   * consuming remote audio output.
+   *
+   * @param integration - Object implementing the audio pipeline contract.
+   * @returns Disposable that removes the integration when invoked.
+   */
   registerAudioPipelineIntegration(
     integration: AudioPipelineIntegration,
   ): { dispose: () => void } {
@@ -493,6 +552,12 @@ export class WebRTCAudioService implements ServiceInitializable {
     };
   }
 
+  /**
+   * Adds an observer notified about connection state transitions.
+   *
+   * @param observer - Callback receiving the latest {@link WebRTCConnectionState}.
+   * @returns Disposable that unregisters the observer.
+   */
   addSessionStateObserver(
     observer: (state: WebRTCConnectionState) => void,
   ): { dispose: () => void } {
@@ -506,6 +571,13 @@ export class WebRTCAudioService implements ServiceInitializable {
     };
   }
 
+  /**
+   * Adds an observer to receive telemetry events emitted during recovery and
+   * diagnostics flows.
+   *
+   * @param observer - Callback that handles {@link RecoveryTelemetryEvent}.
+   * @returns Disposable that unregisters the observer.
+   */
   addTelemetryObserver(
     observer: (event: RecoveryTelemetryEvent) => void,
   ): { dispose: () => void } {

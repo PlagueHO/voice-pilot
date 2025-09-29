@@ -72,6 +72,11 @@ interface LatencyAccumulator {
   count: number;
 }
 
+/**
+ * Coordinates hybrid server-side and local turn detection sources while tracking
+ * diagnostics and ensuring fallback behaviour remains synchronized with the
+ * active detection mode.
+ */
 export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
   private initialized = false;
   private readonly logger: Logger;
@@ -85,6 +90,12 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
   private readonly startLatency: LatencyAccumulator = { sum: 0, count: 0 };
   private readonly stopLatency: LatencyAccumulator = { sum: 0, count: 0 };
 
+  /**
+   * Creates a coordinator with optional initial configuration and logger.
+   *
+   * @param initialConfig - Turn detection preferences supplied by the caller.
+   * @param logger - Logger instance used for structured diagnostics.
+   */
   constructor(initialConfig?: TurnDetectionConfig, logger?: Logger) {
     this.logger = logger ?? new Logger("TurnDetectionCoordinator");
     const normalized = normalizeTurnDetectionConfig(
@@ -103,6 +114,12 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     };
   }
 
+  /**
+   * Initializes the coordinator, preparing it to process configuration and
+   * incoming realtime events.
+   *
+   * @returns A promise that resolves when initialization is complete.
+   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -113,10 +130,18 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     });
   }
 
+  /**
+   * Indicates whether the coordinator has been initialized.
+   *
+   * @returns True when initialization has completed.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Releases resources and disables any active fallback adapter.
+   */
   dispose(): void {
     if (this.fallbackAdapter) {
       void this.fallbackAdapter.disable().catch((err) =>
@@ -130,6 +155,12 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     this.logger.debug("Turn detection coordinator disposed");
   }
 
+  /**
+   * Applies a new turn detection configuration, normalizing the input and
+   * synchronizing fallback behaviour when the detection mode changes.
+   *
+   * @param params - The desired turn detection configuration values.
+   */
   async configure(params: TurnDetectionConfig): Promise<void> {
     this.ensureInitialized("configure");
     const normalized = normalizeTurnDetectionConfig(params);
@@ -144,10 +175,22 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
+  /**
+   * Requests a change in the detection mode while preserving existing
+   * configuration values.
+   *
+   * @param mode - The detection mode that should become active.
+   */
   async requestModeChange(mode: TurnDetectionConfig["type"]): Promise<void> {
     await this.configure({ ...this.config, type: mode });
   }
 
+  /**
+   * Processes realtime turn events from the Azure service, updating local
+   * state, latency diagnostics, and fallback posture accordingly.
+   *
+   * @param event - The realtime turn event received from the service.
+   */
   handleServerEvent(event: RealtimeTurnEvent): void {
     this.ensureInitialized("handleServerEvent");
     switch (event.type) {
@@ -183,10 +226,23 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
+  /**
+   * Returns an immutable snapshot of the current coordinator state.
+   *
+   * @returns The latest state clone consumers can safely inspect.
+   */
   getState(): TurnDetectionState {
     return this.snapshotState();
   }
 
+  /**
+   * Subscribes to coordinator events and provides a disposable handle for
+   * deregistration.
+   *
+   * @param event - Event type to subscribe to.
+   * @param listener - Listener invoked when the event fires.
+   * @returns Disposable that removes the listener when disposed.
+   */
   on(
     event: TurnDetectionEventType,
     listener: TurnDetectionEventListener,
@@ -207,6 +263,12 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     });
   }
 
+  /**
+   * Registers or replaces the hybrid fallback adapter, ensuring it is enabled
+   * when the coordinator enters fallback mode.
+   *
+   * @param adapter - Adapter responsible for processing local audio frames.
+   */
   registerFallbackAdapter(adapter: HybridFallbackAdapter | undefined): void {
     if (this.fallbackAdapter && this.state.diagnostics.fallbackActive) {
       void this.fallbackAdapter.disable().catch((err) =>
@@ -225,6 +287,11 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
+  /**
+   * Guards public methods, ensuring they execute only after initialization.
+   *
+   * @param operation - Name of the caller used for error messaging.
+   */
   private ensureInitialized(operation: string): void {
     if (!this.initialized) {
       throw new Error(
@@ -233,6 +300,13 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
+  /**
+   * Updates accumulated latency metrics based on server-provided or derived
+   * timings and refreshes diagnostics averages.
+   *
+   * @param kind - Whether the latency corresponds to speech start or stop.
+   * @param event - Realtime event containing latency or timestamp data.
+   */
   private updateLatency(
     kind: "start" | "stop",
     event: RealtimeTurnEvent,
@@ -255,6 +329,13 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
+  /**
+   * Derives a latency measurement from a timestamp relative to the current
+   * clock.
+   *
+   * @param timestamp - Timestamp emitted by the server for the event.
+   * @returns Calculated latency in milliseconds when available.
+   */
   private deriveLatency(timestamp: number | undefined): number | undefined {
     if (typeof timestamp !== "number" || Number.isNaN(timestamp)) {
       return undefined;
@@ -263,6 +344,14 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     return delta >= 0 ? delta : undefined;
   }
 
+  /**
+   * Toggles fallback mode and ensures the registered adapter mirrors the new
+   * state, emitting diagnostics events when changes occur.
+   *
+   * @param active - Whether fallback should be considered active.
+   * @param reason - Trace string identifying why the state changed.
+   * @param event - Optional realtime event correlated with the transition.
+   */
   private setFallbackState(
     active: boolean,
     reason: string,
@@ -287,12 +376,23 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     this.emit("fallback-engaged", { event, metadata: { reason, active } });
   }
 
+  /**
+   * Ensures fallback is disabled when the manual mode disables automatic
+   * detection logic.
+   */
   private syncFallbackForMode(): void {
     if (this.state.mode === "none" && this.state.diagnostics.fallbackActive) {
       this.setFallbackState(false, "mode_switch_manual");
     }
   }
 
+  /**
+   * Dispatches coordinator events and safely handles both synchronous and
+   * asynchronous listener failures.
+   *
+   * @param type - Event type to emit.
+   * @param payload - Partial payload merged into the event object.
+   */
   private emit(
     type: TurnDetectionEventType,
     payload: Partial<TurnDetectionCoordinatorEvent> = {},
@@ -326,6 +426,12 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     }
   }
 
+  /**
+   * Provides an immutable snapshot of the coordinator state for external
+   * consumers.
+   *
+   * @returns Deep copy of state metrics, safe for read-only usage.
+   */
   private snapshotState(): TurnDetectionState {
     return {
       mode: this.state.mode,
@@ -336,6 +442,11 @@ export class AzureTurnDetectionCoordinator implements TurnDetectionCoordinator {
     };
   }
 
+  /**
+   * Clones the current configuration to protect internal state from mutation.
+   *
+   * @returns Shallow copy of the configuration object.
+   */
   private cloneConfig(): TurnDetectionConfig {
     return { ...this.config };
   }

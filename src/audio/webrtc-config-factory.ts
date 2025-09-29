@@ -4,16 +4,16 @@ import { Logger } from "../core/logger";
 import type { AudioConfig, AzureRealtimeConfig } from "../types/configuration";
 import { EphemeralKeyInfo, RealtimeSessionInfo } from "../types/ephemeral";
 import {
-    AudioConfiguration,
-    ConnectionConfiguration,
-    DataChannelConfiguration,
-    EphemeralAuthentication,
-    WebRTCConfig,
-    WebRTCEndpoint,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
-    WebRTCSessionConfiguration,
-    validateAudioConfiguration,
+  AudioConfiguration,
+  ConnectionConfiguration,
+  DataChannelConfiguration,
+  EphemeralAuthentication,
+  WebRTCConfig,
+  WebRTCEndpoint,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
+  WebRTCSessionConfiguration,
+  validateAudioConfiguration,
 } from "../types/webrtc";
 
 /**
@@ -130,7 +130,16 @@ export class WebRTCConfigFactory {
   /**
    * Create ephemeral authentication configuration
    */
-  private createAuthentication(realtimeSession: any): EphemeralAuthentication {
+  /**
+   * Builds the authentication payload used by the transport layer from a newly
+   * minted realtime session.
+   *
+   * @param realtimeSession - Ephemeral session details issued by Azure OpenAI.
+   * @returns Ephemeral authentication bundle including metadata for telemetry.
+   */
+  private createAuthentication(
+    realtimeSession: RealtimeSessionInfo,
+  ): EphemeralAuthentication {
     const keyInfo: EphemeralKeyInfo = {
       key: realtimeSession.ephemeralKey,
       sessionId: realtimeSession.sessionId,
@@ -190,6 +199,13 @@ export class WebRTCConfigFactory {
     };
   }
 
+  /**
+   * Validates audio configuration values and raises structured errors when the
+   * transport would reject the provided parameters.
+   *
+   * @param audioConfig - Candidate audio configuration to verify.
+   * @throws {@link WebRTCErrorImpl} when validation yields one or more issues.
+   */
   private ensureAudioConfiguration(audioConfig: AudioConfiguration): void {
     const errors = validateAudioConfiguration(audioConfig);
     if (errors.length > 0) {
@@ -203,6 +219,14 @@ export class WebRTCConfigFactory {
     }
   }
 
+  /**
+   * Composes the realtime session configuration encompassing locale, voice, and
+   * turn-detection preferences.
+   *
+   * @param audioPreferences - User-defined audio preferences.
+   * @param realtimePreferences - Azure realtime configuration values.
+   * @returns Session configuration ready for WebRTC negotiation.
+   */
   private createSessionConfiguration(
     audioPreferences: AudioConfig,
     realtimePreferences: AzureRealtimeConfig,
@@ -231,6 +255,13 @@ export class WebRTCConfigFactory {
     };
   }
 
+  /**
+   * Guards against ephemeral sessions that are close to expiring to avoid
+   * mid-negotiation authentication failures.
+   *
+   * @param realtimeSession - Session metadata returned by Azure OpenAI.
+   * @throws {@link WebRTCErrorImpl} when the remaining lifetime is insufficient.
+   */
   private assertSessionExpiryWindow(
     realtimeSession: RealtimeSessionInfo,
   ): void {
@@ -282,6 +313,15 @@ export class WebRTCConfigFactory {
   /**
    * Update configuration with new ephemeral key
    */
+  /**
+   * Refreshes the authentication portion of a configuration using a newly
+   * issued ephemeral key.
+   *
+   * @param config - Existing WebRTC configuration to update.
+   * @param ephemeralKeyService - Service capable of minting realtime sessions.
+   * @returns Updated configuration containing the new authentication payload.
+   * @throws {@link WebRTCErrorImpl} when the key renewal flow fails.
+   */
   async updateConfigWithNewKey(
     config: WebRTCConfig,
     ephemeralKeyService: EphemeralKeyServiceImpl,
@@ -310,6 +350,13 @@ export class WebRTCConfigFactory {
 
   /**
    * Validate WebRTC configuration
+   */
+  /**
+   * Performs a best-effort validation of a WebRTC configuration object and
+   * surfaces diagnostic logging for failures.
+   *
+   * @param config - Configuration to validate.
+   * @returns True when validation succeeds; false otherwise (after logging).
    */
   validateConfig(config: WebRTCConfig): boolean {
     try {
@@ -371,6 +418,11 @@ export class WebRTCConfigFactory {
 
   /**
    * Create default configuration for testing purposes
+   */
+  /**
+   * Generates a deterministic configuration suitable for testing scenarios.
+   *
+   * @returns Self-contained WebRTC configuration with mock authentication.
    */
   createTestConfig(): WebRTCConfig {
     const testAuthentication: EphemeralAuthentication = {

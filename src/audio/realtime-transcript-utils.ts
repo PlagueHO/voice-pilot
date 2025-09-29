@@ -29,6 +29,11 @@ export function extractTranscriptText(
   return undefined;
 }
 
+/**
+ * Extracts the first non-empty string payload from a realtime delta structure.
+ * @param delta - Realtime delta payload to inspect, supporting string or object formats.
+ * @returns The first non-empty string extracted from the payload, or `undefined` if none is found.
+ */
 export function getTextFromDelta(
   delta: RealtimeDeltaPayload | undefined,
 ): string | undefined {
@@ -55,6 +60,12 @@ export function getTextFromDelta(
   return undefined;
 }
 
+/**
+ * Finds the first key in the provided list whose value on the source object is a non-empty string.
+ * @param source - Object inspected for string values.
+ * @param keys - Prioritized list of property keys to evaluate.
+ * @returns The first non-empty string value matched by the provided keys, or `undefined` when none exist.
+ */
 function getFirstStringProperty(
   source: Record<string, unknown> | RealtimeEvent,
   keys: Array<string>,
