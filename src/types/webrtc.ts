@@ -1,3 +1,4 @@
+import type { AudioCaptureSampleRate } from "./audio-capture";
 import { EphemeralKeyInfo } from "./ephemeral";
 import type { RealtimeEvent } from "./realtime-events";
 
@@ -184,8 +185,17 @@ export interface AudioContextProviderConfiguration {
 /**
  * Audio capture settings required by the realtime transport layer.
  */
+export const SUPPORTED_AUDIO_SAMPLE_RATES: ReadonlyArray<AudioCaptureSampleRate> = [
+  16000,
+  24000,
+  48000,
+];
+
+export const MINIMUM_AUDIO_SAMPLE_RATE: AudioCaptureSampleRate = 16000;
+
 export interface AudioConfiguration {
-  sampleRate: 24000;
+  /** Negotiated capture sample rate. Must remain within {@link SUPPORTED_AUDIO_SAMPLE_RATES}. */
+  sampleRate: AudioCaptureSampleRate;
   format: "pcm16";
   channels: 1; // Mono audio for voice
   echoCancellation?: boolean;
@@ -236,8 +246,16 @@ export function validateAudioConfiguration(
 ): ReadonlyArray<string> {
   const errors: string[] = [];
 
-  if (configuration.sampleRate !== 24000) {
-    errors.push("Audio sample rate must be 24000 Hz for realtime transport compliance.");
+  if (!SUPPORTED_AUDIO_SAMPLE_RATES.includes(configuration.sampleRate)) {
+    errors.push(
+      `Audio sample rate must be one of ${SUPPORTED_AUDIO_SAMPLE_RATES.join(
+        ", ",
+      )} Hz for realtime transport compliance.`,
+    );
+  } else if (configuration.sampleRate < MINIMUM_AUDIO_SAMPLE_RATE) {
+    errors.push(
+      `Audio sample rate must be at least ${MINIMUM_AUDIO_SAMPLE_RATE} Hz to satisfy realtime transport guardrails.`,
+    );
   }
 
   if (configuration.format !== "pcm16") {

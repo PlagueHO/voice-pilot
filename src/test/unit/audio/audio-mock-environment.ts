@@ -14,9 +14,16 @@ export class MockMediaStreamTrack {
   public muted = false;
   public readyState: MediaStreamTrackState = "live";
   private readonly listeners: Map<string, Set<() => void>> = new Map();
+  private readonly sampleRate: number;
+  private readonly channelCount: number;
 
-  constructor(public readonly label: string) {
+  constructor(
+    public readonly label: string,
+    options: { sampleRate?: number; channelCount?: number } = {},
+  ) {
     this.id = `mock-track-${++trackIdCounter}`;
+    this.sampleRate = options.sampleRate ?? 24000;
+    this.channelCount = options.channelCount ?? 1;
   }
 
   public readonly id: string;
@@ -43,8 +50,8 @@ export class MockMediaStreamTrack {
   getSettings(): MediaTrackSettings {
     return {
       deviceId: this.label,
-      channelCount: 1,
-      sampleRate: 24000,
+      channelCount: this.channelCount,
+      sampleRate: this.sampleRate,
     } as MediaTrackSettings;
   }
 
@@ -85,6 +92,43 @@ export class MockMediaStreamAudioSourceNode {
 
   disconnect(): void {
     this.connections.length = 0;
+  }
+}
+
+export class MockGainNode {
+  public readonly connections: any[] = [];
+  public readonly gain = { value: 1 };
+
+  constructor(public readonly context: MockAudioContext) {}
+
+  connect(target: any): void {
+    this.connections.push(target);
+  }
+
+  disconnect(): void {
+    this.connections.length = 0;
+  }
+}
+
+export class MockAnalyserNode {
+  public readonly connections: any[] = [];
+  public fftSize = 2048;
+  public smoothingTimeConstant = 0.8;
+  public minDecibels = -90;
+  public maxDecibels = -10;
+
+  constructor(public readonly context: MockAudioContext) {}
+
+  connect(target: any): void {
+    this.connections.push(target);
+  }
+
+  disconnect(): void {
+    this.connections.length = 0;
+  }
+
+  getFloatTimeDomainData(array: Float32Array): void {
+    array.fill(0);
   }
 }
 
@@ -143,11 +187,13 @@ export class MockAudioContext {
     },
   };
   public readonly destination = {};
+  public readonly sampleRate: number;
 
   private readonly listeners: ListenerMap = {};
 
   constructor(public readonly options: AudioContextOptions) {
     createdContexts.push(this);
+    this.sampleRate = options.sampleRate ?? 24000;
   }
 
   public readonly loadedModules: string[] = [];
@@ -157,6 +203,18 @@ export class MockAudioContext {
       this.listeners[type] = new Set();
     }
     this.listeners[type]!.add(listener);
+  }
+
+  createMediaStreamSource(stream: MockMediaStream): MockMediaStreamAudioSourceNode {
+    return new MockMediaStreamAudioSourceNode(this, { mediaStream: stream });
+  }
+
+  createGain(): MockGainNode {
+    return new MockGainNode(this);
+  }
+
+  createAnalyser(): MockAnalyserNode {
+    return new MockAnalyserNode(this);
   }
 
   removeEventListener(type: string, listener: () => void): void {

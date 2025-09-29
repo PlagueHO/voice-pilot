@@ -22,9 +22,11 @@ declare type AudioContextLatencyHint = AudioContextLatencyCategory | number;
  * User-configurable settings that drive audio capture hardware selection and
  * browser media stream creation.
  */
+export type AudioCaptureSampleRate = 16000 | 24000 | 48000;
+
 export interface AudioCaptureConfig {
   deviceId?: string;
-  sampleRate: number;
+  sampleRate: AudioCaptureSampleRate;
   channelCount: number;
   bufferSize: number;
   latencyHint?: AudioContextLatencyHint;
@@ -63,11 +65,52 @@ export interface AudioMetrics {
   rmsLevel: number;
   signalToNoiseRatio: number;
   latencyEstimate: number;
+  latencyEstimateMs: number;
   bufferHealth: number;
   droppedFrameCount: number;
   totalFrameCount: number;
   analysisWindowMs: number;
+  analysisDurationMs: number;
+  cpuUtilization: number;
   updatedAt: number;
+}
+
+export interface PerformanceBudgetSample {
+  id: string;
+  requirement: string;
+  durationMs: number;
+  limitMs: number;
+  exceeded: boolean;
+  overageMs: number;
+  timestamp: number;
+}
+
+export interface PerformanceBudgetSummary extends PerformanceBudgetSample {
+  count: number;
+  averageMs: number;
+  maxMs: number;
+  breaches: number;
+}
+
+export interface CpuUtilizationSample {
+  utilization: number;
+  budget: number;
+  exceeded: boolean;
+  workMs: number;
+  intervalMs: number;
+  timestamp: number;
+}
+
+export interface CpuUtilizationSummary extends CpuUtilizationSample {
+  count: number;
+  averageUtilization: number;
+  maxUtilization: number;
+  breaches: number;
+}
+
+export interface AudioPerformanceDiagnostics {
+  budgets: PerformanceBudgetSummary[];
+  cpu?: CpuUtilizationSummary;
 }
 
 /**
@@ -78,7 +121,10 @@ export type AudioCaptureEventType =
   | "captureStopped"
   | "audioLevelChanged"
   | "deviceChanged"
+  | "permissionGranted"
+  | "permissionDenied"
   | "voiceActivity"
+  | "voiceActivityDetected"
   | "processingError"
   | "qualityChanged"
   | "metricsUpdated";
@@ -152,10 +198,48 @@ export interface DeviceChangedEvent extends AudioCaptureEvent<"deviceChanged"> {
 }
 
 /**
+ * Event emitted when microphone permission is granted, including negotiated capture parameters.
+ */
+export interface PermissionGrantedEvent
+  extends AudioCaptureEvent<"permissionGranted"> {
+  data: {
+    deviceId?: string;
+    label?: string;
+    sampleRate: AudioCaptureSampleRate;
+    channelCount: number;
+    guidance?: string;
+  };
+}
+
+/**
+ * Event emitted when microphone permission is denied or restricted, providing retry guidance.
+ */
+export interface PermissionDeniedEvent
+  extends AudioCaptureEvent<"permissionDenied"> {
+  data: {
+    reason: string;
+    guidance: string;
+    canRetry: boolean;
+    retryAfterMs?: number;
+  };
+}
+
+/**
  * Event emitted when voice activity detection produces a new decision.
  */
 export interface VoiceActivityEvent extends AudioCaptureEvent<"voiceActivity"> {
   data: VoiceActivityResult;
+}
+
+/**
+ * Event emitted when enhanced voice activity detection pipelines produce an updated decision.
+ */
+export interface VoiceActivityDetectedEvent
+  extends AudioCaptureEvent<"voiceActivityDetected"> {
+  data: VoiceActivityResult & {
+    durationMs?: number;
+    speechProbability?: number;
+  };
 }
 
 /**
@@ -193,7 +277,10 @@ export type AudioCapturePipelineEvent =
   | CaptureStoppedEvent
   | AudioLevelChangedEvent
   | DeviceChangedEvent
+  | PermissionGrantedEvent
+  | PermissionDeniedEvent
   | VoiceActivityEvent
+  | VoiceActivityDetectedEvent
   | ProcessingErrorEvent
   | QualityChangedEvent
   | MetricsUpdatedEvent;
@@ -250,13 +337,16 @@ export interface AudioCapturePipeline extends ServiceInitializable {
   stopCapture(): Promise<void>;
   getCaptureStream(): MediaStream | null;
   getCaptureTrack(): MediaStreamTrack | null;
+  getAudioContext(): AudioContext | null;
   replaceCaptureTrack(deviceId: string): Promise<MediaStreamTrack>;
   updateCaptureConfig(config: Partial<AudioCaptureConfig>): Promise<void>;
   updateProcessingConfig(config: Partial<AudioProcessingConfig>): Promise<void>;
+  setAudioProcessing(config: AudioProcessingConfig): Promise<void>;
   validateAudioDevice(deviceId: string): Promise<DeviceValidationResult>;
   getAudioMetrics(): AudioMetrics;
   getAudioLevel(): number;
   detectVoiceActivity(): Promise<VoiceActivityResult>;
+  getPerformanceDiagnostics(): AudioPerformanceDiagnostics;
   addEventListener<TEvent extends AudioCapturePipelineEvent>(
     type: TEvent["type"],
     handler: AudioCaptureEventHandler<TEvent>,

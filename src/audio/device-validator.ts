@@ -1,6 +1,11 @@
 import { Logger } from "../core/logger";
 import { DeviceValidationResult } from "../types/audio-capture";
-import { AudioErrorCode, AudioProcessingError } from "../types/audio-errors";
+import type { AudioErrorRecoveryMetadata } from "../types/audio-errors";
+import {
+    AudioErrorCode,
+    AudioErrorSeverity,
+    AudioProcessingError,
+} from "../types/audio-errors";
 
 const MEDIA_KIND_AUDIO_INPUT = "audioinput";
 
@@ -187,16 +192,68 @@ export class AudioDeviceValidator {
     recoverable: boolean,
     cause?: unknown,
   ): AudioProcessingError {
+    const severity = this.deriveSeverity(code, recoverable);
+    const recovery = this.buildRecoveryMetadata(code, recoverable, message);
+    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+    const webAudioSupported =
+      (typeof globalThis !== "undefined" && "AudioContext" in globalThis) ||
+      (typeof globalThis !== "undefined" && "webkitAudioContext" in globalThis);
+
     return {
       code,
       message,
+      severity,
       recoverable,
+      recovery,
       timestamp: Date.now(),
       context: {
+        userAgent,
+        webAudioSupported,
         mediaDevicesSupported: !!navigator?.mediaDevices,
         getUserMediaSupported: !!navigator?.mediaDevices?.getUserMedia,
+        permissionsStatus: "unknown",
       },
       cause,
+    };
+  }
+
+  private deriveSeverity(
+    code: AudioErrorCode,
+    recoverable: boolean,
+  ): AudioErrorSeverity {
+    if (!recoverable) {
+      return code === AudioErrorCode.PermissionDenied
+        ? AudioErrorSeverity.Fatal
+        : AudioErrorSeverity.Error;
+    }
+
+    return AudioErrorSeverity.Warning;
+  }
+
+  private buildRecoveryMetadata(
+    code: AudioErrorCode,
+    recoverable: boolean,
+    guidance: string,
+  ): AudioErrorRecoveryMetadata {
+    if (!recoverable) {
+      return {
+        recoverable: false,
+        recommendedAction: code === AudioErrorCode.PermissionDenied ? "prompt" : "fallback",
+        guidance,
+      };
+    }
+
+    const retryCodes = new Set<AudioErrorCode>([
+      AudioErrorCode.ContextSuspended,
+      AudioErrorCode.BufferUnderrun,
+      AudioErrorCode.DeviceUnavailable,
+    ]);
+
+    return {
+      recoverable: true,
+      recommendedAction: retryCodes.has(code) ? "retry" : "prompt",
+      guidance,
+      retryAfterMs: retryCodes.has(code) ? 1000 : undefined,
     };
   }
 }

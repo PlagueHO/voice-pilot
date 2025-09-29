@@ -42,6 +42,21 @@ describe("AudioContextProvider", () => {
     assert.strictEqual(env.createdContexts.length, 1, "Only one context should be created");
   });
 
+  it("exposes the current AudioContext via getCurrentContext", async () => {
+    const provider = new AudioContextProvider();
+    provider.configure(baseAudioConfig);
+
+    assert.strictEqual(provider.getCurrentContext(), null, "No context should be available before creation");
+
+    const context = await provider.getOrCreateContext();
+
+    assert.strictEqual(
+      provider.getCurrentContext(),
+      context,
+      "getCurrentContext should return the active AudioContext",
+    );
+  });
+
   it("loads external worklet modules declared in configuration", async () => {
     const provider = new AudioContextProvider();
     const configWithWorklet: AudioConfiguration = {
@@ -131,6 +146,31 @@ describe("AudioContextProvider", () => {
       totalLoadCount,
       initialLoadCount + 1,
       "Worklet modules should reload when the provider is reinitialized",
+    );
+  });
+
+  it("reinitializes the shared context when sample rate changes", async () => {
+    const provider = new AudioContextProvider();
+    provider.configure(baseAudioConfig);
+
+    const firstContext = await provider.getOrCreateContext();
+    const firstId = (firstContext as any).id;
+
+    provider.configure({ ...baseAudioConfig, sampleRate: 48000 });
+    await provider.ensureContextMatchesConfiguration();
+
+    const secondContext = await provider.getOrCreateContext();
+    const secondId = (secondContext as any).id;
+
+    assert.notStrictEqual(
+      secondId,
+      firstId,
+      "Provider should rebuild the AudioContext when sample rate changes",
+    );
+    assert.strictEqual(
+      secondContext.sampleRate,
+      48000,
+      "Rebuilt AudioContext should adopt updated sample rate",
     );
   });
 });

@@ -1,6 +1,10 @@
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
-import { AudioTrackState, AudioTrackStatistics } from "../types/audio-capture";
+import {
+  AudioCaptureSampleRate,
+  AudioTrackState,
+  AudioTrackStatistics,
+} from "../types/audio-capture";
 import {
   AudioConfiguration,
   AudioTrackRegistrationOptions,
@@ -562,37 +566,32 @@ export class AudioTrackManager implements ServiceInitializable {
    * @param quality - The quality classification reported by the transport diagnostics.
    */
   adjustAudioQuality(quality: ConnectionQuality): void {
+    let targetSampleRate: AudioCaptureSampleRate | null = null;
+
     switch (quality) {
       case ConnectionQuality.Excellent:
-        this.audioConstraints = {
-          sampleRate: 24000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        };
+        targetSampleRate = 48000;
         break;
       case ConnectionQuality.Good:
-        this.audioConstraints = {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        };
+        targetSampleRate = 24000;
         break;
       case ConnectionQuality.Fair:
       case ConnectionQuality.Poor:
-        this.audioConstraints = {
-          sampleRate: 8000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        };
+        targetSampleRate = 16000;
         break;
       case ConnectionQuality.Failed:
+        targetSampleRate = null;
         break;
+    }
+
+    if (targetSampleRate !== null) {
+      this.audioConstraints = {
+        sampleRate: targetSampleRate,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
     }
 
     this.emitQualityChanged(quality, this.tryGetConnectionStatistics());

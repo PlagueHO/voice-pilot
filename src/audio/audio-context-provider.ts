@@ -40,6 +40,8 @@ export class AudioContextProvider {
   private context?: AudioContext;
   private readonly stateListeners = new Set<AudioContextStateListener>();
   private readonly loadedWorkletUrls = new Set<string>();
+  private appliedSampleRate?: number;
+  private appliedLatencyHint?: AudioContextLatencyCategory | number;
 
   /**
    * Creates a provider with optional logging support for audio context lifecycle events.
@@ -109,6 +111,15 @@ export class AudioContextProvider {
   }
 
   /**
+   * Returns the current {@link AudioContext} instance without creating a new one.
+   *
+   * @returns The active audio context or `null` when no context has been created yet.
+   */
+  getCurrentContext(): AudioContext | null {
+    return this.context ?? null;
+  }
+
+  /**
    * Resumes a suspended {@link AudioContext} to allow audio processing to continue.
    */
   async resume(): Promise<void> {
@@ -148,6 +159,8 @@ export class AudioContextProvider {
     this.context = undefined;
     this.contextPromise = undefined;
     this.loadedWorkletUrls.clear();
+    this.appliedSampleRate = undefined;
+    this.appliedLatencyHint = undefined;
   }
 
   /**
@@ -202,6 +215,42 @@ export class AudioContextProvider {
     return source;
   }
 
+  async ensureContextMatchesConfiguration(): Promise<void> {
+    if (!this.configuration) {
+      return;
+    }
+
+    if (!this.context) {
+      return;
+    }
+
+    const desiredSampleRate = this.configuration.sampleRate;
+    const desiredLatencyHint =
+      this.configuration.audioContextProvider.latencyHint ?? "interactive";
+
+    const sampleRateMatches = this.context.sampleRate === desiredSampleRate;
+    const latencyMatches =
+      typeof this.appliedLatencyHint === "undefined" ||
+      this.appliedLatencyHint === desiredLatencyHint;
+
+    if (sampleRateMatches && latencyMatches) {
+      return;
+    }
+
+    this.logger.info(
+      "Reinitializing shared AudioContext to honor negotiated capture settings",
+      {
+        previousSampleRate: this.context.sampleRate,
+        desiredSampleRate,
+        previousLatencyHint: this.appliedLatencyHint,
+        desiredLatencyHint,
+      },
+    );
+
+    await this.close();
+    await this.getOrCreateContext();
+  }
+
   /**
    * Initializes a new {@link AudioContext} instance using the current configuration.
    *
@@ -239,6 +288,8 @@ export class AudioContextProvider {
     );
 
     this.context = context;
+    this.appliedSampleRate = context.sampleRate;
+    this.appliedLatencyHint = latencyHint;
     return context;
   }
 

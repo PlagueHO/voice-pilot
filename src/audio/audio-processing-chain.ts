@@ -1,25 +1,26 @@
 import { Logger } from "../core/logger";
 import {
-  AudioMetrics,
-  AudioProcessingChain,
-  AudioProcessingConfig,
-  AudioProcessingGraph,
+    AudioMetrics,
+    AudioProcessingChain,
+    AudioProcessingConfig,
+    AudioProcessingGraph,
 } from "../types/audio-capture";
 import {
-  AudioContextProvider,
-  sharedAudioContextProvider,
+    AudioContextProvider,
+    sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-  calculatePeak,
-  calculateRms,
-  computeBufferHealth,
-  createEmptyMetrics,
-  estimateSnr,
-  mergeMetrics,
+    calculatePeak,
+    calculateRms,
+    computeBufferHealth,
+    createEmptyMetrics,
+    estimateSnr,
+    getTimestampMs,
+    mergeMetrics,
 } from "./audio-metrics";
 import {
-  ensurePcmEncoderWorklet,
-  PCM_ENCODER_WORKLET_NAME,
+    ensurePcmEncoderWorklet,
+    PCM_ENCODER_WORKLET_NAME,
 } from "./worklets/pcm-encoder-worklet";
 
 interface MetricsState {
@@ -146,6 +147,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     const { analyserNode } = graph;
     const bufferLength = analyserNode.fftSize;
     const dataArray = new Float32Array(bufferLength);
+    const start = getTimestampMs();
     analyserNode.getFloatTimeDomainData(dataArray);
 
     const peakLevel = calculatePeak(dataArray);
@@ -156,6 +158,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     const now = performance.now();
     const analysisWindowMs = now - state.lastAnalysisTimestamp;
     state.lastAnalysisTimestamp = now;
+    const analysisDurationMs = getTimestampMs() - start;
 
     const metrics = mergeMetrics(state.metrics, {
       inputLevel: peakLevel,
@@ -166,6 +169,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       totalFrameCount: state.totalFrames,
       droppedFrameCount: state.droppedFrames,
       analysisWindowMs,
+      analysisDurationMs,
     });
 
     state.metrics = metrics;

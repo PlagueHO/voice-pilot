@@ -3,6 +3,7 @@ import { AudioContextProvider } from "../../../audio/audio-context-provider";
 import { AudioTrackManager } from "../../../audio/audio-track-manager";
 import { Logger } from "../../../core/logger";
 import type { AudioConfiguration } from "../../../types/webrtc";
+import { ConnectionQuality } from "../../../types/webrtc";
 import {
     installMockAudioEnvironment,
     MockMediaStream,
@@ -117,6 +118,42 @@ describe("AudioTrackManager", () => {
 
       assert.strictEqual(processedTrack.readyState, "ended");
       assert.strictEqual(rawTrack.readyState, "ended");
+    } finally {
+      manager.dispose();
+      logger.dispose();
+    }
+  });
+
+  it("keeps adaptive sample rates within supported bounds", async () => {
+    const logger = new Logger("AudioTrackManagerSampleRateTest");
+    logger.setLevel("error");
+    const provider = new AudioContextProvider();
+    const manager = new AudioTrackManager(logger, provider);
+
+    try {
+      await manager.initialize();
+      manager.setAudioConfiguration(audioConfig);
+
+      manager.adjustAudioQuality(ConnectionQuality.Poor);
+      assert.strictEqual(
+        (manager as any).audioConstraints.sampleRate,
+        16000,
+        "Sample rate should clamp to 16 kHz for poor networks",
+      );
+
+      manager.adjustAudioQuality(ConnectionQuality.Excellent);
+      assert.strictEqual(
+        (manager as any).audioConstraints.sampleRate,
+        48000,
+        "Sample rate should scale up to 48 kHz when excellent",
+      );
+
+      manager.adjustAudioQuality(ConnectionQuality.Failed);
+      assert.strictEqual(
+        (manager as any).audioConstraints.sampleRate,
+        48000,
+        "Failed state should not reduce sample rate below negotiated bounds",
+      );
     } finally {
       manager.dispose();
       logger.dispose();

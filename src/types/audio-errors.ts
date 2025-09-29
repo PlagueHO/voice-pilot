@@ -1,6 +1,7 @@
 import type {
-  AudioCaptureConfig,
-  AudioProcessingConfig,
+    AudioCaptureConfig,
+    AudioCaptureSampleRate,
+    AudioProcessingConfig,
 } from "./audio-capture";
 
 /**
@@ -42,8 +43,42 @@ export interface AudioErrorContext {
   streamId?: string;
   captureConfig?: Partial<AudioCaptureConfig>;
   processingConfig?: Partial<AudioProcessingConfig>;
+  sampleRate?: AudioCaptureSampleRate;
+  channelCount?: number;
+  bufferSize?: number;
+  userAgent?: string;
+  webAudioSupported?: boolean;
   mediaDevicesSupported: boolean;
   getUserMediaSupported: boolean;
+  permissionsStatus?: PermissionState | "unknown";
+}
+
+/**
+ * Indicates the severity level associated with an audio processing error.
+ */
+export enum AudioErrorSeverity {
+  Info = "info",
+  Warning = "warning",
+  Error = "error",
+  Fatal = "fatal",
+}
+
+/**
+ * Provides structured guidance on how a recoverable error should be handled.
+ */
+export interface AudioErrorRecoveryMetadata {
+  /** Whether the scenario is expected to succeed after retrying. */
+  recoverable: boolean;
+  /** Next action the pipeline should take when recovery is possible. */
+  recommendedAction?: "retry" | "fallback" | "prompt";
+  /** Optional delay before initiating the next recovery attempt. */
+  retryAfterMs?: number;
+  /** Optional human-readable hint that can be surfaced to the UI. */
+  guidance?: string;
+  /** Current attempt count when retries are orchestrated by the caller. */
+  attempt?: number;
+  /** Maximum number of recommended attempts for automated recovery. */
+  attemptLimit?: number;
 }
 
 /**
@@ -56,7 +91,9 @@ export interface AudioErrorContext {
 export interface AudioProcessingError {
   code: AudioErrorCode;
   message: string;
+  severity: AudioErrorSeverity;
   recoverable: boolean;
+  recovery?: AudioErrorRecoveryMetadata;
   context?: AudioErrorContext;
   cause?: unknown;
   timestamp: number;

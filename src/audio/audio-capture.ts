@@ -5,25 +5,48 @@ import {
   AudioCaptureEventType,
   AudioCapturePipeline,
   AudioCapturePipelineEvent,
+  AudioCaptureSampleRate,
   AudioMetrics,
+  AudioPerformanceDiagnostics,
   AudioProcessingConfig,
   AudioProcessingGraph,
+  CpuUtilizationSample,
   DeviceValidationResult,
+  PerformanceBudgetSample,
   VoiceActivityResult,
 } from "../types/audio-capture";
-import { AudioErrorCode, AudioProcessingError } from "../types/audio-errors";
-import { AudioConfiguration } from "../types/webrtc";
+import type { AudioErrorRecoveryMetadata } from "../types/audio-errors";
+import {
+  AudioErrorCode,
+  AudioErrorSeverity,
+  AudioProcessingError,
+} from "../types/audio-errors";
+import {
+  AudioConfiguration,
+  MINIMUM_AUDIO_SAMPLE_RATE,
+  SUPPORTED_AUDIO_SAMPLE_RATES,
+} from "../types/webrtc";
 import {
   AudioContextProvider,
   sharedAudioContextProvider,
 } from "./audio-context-provider";
-import { createEmptyMetrics, mergeMetrics } from "./audio-metrics";
+import {
+  CpuLoadTracker,
+  PerformanceBudgetDefinition,
+  PerformanceBudgetTracker,
+  createEmptyMetrics,
+  getTimestampMs,
+  mergeDiagnostics,
+  mergeMetrics,
+} from "./audio-metrics";
 import { WebAudioProcessingChain } from "./audio-processing-chain";
 import { AudioDeviceValidator } from "./device-validator";
 
+const DEFAULT_SAMPLE_RATE: AudioCaptureSampleRate = 24000;
+
 const DEFAULT_CAPTURE_CONFIG: AudioCaptureConfig = {
   deviceId: undefined,
-  sampleRate: 24000,
+  sampleRate: DEFAULT_SAMPLE_RATE,
   channelCount: 1,
   bufferSize: 4096,
   latencyHint: "interactive",
@@ -40,7 +63,32 @@ const DEFAULT_PROCESSING_CONFIG: AudioProcessingConfig = {
   analysisIntervalMs: 100,
 };
 
+const PERFORMANCE_BUDGETS: PerformanceBudgetDefinition[] = [
+  {
+    id: "analysis-cycle",
+    limitMs: 50,
+    requirement: "AUD-004",
+    description: "Analysis pipeline processing time",
+  },
+  {
+    id: "initialization",
+    limitMs: 2000,
+    requirement: "PERF-001",
+    description: "Audio capture initialization duration",
+  },
+  {
+    id: "end-to-end-latency",
+    limitMs: 100,
+    requirement: "PERF-004",
+    description: "End-to-end audio path latency",
+  },
+];
+
+const CPU_BUDGET_RATIO = 0.05;
+
 type EventHandlerSet = Set<AudioCaptureEventHandler>;
+
+type MicrophonePermissionState = PermissionState | "unsupported" | "unknown";
 
 /**
  * Optional dependency overrides that allow the capture pipeline to run with custom collaborators.
@@ -69,6 +117,8 @@ export class AudioCapture implements AudioCapturePipeline {
     EventHandlerSet
   >();
   private readonly audioDataCallbacks = new Set<(audioData: Buffer) => void>();
+  private readonly performanceBudgets: PerformanceBudgetTracker;
+  private readonly cpuTracker: CpuLoadTracker;
 
   private initialized = false;
   private isCapturing = false;
@@ -88,6 +138,7 @@ export class AudioCapture implements AudioCapturePipeline {
     context: AudioContext;
     listener: () => void;
   };
+  private permissionStatus: MicrophonePermissionState = "unknown";
 
   /**
    * Creates a new audio capture pipeline instance.
@@ -110,7 +161,14 @@ export class AudioCapture implements AudioCapturePipeline {
     this.deviceValidator =
       dependencies.deviceValidator ?? new AudioDeviceValidator(this.logger);
     this.captureConfig = { ...DEFAULT_CAPTURE_CONFIG, ...config };
+    this.captureConfig.sampleRate = this.resolveSampleRate(
+      this.captureConfig.sampleRate,
+    );
     this.processingConfig = { ...DEFAULT_PROCESSING_CONFIG };
+    this.performanceBudgets = new PerformanceBudgetTracker(
+      PERFORMANCE_BUDGETS,
+    );
+    this.cpuTracker = new CpuLoadTracker(CPU_BUDGET_RATIO);
   }
 
   /**
@@ -124,6 +182,7 @@ export class AudioCapture implements AudioCapturePipeline {
     config?: Partial<AudioCaptureConfig>,
     processingConfig?: Partial<AudioProcessingConfig>,
   ): Promise<void> {
+    const initializeStart = getTimestampMs();
     if (config) {
       this.captureConfig = { ...this.captureConfig, ...config };
     }
@@ -131,6 +190,10 @@ export class AudioCapture implements AudioCapturePipeline {
     if (processingConfig) {
       this.processingConfig = { ...this.processingConfig, ...processingConfig };
     }
+
+    this.captureConfig.sampleRate = this.resolveSampleRate(
+      this.captureConfig.sampleRate,
+    );
 
     this.configureAudioContextProvider();
 
@@ -146,6 +209,9 @@ export class AudioCapture implements AudioCapturePipeline {
       config: this.captureConfig,
       processingConfig: this.processingConfig,
     });
+
+    const initializationDuration = getTimestampMs() - initializeStart;
+    this.recordBudgetSample("initialization", initializationDuration);
   }
 
   /**
@@ -165,6 +231,7 @@ export class AudioCapture implements AudioCapturePipeline {
     this.listeners.clear();
     this.audioDataCallbacks.clear();
     this.onErrorCallback = undefined;
+    this.permissionStatus = "unknown";
     this.initialized = false;
   }
 
@@ -201,6 +268,7 @@ export class AudioCapture implements AudioCapturePipeline {
       this.captureConfig.deviceId = validation.deviceId;
 
       const stream = await this.acquireStream(validation.deviceId);
+      await this.audioContextProvider.ensureContextMatchesConfiguration();
       const graph = await this.processingChain.createProcessingGraph(
         stream,
         this.processingConfig,
@@ -279,6 +347,7 @@ export class AudioCapture implements AudioCapturePipeline {
     });
 
     this.logger.info("Audio capture stopped");
+    this.permissionStatus = "unknown";
   }
 
   /**
@@ -297,6 +366,14 @@ export class AudioCapture implements AudioCapturePipeline {
    */
   getCaptureTrack(): MediaStreamTrack | null {
     return this.track;
+  }
+
+  getAudioContext(): AudioContext | null {
+    if (this.processingGraph?.context) {
+      return this.processingGraph.context;
+    }
+
+    return this.audioContextProvider.getCurrentContext();
   }
 
   /**
@@ -345,18 +422,19 @@ export class AudioCapture implements AudioCapturePipeline {
       }
       this.stopStream();
 
+      await this.audioContextProvider.ensureContextMatchesConfiguration();
       candidateGraph = await this.processingChain.createProcessingGraph(
         candidateStream,
         this.processingConfig,
       );
       await this.ensureContextIsRunning(candidateGraph.context);
-    this.registerContextStateHandler(candidateGraph.context);
+      this.registerContextStateHandler(candidateGraph.context);
 
-    this.stream = candidateStream;
-    this.track = candidateTrack;
-    this.processingGraph = candidateGraph;
+      this.stream = candidateStream;
+      this.track = candidateTrack;
+      this.processingGraph = candidateGraph;
 
-    this.registerWorkletMessageHandler();
+      this.registerWorkletMessageHandler();
       await this.updateLatencyMetric();
       this.startMetricsMonitor();
 
@@ -401,6 +479,9 @@ export class AudioCapture implements AudioCapturePipeline {
     config: Partial<AudioCaptureConfig>,
   ): Promise<void> {
     this.captureConfig = { ...this.captureConfig, ...config };
+    this.captureConfig.sampleRate = this.resolveSampleRate(
+      this.captureConfig.sampleRate,
+    );
     this.configureAudioContextProvider();
 
     if (this.isCapturing) {
@@ -416,7 +497,11 @@ export class AudioCapture implements AudioCapturePipeline {
   async updateProcessingConfig(
     config: Partial<AudioProcessingConfig>,
   ): Promise<void> {
-    this.processingConfig = { ...this.processingConfig, ...config };
+    await this.setAudioProcessing({ ...this.processingConfig, ...config });
+  }
+
+  async setAudioProcessing(config: AudioProcessingConfig): Promise<void> {
+    this.processingConfig = { ...config };
 
     if (this.processingGraph) {
       await this.processingChain.updateProcessingParameters(
@@ -443,6 +528,10 @@ export class AudioCapture implements AudioCapturePipeline {
    */
   getAudioMetrics(): AudioMetrics {
     return this.metrics;
+  }
+
+  getPerformanceDiagnostics(): AudioPerformanceDiagnostics {
+    return mergeDiagnostics(this.performanceBudgets, this.cpuTracker);
   }
 
   /**
@@ -544,10 +633,13 @@ export class AudioCapture implements AudioCapturePipeline {
    * @throws {@link AudioProcessingError} When the browser rejects the request.
    */
   private async acquireStream(deviceId?: string): Promise<MediaStream> {
+    const resolvedSampleRate = this.resolveSampleRate(
+      this.captureConfig.sampleRate,
+    );
     const constraints: MediaStreamConstraints = {
       audio: {
         channelCount: this.captureConfig.channelCount,
-        sampleRate: this.captureConfig.sampleRate,
+        sampleRate: resolvedSampleRate,
         echoCancellation: this.captureConfig.enableEchoCancellation,
         noiseSuppression: this.captureConfig.enableNoiseSuppression,
         autoGainControl: this.captureConfig.enableAutoGainControl,
@@ -555,10 +647,43 @@ export class AudioCapture implements AudioCapturePipeline {
       },
     };
 
+    await this.refreshPermissionStatus();
+
     try {
-      return await navigator.mediaDevices.getUserMedia(constraints);
+      this.logger.info("Requesting microphone access", {
+        deviceId,
+        constraints: constraints.audio,
+        permissionStatus: this.permissionStatus,
+      });
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const track = stream.getAudioTracks()[0] ?? null;
+
+      this.permissionStatus = "granted";
+
+      const appliedSampleRate = this.normalizeSampleRate(
+        track?.getSettings()?.sampleRate,
+      );
+
+      if (appliedSampleRate !== this.captureConfig.sampleRate) {
+        this.captureConfig = {
+          ...this.captureConfig,
+          sampleRate: appliedSampleRate,
+        };
+        this.configureAudioContextProvider();
+      }
+
+      this.emitPermissionGrantedEvent(track);
+
+      return stream;
     } catch (error: any) {
       const processingError = this.mapGetUserMediaError(error, deviceId);
+
+      if (processingError.code === AudioErrorCode.PermissionDenied) {
+        this.permissionStatus = "denied";
+        this.emitPermissionDeniedEvent(processingError);
+      }
+
       throw processingError;
     }
   }
@@ -619,7 +744,9 @@ export class AudioCapture implements AudioCapturePipeline {
    * This method synchronizes capture preferences with the shared provider before streams are acquired.
    */
   private configureAudioContextProvider(): void {
-    const sampleRate = (this.captureConfig.sampleRate ?? 24000) as 24000;
+    const sampleRate = this.resolveSampleRate(this.captureConfig.sampleRate);
+    const latencyHint = this.captureConfig.latencyHint ?? "interactive";
+    this.captureConfig.sampleRate = sampleRate;
     const audioConfiguration: AudioConfiguration = {
       sampleRate,
       format: "pcm16",
@@ -629,7 +756,7 @@ export class AudioCapture implements AudioCapturePipeline {
       autoGainControl: this.captureConfig.enableAutoGainControl,
       audioContextProvider: {
         strategy: "shared",
-        latencyHint: this.captureConfig.latencyHint ?? "interactive",
+        latencyHint,
         resumeOnActivation: true,
         requiresUserGesture: false,
       },
@@ -656,6 +783,128 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  private resolveSampleRate(
+    requested?: number | null,
+  ): AudioCaptureSampleRate {
+    if (
+      typeof requested === "number" &&
+      requested >= MINIMUM_AUDIO_SAMPLE_RATE &&
+      SUPPORTED_AUDIO_SAMPLE_RATES.includes(requested as AudioCaptureSampleRate)
+    ) {
+      return requested as AudioCaptureSampleRate;
+    }
+
+    if (typeof requested === "number" && !Number.isNaN(requested)) {
+      return this.closestSupportedSampleRate(requested);
+    }
+
+    return DEFAULT_SAMPLE_RATE;
+  }
+
+  private normalizeSampleRate(
+    actual?: number | null,
+  ): AudioCaptureSampleRate {
+    if (typeof actual !== "number" || Number.isNaN(actual)) {
+      return this.captureConfig.sampleRate ?? DEFAULT_SAMPLE_RATE;
+    }
+
+    return this.closestSupportedSampleRate(actual);
+  }
+
+  private closestSupportedSampleRate(
+    target: number,
+  ): AudioCaptureSampleRate {
+    const initial = SUPPORTED_AUDIO_SAMPLE_RATES.includes(DEFAULT_SAMPLE_RATE)
+      ? DEFAULT_SAMPLE_RATE
+      : SUPPORTED_AUDIO_SAMPLE_RATES[0];
+
+    return SUPPORTED_AUDIO_SAMPLE_RATES.reduce((closest, candidate) => {
+      const candidateDiff = Math.abs(candidate - target);
+      const closestDiff = Math.abs(closest - target);
+
+      if (candidateDiff < closestDiff) {
+        return candidate;
+      }
+
+      if (candidateDiff === closestDiff && candidate > closest) {
+        return candidate;
+      }
+
+      return closest;
+    }, initial as AudioCaptureSampleRate);
+  }
+
+  private async refreshPermissionStatus(): Promise<MicrophonePermissionState> {
+    const globalNavigator =
+      typeof navigator === "undefined" ? undefined : navigator;
+    const permissions = globalNavigator?.permissions;
+
+    if (!permissions || typeof permissions.query !== "function") {
+      this.permissionStatus = "unsupported";
+      return this.permissionStatus;
+    }
+
+    try {
+      const status = await permissions.query({
+        name: "microphone" as PermissionName,
+      });
+      this.permissionStatus = status.state;
+      return this.permissionStatus;
+    } catch (error: any) {
+      this.logger.debug("Unable to query microphone permission status", {
+        error: error?.message,
+      });
+      this.permissionStatus = "unsupported";
+      return this.permissionStatus;
+    }
+  }
+
+  private emitPermissionGrantedEvent(track: MediaStreamTrack | null): void {
+    const settings = track?.getSettings?.() ?? {};
+
+    this.emitEvent("permissionGranted", {
+      deviceId: (settings as MediaTrackSettings)?.deviceId ??
+        this.captureConfig.deviceId,
+      label: track?.label,
+      sampleRate: this.captureConfig.sampleRate,
+      channelCount:
+        (settings as MediaTrackSettings)?.channelCount ??
+        this.captureConfig.channelCount,
+      guidance: this.buildPermissionGuidance("granted"),
+    });
+  }
+
+  private emitPermissionDeniedEvent(
+    processingError: AudioProcessingError,
+  ): void {
+    const guidance =
+      processingError.recovery?.guidance ??
+      this.buildPermissionGuidance("denied");
+
+    this.emitEvent("permissionDenied", {
+      reason: processingError.message,
+      guidance,
+      canRetry: Boolean(processingError.recovery?.recoverable),
+      retryAfterMs: processingError.recovery?.retryAfterMs,
+    });
+  }
+
+  private buildPermissionGuidance(outcome: "granted" | "denied"): string {
+    if (outcome === "granted") {
+      return "Microphone access is active. You can adjust permissions any time in your browser or operating system privacy settings.";
+    }
+
+    if (this.permissionStatus === "denied") {
+      return "Microphone access is blocked. Enable microphone permissions in your browser or operating system privacy settings, then retry the voice session.";
+    }
+
+    if (this.permissionStatus === "unsupported") {
+      return "Microphone permission was denied. Check your device privacy settings and retry the request.";
+    }
+
+    return "Allow microphone access in your browser or operating system privacy settings, then retry the voice session.";
+  }
+
   /**
    * Starts periodic metric sampling for audio levels, latency, and voice activity detection.
    */
@@ -663,6 +912,7 @@ export class AudioCapture implements AudioCapturePipeline {
     const interval =
       this.processingConfig.analysisIntervalMs ??
       DEFAULT_PROCESSING_CONFIG.analysisIntervalMs;
+    void this.updateMetrics();
     this.metricsTimerId = setInterval(() => {
       void this.updateMetrics();
     }, interval);
@@ -686,14 +936,34 @@ export class AudioCapture implements AudioCapturePipeline {
       return;
     }
 
+    const cycleStart = getTimestampMs();
+    const analysisInterval =
+      this.processingConfig.analysisIntervalMs ??
+      DEFAULT_PROCESSING_CONFIG.analysisIntervalMs;
+
     const metrics = this.processingChain.analyzeAudioLevel(
       this.processingGraph,
     );
-    const latency = await this.processingChain.measureLatency(
+    const analysisDurationMs = metrics.analysisDurationMs ?? 0;
+    this.recordBudgetSample("analysis-cycle", analysisDurationMs);
+
+    const latencySeconds = await this.processingChain.measureLatency(
       this.processingGraph.context,
     );
+    const latencyMs = latencySeconds * 1000;
+    this.recordBudgetSample("end-to-end-latency", latencyMs);
 
-    this.metrics = mergeMetrics(metrics, { latencyEstimate: latency });
+    const cpuSample = this.cpuTracker.record(
+      Math.max(getTimestampMs() - cycleStart, 0),
+      analysisInterval,
+    );
+    this.logCpuSample(cpuSample);
+
+    this.metrics = mergeMetrics(metrics, {
+      latencyEstimate: latencySeconds,
+      latencyEstimateMs: latencyMs,
+      cpuUtilization: cpuSample.utilization,
+    });
 
     this.emitEvent("metricsUpdated", this.metrics);
     this.emitEvent("audioLevelChanged", {
@@ -708,6 +978,54 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
+  private recordBudgetSample(
+    id: string,
+    durationMs: number,
+  ): PerformanceBudgetSample | undefined {
+    if (!Number.isFinite(durationMs) || durationMs < 0) {
+      return undefined;
+    }
+
+    const sample = this.performanceBudgets.record(id, durationMs);
+    this.logPerformanceSample(sample);
+    return sample;
+  }
+
+  private logPerformanceSample(sample: PerformanceBudgetSample): void {
+    const payload = {
+      budgetMs: sample.limitMs,
+      durationMs: sample.durationMs,
+      requirement: sample.requirement,
+      exceeded: sample.exceeded,
+      overageMs: sample.overageMs,
+      timestamp: sample.timestamp,
+      budgetId: sample.id,
+    };
+
+    if (sample.exceeded) {
+      this.logger.warn("Audio performance budget exceeded", payload);
+    } else {
+      this.logger.debug("Audio performance budget sample", payload);
+    }
+  }
+
+  private logCpuSample(sample: CpuUtilizationSample): void {
+    const payload = {
+      utilization: sample.utilization,
+      budget: sample.budget,
+      exceeded: sample.exceeded,
+      workMs: sample.workMs,
+      intervalMs: sample.intervalMs,
+      timestamp: sample.timestamp,
+    };
+
+    if (sample.exceeded) {
+      this.logger.warn("Audio capture CPU utilization exceeded budget", payload);
+    } else {
+      this.logger.debug("Audio capture CPU utilization sample", payload);
+    }
+  }
+
   /**
    * Refreshes the latency estimate for the active audio context.
    */
@@ -716,10 +1034,15 @@ export class AudioCapture implements AudioCapturePipeline {
       return;
     }
 
-    const latency = await this.processingChain.measureLatency(
+    const latencySeconds = await this.processingChain.measureLatency(
       this.processingGraph.context,
     );
-    this.metrics = mergeMetrics(this.metrics, { latencyEstimate: latency });
+    const latencyMs = latencySeconds * 1000;
+    this.metrics = mergeMetrics(this.metrics, {
+      latencyEstimate: latencySeconds,
+      latencyEstimateMs: latencyMs,
+    });
+    this.recordBudgetSample("end-to-end-latency", latencyMs);
   }
 
   /**
@@ -794,7 +1117,7 @@ export class AudioCapture implements AudioCapturePipeline {
         code = AudioErrorCode.PermissionDenied;
         recoverable = false;
         message =
-          "Microphone access was denied by the user or browser settings";
+          "Microphone access was denied. Enable microphone permissions in your browser or operating system privacy settings and retry.";
         break;
       case "NotFoundError":
       case "OverconstrainedError":
@@ -895,10 +1218,19 @@ export class AudioCapture implements AudioCapturePipeline {
     recoverable: boolean,
     cause?: unknown,
   ): AudioProcessingError {
+    const severity = this.deriveErrorSeverity(code, recoverable);
+    const recovery = this.buildRecoveryMetadata(code, recoverable, message);
+    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+    const webAudioSupported =
+      (typeof globalThis !== "undefined" && "AudioContext" in globalThis) ||
+      (typeof globalThis !== "undefined" && "webkitAudioContext" in globalThis);
+
     return {
       code,
       message,
+      severity,
       recoverable,
+      recovery,
       timestamp: Date.now(),
       context: {
         deviceId: this.captureConfig.deviceId,
@@ -906,10 +1238,58 @@ export class AudioCapture implements AudioCapturePipeline {
         streamId: this.stream?.id,
         captureConfig: this.captureConfig,
         processingConfig: this.processingConfig,
+        sampleRate: this.captureConfig.sampleRate,
+        channelCount: this.captureConfig.channelCount,
+        bufferSize: this.captureConfig.bufferSize,
+        userAgent,
+        webAudioSupported,
         mediaDevicesSupported: !!navigator?.mediaDevices,
         getUserMediaSupported: !!navigator?.mediaDevices?.getUserMedia,
+        permissionsStatus:
+          this.permissionStatus === "unsupported"
+            ? "unknown"
+            : this.permissionStatus,
       },
       cause,
+    };
+  }
+
+  private deriveErrorSeverity(
+    code: AudioErrorCode,
+    recoverable: boolean,
+  ): AudioErrorSeverity {
+    if (!recoverable) {
+      return code === AudioErrorCode.PermissionDenied
+        ? AudioErrorSeverity.Fatal
+        : AudioErrorSeverity.Error;
+    }
+
+    return AudioErrorSeverity.Warning;
+  }
+
+  private buildRecoveryMetadata(
+    code: AudioErrorCode,
+    recoverable: boolean,
+    guidance: string,
+  ): AudioErrorRecoveryMetadata {
+    if (!recoverable) {
+      return {
+        recoverable: false,
+        recommendedAction: code === AudioErrorCode.PermissionDenied ? "prompt" : "fallback",
+        guidance,
+      };
+    }
+
+    return {
+      recoverable: true,
+      recommendedAction:
+        code === AudioErrorCode.ContextSuspended ||
+        code === AudioErrorCode.BufferUnderrun ||
+        code === AudioErrorCode.DeviceUnavailable
+          ? "retry"
+          : "prompt",
+      guidance,
+      retryAfterMs: code === AudioErrorCode.DeviceUnavailable ? 1000 : undefined,
     };
   }
 

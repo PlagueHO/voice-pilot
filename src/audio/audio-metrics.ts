@@ -1,4 +1,11 @@
-import { AudioMetrics } from "../types/audio-capture";
+import {
+    AudioMetrics,
+    AudioPerformanceDiagnostics,
+    CpuUtilizationSample,
+    CpuUtilizationSummary,
+    PerformanceBudgetSample,
+    PerformanceBudgetSummary,
+} from "../types/audio-capture";
 
 /**
  * Aggregated metrics describing the extension's handling of conversation interruptions.
@@ -36,12 +43,23 @@ export function createEmptyMetrics(): AudioMetrics {
     rmsLevel: 0,
     signalToNoiseRatio: 0,
     latencyEstimate: 0,
+    latencyEstimateMs: 0,
     bufferHealth: 1,
     droppedFrameCount: 0,
     totalFrameCount: 0,
     analysisWindowMs: 0,
+    analysisDurationMs: 0,
+    cpuUtilization: 0,
     updatedAt: Date.now(),
   };
+}
+
+const hasPerformanceNow =
+  typeof performance !== "undefined" &&
+  typeof performance.now === "function";
+
+export function getTimestampMs(): number {
+  return hasPerformanceNow ? performance.now() : Date.now();
 }
 
 /**
@@ -139,6 +157,188 @@ export function mergeMetrics(
     ...previous,
     ...next,
     updatedAt: Date.now(),
+  };
+}
+
+interface BudgetAccumulator {
+  totalDuration: number;
+  maxDuration: number;
+  count: number;
+  breaches: number;
+  lastSample?: PerformanceBudgetSample;
+}
+
+export interface PerformanceBudgetDefinition {
+  id: string;
+  limitMs: number;
+  requirement: string;
+  description?: string;
+}
+
+export class PerformanceBudgetTracker {
+  private readonly budgets = new Map<string, PerformanceBudgetDefinition>();
+  private readonly accumulators = new Map<string, BudgetAccumulator>();
+
+  constructor(definitions: ReadonlyArray<PerformanceBudgetDefinition>) {
+    definitions.forEach((definition) => {
+      this.budgets.set(definition.id, { ...definition });
+    });
+  }
+
+  record(id: string, durationMs: number): PerformanceBudgetSample {
+    const definition = this.budgets.get(id);
+    if (!definition) {
+      throw new Error(`Unknown performance budget id: ${id}`);
+    }
+
+    const exceeded = durationMs > definition.limitMs;
+    const timestamp = getTimestampMs();
+    const sample: PerformanceBudgetSample = {
+      id,
+      requirement: definition.requirement,
+      durationMs,
+      limitMs: definition.limitMs,
+      exceeded,
+      overageMs: exceeded ? durationMs - definition.limitMs : 0,
+      timestamp,
+    };
+
+    const accumulator = this.accumulators.get(id) ?? {
+      totalDuration: 0,
+      maxDuration: 0,
+      count: 0,
+      breaches: 0,
+    };
+
+    accumulator.totalDuration += durationMs;
+    accumulator.count += 1;
+    accumulator.maxDuration = Math.max(accumulator.maxDuration, durationMs);
+    if (exceeded) {
+      accumulator.breaches += 1;
+    }
+    accumulator.lastSample = sample;
+
+    this.accumulators.set(id, accumulator);
+    return sample;
+  }
+
+  getSummary(id: string): PerformanceBudgetSummary | undefined {
+    const definition = this.budgets.get(id);
+    const accumulator = this.accumulators.get(id);
+    if (!definition || !accumulator || !accumulator.lastSample) {
+      return undefined;
+    }
+
+    const { totalDuration, maxDuration, count, breaches, lastSample } =
+      accumulator;
+
+    return {
+      ...lastSample,
+      count,
+      averageMs: count > 0 ? totalDuration / count : 0,
+      maxMs: maxDuration,
+      breaches,
+    };
+  }
+
+  getSummaries(): PerformanceBudgetSummary[] {
+    const summaries: PerformanceBudgetSummary[] = [];
+    for (const id of this.budgets.keys()) {
+      const summary = this.getSummary(id);
+      if (summary) {
+        summaries.push(summary);
+      }
+    }
+    return summaries;
+  }
+
+  reset(id?: string): void {
+    if (id) {
+      this.accumulators.delete(id);
+      return;
+    }
+    this.accumulators.clear();
+  }
+}
+
+interface CpuAccumulator {
+  totalUtilization: number;
+  maxUtilization: number;
+  count: number;
+  breaches: number;
+  lastSample?: CpuUtilizationSample;
+}
+
+export class CpuLoadTracker {
+  private readonly accumulator: CpuAccumulator = {
+    totalUtilization: 0,
+    maxUtilization: 0,
+    count: 0,
+    breaches: 0,
+  };
+
+  constructor(private readonly budgetRatio: number, private readonly minimumIntervalMs = 1) {}
+
+  record(workMs: number, intervalMs: number): CpuUtilizationSample {
+    const safeInterval = Math.max(intervalMs, this.minimumIntervalMs);
+    const utilization = safeInterval > 0 ? workMs / safeInterval : 0;
+    const exceeded = utilization > this.budgetRatio;
+    const sample: CpuUtilizationSample = {
+      utilization,
+      budget: this.budgetRatio,
+      exceeded,
+      workMs,
+      intervalMs: safeInterval,
+      timestamp: getTimestampMs(),
+    };
+
+    this.accumulator.totalUtilization += utilization;
+    this.accumulator.count += 1;
+    this.accumulator.maxUtilization = Math.max(
+      this.accumulator.maxUtilization,
+      utilization,
+    );
+    if (exceeded) {
+      this.accumulator.breaches += 1;
+    }
+    this.accumulator.lastSample = sample;
+
+    return sample;
+  }
+
+  getSummary(): CpuUtilizationSummary | undefined {
+    if (!this.accumulator.lastSample) {
+      return undefined;
+    }
+
+    return {
+      ...this.accumulator.lastSample,
+      count: this.accumulator.count,
+      averageUtilization:
+        this.accumulator.count > 0
+          ? this.accumulator.totalUtilization / this.accumulator.count
+          : 0,
+      maxUtilization: this.accumulator.maxUtilization,
+      breaches: this.accumulator.breaches,
+    };
+  }
+
+  reset(): void {
+    this.accumulator.totalUtilization = 0;
+    this.accumulator.maxUtilization = 0;
+    this.accumulator.count = 0;
+    this.accumulator.breaches = 0;
+    this.accumulator.lastSample = undefined;
+  }
+}
+
+export function mergeDiagnostics(
+  tracker: PerformanceBudgetTracker,
+  cpuTracker: CpuLoadTracker,
+): AudioPerformanceDiagnostics {
+  return {
+    budgets: tracker.getSummaries(),
+    cpu: cpuTracker.getSummary(),
   };
 }
 
