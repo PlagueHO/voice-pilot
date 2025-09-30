@@ -24,11 +24,22 @@ export interface SessionUpdateEvent extends RealtimeEvent {
   type: "session.update";
   session: {
     modalities?: ["audio"] | ["text"] | ["audio", "text"];
+    output_modalities?: ["audio"] | ["text"] | ["audio", "text"];
     instructions?: string;
     voice?: string;
     locale?: string;
-    input_audio_format?: "pcm16" | "pcm24" | "pcm32" | "g711_ulaw" | "g711_alaw";
-    output_audio_format?: "pcm16" | "pcm24" | "pcm32" | "g711_ulaw" | "g711_alaw";
+    input_audio_format?:
+      | "pcm16"
+      | "pcm24"
+      | "pcm32"
+      | "g711_ulaw"
+      | "g711_alaw";
+    output_audio_format?:
+      | "pcm16"
+      | "pcm24"
+      | "pcm32"
+      | "g711_ulaw"
+      | "g711_alaw";
     input_audio_transcription?: {
       model?: string;
     };
@@ -192,6 +203,7 @@ export interface ResponseCreateEvent extends RealtimeEvent {
   type: "response.create";
   response?: {
     modalities?: ["audio"] | ["text"] | ["audio", "text"];
+    output_modalities?: ["audio"] | ["text"] | ["audio", "text"];
     instructions?: string;
     voice?: string;
     output_audio_format?: "pcm16" | "g711_ulaw" | "g711_alaw";
@@ -360,9 +372,7 @@ export interface ResponseOutputTextDoneEvent extends RealtimeEvent {
   text?: string;
 }
 
-export interface ResponseOutputAudioTranscriptDeltaEvent
-  extends RealtimeEvent
-{
+export interface ResponseOutputAudioTranscriptDeltaEvent extends RealtimeEvent {
   type:
     | "response.output_audio_transcript.delta"
     | "response.output_audio_transcription.delta";
@@ -373,9 +383,7 @@ export interface ResponseOutputAudioTranscriptDeltaEvent
   delta: RealtimeDeltaPayload;
 }
 
-export interface ResponseOutputAudioTranscriptDoneEvent
-  extends RealtimeEvent
-{
+export interface ResponseOutputAudioTranscriptDoneEvent extends RealtimeEvent {
   type:
     | "response.output_audio_transcript.done"
     | "response.output_audio_transcription.done";

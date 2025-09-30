@@ -915,9 +915,8 @@ export class AudioTrackManager implements ServiceInitializable {
     streamId: string,
   ): Promise<void> {
     try {
-      const sourceNode = await this.audioContextProvider.connectStreamToDestination(
-        stream,
-      );
+      const sourceNode =
+        await this.audioContextProvider.connectStreamToDestination(stream);
       this.remotePlaybackSources.set(streamId, sourceNode);
       this.logger.debug("Remote audio ready for playback", { streamId });
     } catch (error: any) {
@@ -933,9 +932,7 @@ export class AudioTrackManager implements ServiceInitializable {
    * @param stream - Raw media stream that will be processed.
    * @returns Processed track, its owning stream, and the constructed graph nodes.
    */
-  private async createProcessedTrackForStream(
-    stream: MediaStream,
-  ): Promise<{
+  private async createProcessedTrackForStream(stream: MediaStream): Promise<{
     processedTrack: MediaStreamTrack;
     processedStream: MediaStream;
     graph: AudioGraphNodes;
@@ -1023,9 +1020,9 @@ export class AudioTrackManager implements ServiceInitializable {
 
     context.inputStream.getTracks().forEach((inputTrack) => inputTrack.stop());
     const processedStream = context.graph.destination.stream;
-    processedStream.getTracks().forEach((processedTrack) =>
-      processedTrack.stop(),
-    );
+    processedStream
+      .getTracks()
+      .forEach((processedTrack) => processedTrack.stop());
 
     this.captureGraphs.delete(trackId);
   }

@@ -1,10 +1,10 @@
 import {
-    AudioMetrics,
-    AudioPerformanceDiagnostics,
-    CpuUtilizationSample,
-    CpuUtilizationSummary,
-    PerformanceBudgetSample,
-    PerformanceBudgetSummary,
+  AudioMetrics,
+  AudioPerformanceDiagnostics,
+  CpuUtilizationSample,
+  CpuUtilizationSummary,
+  PerformanceBudgetSample,
+  PerformanceBudgetSummary,
 } from "../types/audio-capture";
 
 /**
@@ -55,8 +55,7 @@ export function createEmptyMetrics(): AudioMetrics {
 }
 
 const hasPerformanceNow =
-  typeof performance !== "undefined" &&
-  typeof performance.now === "function";
+  typeof performance !== "undefined" && typeof performance.now === "function";
 
 export function getTimestampMs(): number {
   return hasPerformanceNow ? performance.now() : Date.now();
@@ -277,7 +276,10 @@ export class CpuLoadTracker {
     breaches: 0,
   };
 
-  constructor(private readonly budgetRatio: number, private readonly minimumIntervalMs = 1) {}
+  constructor(
+    private readonly budgetRatio: number,
+    private readonly minimumIntervalMs = 1,
+  ) {}
 
   record(workMs: number, intervalMs: number): CpuUtilizationSample {
     const safeInterval = Math.max(intervalMs, this.minimumIntervalMs);

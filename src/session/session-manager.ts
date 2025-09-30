@@ -5,6 +5,7 @@ import { ConfigurationManager } from "../config/configuration-manager";
 import { Logger } from "../core/logger";
 import { createVoicePilotError, withRecovery } from "../helpers/error/envelope";
 import { PrivacyController } from "../services/privacy/privacy-controller";
+import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
 import { EphemeralKeyInfo, EphemeralKeyResult } from "../types/ephemeral";
 import type {
   RecoveryExecutionOptions,
@@ -13,6 +14,7 @@ import type {
   RecoveryRegistrar,
 } from "../types/error/voice-pilot-error";
 import type { PurgeCommand, PurgeReason } from "../types/privacy";
+import { RealtimeEvent } from "../types/realtime-events";
 import {
   HealthCheck,
   RenewalResult,
@@ -33,6 +35,10 @@ import {
   SessionStateHandler,
   SessionStatistics,
 } from "../types/session";
+import {
+  TranscriptEvent,
+  TranscriptEventHandler,
+} from "../types/speech-to-text";
 import { SessionTimerManagerImpl } from "./session-timer-manager";
 
 export interface ConversationLifecycleHooks {
@@ -63,6 +69,9 @@ export class SessionManagerImpl implements SessionManager {
   private privacyController?: PrivacyController;
   private recoveryExecutor?: RecoveryExecutor;
   private defaultRecoveryPlan?: RecoveryPlan;
+  private realtimeTranscriptionService?: RealtimeSpeechToTextService;
+  private realtimeTranscriptSubscription?: { dispose(): void };
+  private readonly realtimeTranscriptHandlers = new Set<TranscriptEventHandler>();
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
@@ -160,6 +169,85 @@ export class SessionManagerImpl implements SessionManager {
     }
   }
 
+  setRealtimeSpeechToTextService(
+    service: RealtimeSpeechToTextService,
+  ): void {
+    if (this.realtimeTranscriptionService === service) {
+      return;
+    }
+
+    this.realtimeTranscriptSubscription?.dispose();
+    this.realtimeTranscriptionService = service;
+    this.realtimeTranscriptSubscription = service.subscribeTranscript(
+      async (event) => {
+        await this.emitRealtimeTranscriptEvent(event);
+      },
+    );
+
+    const currentSession = this.getCurrentSession();
+    if (currentSession) {
+      void this.prepareRealtimeTranscription(currentSession).catch(
+        (error: any) => {
+          this.logger.warn("Failed to prime realtime transcription service", {
+            error: error?.message ?? error,
+          });
+        },
+      );
+    }
+  }
+
+  onRealtimeTranscript(handler: TranscriptEventHandler): vscode.Disposable {
+    this.realtimeTranscriptHandlers.add(handler);
+    return {
+      dispose: () => {
+        this.realtimeTranscriptHandlers.delete(handler);
+      },
+    };
+  }
+
+  handleRealtimeTranscriptEvent(event: RealtimeEvent): void {
+    if (!this.realtimeTranscriptionService) {
+      return;
+    }
+
+    try {
+      if (!this.realtimeTranscriptionService.isInitialized()) {
+        const session = this.getCurrentSession();
+        if (!session) {
+          return;
+        }
+        void this.realtimeTranscriptionService
+          .initialize(session.sessionId)
+          .then(() => {
+            this.realtimeTranscriptionService?.setSessionId(session.sessionId);
+            this.realtimeTranscriptionService?.clearActiveUtterances();
+            this.realtimeTranscriptionService?.ingestRealtimeEvent(event);
+          })
+          .catch((error: any) => {
+            this.logger.warn(
+              "Failed to initialize realtime transcription service",
+              {
+                error: error?.message ?? error,
+              },
+            );
+          });
+        return;
+      }
+
+      const session = this.getCurrentSession();
+      if (session) {
+        this.realtimeTranscriptionService.setSessionId(session.sessionId);
+      }
+
+      this.realtimeTranscriptionService.ingestRealtimeEvent(event);
+    } catch (error: any) {
+      this.logger.warn("Realtime transcription ingestion failed", {
+        error: error?.message ?? error,
+        type: event.type,
+      });
+    }
+  }
+
   isInitialized(): boolean {
     return this.initialized;
   }
@@ -192,6 +280,10 @@ export class SessionManagerImpl implements SessionManager {
     // Clear all session state
     this.sessions.clear();
     this.eventHandlers.clear();
+    this.realtimeTranscriptSubscription?.dispose();
+    this.realtimeTranscriptHandlers.clear();
+    this.realtimeTranscriptionService?.clearActiveUtterances();
+    this.realtimeTranscriptionService = undefined;
 
     this.initialized = false;
     this.logger.info("SessionManager disposed");
@@ -303,6 +395,8 @@ export class SessionManagerImpl implements SessionManager {
         expiresAt: keyResult.expiresAt?.toISOString(),
       });
 
+      await this.prepareRealtimeTranscription(sessionInfo);
+
       await this.invokeConversationHook("onSessionReady", sessionInfo);
 
       return sessionInfo;
@@ -362,6 +456,8 @@ export class SessionManagerImpl implements SessionManager {
         duration: session.statistics.totalDurationMs,
         renewals: session.statistics.renewalCount,
       });
+
+      this.realtimeTranscriptionService?.clearActiveUtterances();
     } catch (error: any) {
       this.logger.error("Error ending session", {
         sessionId: targetSessionId,
@@ -1196,6 +1292,45 @@ export class SessionManagerImpl implements SessionManager {
     }
 
     return recommendations;
+  }
+
+  private async emitRealtimeTranscriptEvent(
+    event: TranscriptEvent,
+  ): Promise<void> {
+    for (const handler of Array.from(this.realtimeTranscriptHandlers)) {
+      try {
+        const result = handler(event);
+        if (result && typeof (result as Promise<void>).then === "function") {
+          await result;
+        }
+      } catch (error: any) {
+        this.logger.warn("Realtime transcript handler failed", {
+          error: error?.message ?? error,
+        });
+      }
+    }
+  }
+
+  private async prepareRealtimeTranscription(
+    session: SessionInfo,
+  ): Promise<void> {
+    if (!this.realtimeTranscriptionService) {
+      return;
+    }
+
+    try {
+      if (!this.realtimeTranscriptionService.isInitialized()) {
+        await this.realtimeTranscriptionService.initialize(session.sessionId);
+        return;
+      }
+
+      this.realtimeTranscriptionService.clearActiveUtterances();
+      this.realtimeTranscriptionService.setSessionId(session.sessionId);
+    } catch (error: any) {
+      this.logger.warn("Failed to prepare realtime transcription service", {
+        error: error?.message ?? error,
+      });
+    }
   }
 
   private endSessionSync(sessionId: string): void {

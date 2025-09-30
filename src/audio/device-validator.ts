@@ -2,9 +2,9 @@ import { Logger } from "../core/logger";
 import { DeviceValidationResult } from "../types/audio-capture";
 import type { AudioErrorRecoveryMetadata } from "../types/audio-errors";
 import {
-    AudioErrorCode,
-    AudioErrorSeverity,
-    AudioProcessingError,
+  AudioErrorCode,
+  AudioErrorSeverity,
+  AudioProcessingError,
 } from "../types/audio-errors";
 
 const MEDIA_KIND_AUDIO_INPUT = "audioinput";
@@ -194,7 +194,8 @@ export class AudioDeviceValidator {
   ): AudioProcessingError {
     const severity = this.deriveSeverity(code, recoverable);
     const recovery = this.buildRecoveryMetadata(code, recoverable, message);
-    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+    const userAgent =
+      typeof navigator !== "undefined" ? navigator.userAgent : undefined;
     const webAudioSupported =
       (typeof globalThis !== "undefined" && "AudioContext" in globalThis) ||
       (typeof globalThis !== "undefined" && "webkitAudioContext" in globalThis);
@@ -238,7 +239,8 @@ export class AudioDeviceValidator {
     if (!recoverable) {
       return {
         recoverable: false,
-        recommendedAction: code === AudioErrorCode.PermissionDenied ? "prompt" : "fallback",
+        recommendedAction:
+          code === AudioErrorCode.PermissionDenied ? "prompt" : "fallback",
         guidance,
       };
     }

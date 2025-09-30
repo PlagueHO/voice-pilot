@@ -149,6 +149,7 @@ export interface WebRTCEndpoint {
   region: "eastus2" | "swedencentral";
   url: string; // e.g., https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc
   deployment: string; // e.g., gpt-4o-realtime-preview
+  apiVersion: string;
 }
 
 /**
@@ -185,11 +186,8 @@ export interface AudioContextProviderConfiguration {
 /**
  * Audio capture settings required by the realtime transport layer.
  */
-export const SUPPORTED_AUDIO_SAMPLE_RATES: ReadonlyArray<AudioCaptureSampleRate> = [
-  16000,
-  24000,
-  48000,
-];
+export const SUPPORTED_AUDIO_SAMPLE_RATES: ReadonlyArray<AudioCaptureSampleRate> =
+  [16000, 24000, 48000];
 
 export const MINIMUM_AUDIO_SAMPLE_RATE: AudioCaptureSampleRate = 16000;
 
@@ -211,6 +209,7 @@ export interface AudioConfiguration {
 export interface WebRTCSessionConfiguration {
   voice?: string;
   locale?: string;
+  instructions?: string;
   inputAudioFormat: "pcm16" | "pcm24" | "pcm32";
   outputAudioFormat: "pcm16" | "pcm24" | "pcm32";
   transcriptionModel?: string;
@@ -259,7 +258,9 @@ export function validateAudioConfiguration(
   }
 
   if (configuration.format !== "pcm16") {
-    errors.push("Audio format must be pcm16 for realtime transport compliance.");
+    errors.push(
+      "Audio format must be pcm16 for realtime transport compliance.",
+    );
   }
 
   if (configuration.channels !== 1) {
@@ -270,7 +271,9 @@ export function validateAudioConfiguration(
     errors.push("audioContextProvider configuration is required.");
   } else {
     if (configuration.audioContextProvider.strategy !== "shared") {
-      errors.push("Only the shared audio context provider strategy is currently supported.");
+      errors.push(
+        "Only the shared audio context provider strategy is currently supported.",
+      );
     }
 
     if (
@@ -278,7 +281,7 @@ export function validateAudioConfiguration(
       typeof configuration.audioContextProvider.latencyHint !== "number"
     ) {
       errors.push(
-        "AudioContext latency hint must be either \"interactive\" or a numeric value in seconds.",
+        'AudioContext latency hint must be either "interactive" or a numeric value in seconds.',
       );
     }
   }

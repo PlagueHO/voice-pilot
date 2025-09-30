@@ -159,10 +159,7 @@ export class WebRTCTransportImpl
       await this.peerConnection.setLocalDescription(offer);
 
       // Send SDP offer to Azure endpoint with authentication
-      const response = await this.performNegotiationWithTimeout(
-        config,
-        offer,
-      );
+      const response = await this.performNegotiationWithTimeout(config, offer);
 
       // Set remote description from Azure response
       const answer = new RTCSessionDescription({
@@ -281,10 +278,7 @@ export class WebRTCTransportImpl
 
       await this.peerConnection.setLocalDescription(offer);
 
-      const response = await this.performNegotiationWithTimeout(
-        config,
-        offer,
-      );
+      const response = await this.performNegotiationWithTimeout(config, offer);
 
       const answer = new RTCSessionDescription({
         type: "answer",
@@ -315,7 +309,9 @@ export class WebRTCTransportImpl
    * @param config WebRTC configuration that supplies the data channel options.
    * @returns The newly opened data channel, or null if recreation failed.
    */
-  async recreateDataChannel(config: WebRTCConfig): Promise<RTCDataChannel | null> {
+  async recreateDataChannel(
+    config: WebRTCConfig,
+  ): Promise<RTCDataChannel | null> {
     if (!this.peerConnection) {
       this.logger.warn("Cannot recreate data channel without peer connection");
       return null;
@@ -567,7 +563,11 @@ export class WebRTCTransportImpl
         newTrackId: newTrack.id,
       });
 
-      this.emitLocalTrackEvent("audioTrackRemoved", oldTrack, registration?.options);
+      this.emitLocalTrackEvent(
+        "audioTrackRemoved",
+        oldTrack,
+        registration?.options,
+      );
       this.emitLocalTrackEvent("audioTrackAdded", newTrack, mergedOptions);
       oldTrack.stop();
     } catch (error: any) {
@@ -619,7 +619,11 @@ export class WebRTCTransportImpl
       }
 
       this.logger.debug("Audio track removed", { trackId: track.id });
-      this.emitLocalTrackEvent("audioTrackRemoved", track, registration?.options);
+      this.emitLocalTrackEvent(
+        "audioTrackRemoved",
+        track,
+        registration?.options,
+      );
     } catch (error: any) {
       this.logger.error("Failed to remove audio track", {
         error: error.message,
@@ -865,7 +869,7 @@ export class WebRTCTransportImpl
     config: WebRTCConfig,
     offer: RTCSessionDescriptionInit,
   ): Promise<{ sdp: string }> {
-    const endpoint = `${config.endpoint.url}?model=${config.endpoint.deployment}`;
+    const endpoint = `${config.endpoint.url}?model=${encodeURIComponent(config.endpoint.deployment)}&api-version=${encodeURIComponent(config.endpoint.apiVersion)}`;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -1387,6 +1391,10 @@ export class WebRTCTransportImpl
       sessionPayload.input_audio_format = config.audioConfig.format;
     }
 
+    if (!sessionPayload.output_modalities) {
+      sessionPayload.output_modalities = ["audio", "text"];
+    }
+
     return {
       type: "session.update",
       session: sessionPayload,
@@ -1403,12 +1411,17 @@ export class WebRTCTransportImpl
   ): SessionUpdateEvent["session"] {
     const payload: SessionUpdateEvent["session"] = {
       modalities: ["audio", "text"],
+      output_modalities: ["audio", "text"],
       input_audio_format: sessionConfig.inputAudioFormat,
       output_audio_format: sessionConfig.outputAudioFormat,
     };
 
     if (sessionConfig.voice) {
       payload.voice = sessionConfig.voice;
+    }
+
+    if (sessionConfig.instructions) {
+      payload.instructions = sessionConfig.instructions;
     }
 
     if (sessionConfig.locale) {

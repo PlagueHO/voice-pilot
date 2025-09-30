@@ -165,9 +165,7 @@ export class AudioCapture implements AudioCapturePipeline {
       this.captureConfig.sampleRate,
     );
     this.processingConfig = { ...DEFAULT_PROCESSING_CONFIG };
-    this.performanceBudgets = new PerformanceBudgetTracker(
-      PERFORMANCE_BUDGETS,
-    );
+    this.performanceBudgets = new PerformanceBudgetTracker(PERFORMANCE_BUDGETS);
     this.cpuTracker = new CpuLoadTracker(CPU_BUDGET_RATIO);
   }
 
@@ -274,13 +272,13 @@ export class AudioCapture implements AudioCapturePipeline {
         this.processingConfig,
       );
       await this.ensureContextIsRunning(graph.context);
-    this.registerContextStateHandler(graph.context);
+      this.registerContextStateHandler(graph.context);
 
-    this.stream = stream;
-    this.track = stream.getAudioTracks()[0] ?? null;
-    this.processingGraph = graph;
+      this.stream = stream;
+      this.track = stream.getAudioTracks()[0] ?? null;
+      this.processingGraph = graph;
 
-    this.registerWorkletMessageHandler();
+      this.registerWorkletMessageHandler();
       await this.updateLatencyMetric();
       this.startMetricsMonitor();
 
@@ -783,9 +781,7 @@ export class AudioCapture implements AudioCapturePipeline {
     }
   }
 
-  private resolveSampleRate(
-    requested?: number | null,
-  ): AudioCaptureSampleRate {
+  private resolveSampleRate(requested?: number | null): AudioCaptureSampleRate {
     if (
       typeof requested === "number" &&
       requested >= MINIMUM_AUDIO_SAMPLE_RATE &&
@@ -801,9 +797,7 @@ export class AudioCapture implements AudioCapturePipeline {
     return DEFAULT_SAMPLE_RATE;
   }
 
-  private normalizeSampleRate(
-    actual?: number | null,
-  ): AudioCaptureSampleRate {
+  private normalizeSampleRate(actual?: number | null): AudioCaptureSampleRate {
     if (typeof actual !== "number" || Number.isNaN(actual)) {
       return this.captureConfig.sampleRate ?? DEFAULT_SAMPLE_RATE;
     }
@@ -811,9 +805,7 @@ export class AudioCapture implements AudioCapturePipeline {
     return this.closestSupportedSampleRate(actual);
   }
 
-  private closestSupportedSampleRate(
-    target: number,
-  ): AudioCaptureSampleRate {
+  private closestSupportedSampleRate(target: number): AudioCaptureSampleRate {
     const initial = SUPPORTED_AUDIO_SAMPLE_RATES.includes(DEFAULT_SAMPLE_RATE)
       ? DEFAULT_SAMPLE_RATE
       : SUPPORTED_AUDIO_SAMPLE_RATES[0];
@@ -863,7 +855,8 @@ export class AudioCapture implements AudioCapturePipeline {
     const settings = track?.getSettings?.() ?? {};
 
     this.emitEvent("permissionGranted", {
-      deviceId: (settings as MediaTrackSettings)?.deviceId ??
+      deviceId:
+        (settings as MediaTrackSettings)?.deviceId ??
         this.captureConfig.deviceId,
       label: track?.label,
       sampleRate: this.captureConfig.sampleRate,
@@ -1020,7 +1013,10 @@ export class AudioCapture implements AudioCapturePipeline {
     };
 
     if (sample.exceeded) {
-      this.logger.warn("Audio capture CPU utilization exceeded budget", payload);
+      this.logger.warn(
+        "Audio capture CPU utilization exceeded budget",
+        payload,
+      );
     } else {
       this.logger.debug("Audio capture CPU utilization sample", payload);
     }
@@ -1220,7 +1216,8 @@ export class AudioCapture implements AudioCapturePipeline {
   ): AudioProcessingError {
     const severity = this.deriveErrorSeverity(code, recoverable);
     const recovery = this.buildRecoveryMetadata(code, recoverable, message);
-    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+    const userAgent =
+      typeof navigator !== "undefined" ? navigator.userAgent : undefined;
     const webAudioSupported =
       (typeof globalThis !== "undefined" && "AudioContext" in globalThis) ||
       (typeof globalThis !== "undefined" && "webkitAudioContext" in globalThis);
@@ -1275,7 +1272,8 @@ export class AudioCapture implements AudioCapturePipeline {
     if (!recoverable) {
       return {
         recoverable: false,
-        recommendedAction: code === AudioErrorCode.PermissionDenied ? "prompt" : "fallback",
+        recommendedAction:
+          code === AudioErrorCode.PermissionDenied ? "prompt" : "fallback",
         guidance,
       };
     }
@@ -1289,7 +1287,8 @@ export class AudioCapture implements AudioCapturePipeline {
           ? "retry"
           : "prompt",
       guidance,
-      retryAfterMs: code === AudioErrorCode.DeviceUnavailable ? 1000 : undefined,
+      retryAfterMs:
+        code === AudioErrorCode.DeviceUnavailable ? 1000 : undefined,
     };
   }
 

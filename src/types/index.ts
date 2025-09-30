@@ -30,6 +30,5 @@ export type {
   ServiceEventCoordinator,
   ServiceLifecycleCoordinator,
   SessionIntegration,
-  WebRTCServiceDependencies
+  WebRTCServiceDependencies,
 } from "./service-integration";
-

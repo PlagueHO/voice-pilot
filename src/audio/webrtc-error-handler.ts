@@ -270,9 +270,9 @@ export class WebRTCErrorHandler {
    * @param observer - Callback notified on recovery attempt progress and results.
    * @returns Disposable used to stop receiving recovery notifications.
    */
-  onRecoveryEvent(
-    observer: ConnectionRecoveryObserver,
-  ): { dispose: () => void } {
+  onRecoveryEvent(observer: ConnectionRecoveryObserver): {
+    dispose: () => void;
+  } {
     this.recoveryObservers.add(observer);
     return {
       dispose: () => this.recoveryObservers.delete(observer),

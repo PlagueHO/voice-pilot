@@ -1,26 +1,26 @@
 import { Logger } from "../core/logger";
 import {
-    AudioMetrics,
-    AudioProcessingChain,
-    AudioProcessingConfig,
-    AudioProcessingGraph,
+  AudioMetrics,
+  AudioProcessingChain,
+  AudioProcessingConfig,
+  AudioProcessingGraph,
 } from "../types/audio-capture";
 import {
-    AudioContextProvider,
-    sharedAudioContextProvider,
+  AudioContextProvider,
+  sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-    calculatePeak,
-    calculateRms,
-    computeBufferHealth,
-    createEmptyMetrics,
-    estimateSnr,
-    getTimestampMs,
-    mergeMetrics,
+  calculatePeak,
+  calculateRms,
+  computeBufferHealth,
+  createEmptyMetrics,
+  estimateSnr,
+  getTimestampMs,
+  mergeMetrics,
 } from "./audio-metrics";
 import {
-    ensurePcmEncoderWorklet,
-    PCM_ENCODER_WORKLET_NAME,
+  ensurePcmEncoderWorklet,
+  PCM_ENCODER_WORKLET_NAME,
 } from "./worklets/pcm-encoder-worklet";
 
 interface MetricsState {
@@ -83,12 +83,16 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       gainNode.connect(analyserNode);
 
       await ensurePcmEncoderWorklet(context);
-      const workletNode = new AudioWorkletNode(context, PCM_ENCODER_WORKLET_NAME, {
-        numberOfInputs: 1,
-        numberOfOutputs: 0,
-        channelCountMode: "explicit",
-        channelInterpretation: "speakers",
-      });
+      const workletNode = new AudioWorkletNode(
+        context,
+        PCM_ENCODER_WORKLET_NAME,
+        {
+          numberOfInputs: 1,
+          numberOfOutputs: 0,
+          channelCountMode: "explicit",
+          channelInterpretation: "speakers",
+        },
+      );
 
       analyserNode.connect(workletNode);
 

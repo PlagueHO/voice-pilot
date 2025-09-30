@@ -61,7 +61,10 @@ export class AudioContextProvider {
     this.configuration = configuration;
 
     if (this.context && configuration.workletModuleUrls.length > 0) {
-      void this.loadExternalWorklets(configuration.workletModuleUrls, this.context);
+      void this.loadExternalWorklets(
+        configuration.workletModuleUrls,
+        this.context,
+      );
     }
   }
 
@@ -265,7 +268,8 @@ export class AudioContextProvider {
     }
 
     const AudioContextCtor =
-      (globalThis as any).AudioContext || (globalThis as any).webkitAudioContext;
+      (globalThis as any).AudioContext ||
+      (globalThis as any).webkitAudioContext;
 
     if (!AudioContextCtor) {
       throw new Error("AudioContext API is not available in this environment.");
@@ -364,7 +368,9 @@ export class AudioContextProvider {
     const context = contextOverride ?? (await this.getOrCreateContext());
 
     if (!context.audioWorklet) {
-      this.logger.warn("AudioWorklet API not available; skipping external worklet loading");
+      this.logger.warn(
+        "AudioWorklet API not available; skipping external worklet loading",
+      );
       return;
     }
 

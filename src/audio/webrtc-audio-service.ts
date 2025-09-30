@@ -3,9 +3,20 @@ import { ConfigurationManager } from "../config/configuration-manager";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { SessionManager } from "../session/session-manager";
-import type { RealtimeEvent } from "../types/realtime-events";
+import type {
+  RealtimeEvent,
+  ResponseCreateEvent,
+  ResponseCreatedEvent,
+  ResponseDoneEvent,
+  ResponseInterruptedEvent,
+  SessionUpdateEvent,
+} from "../types/realtime-events";
 import type { AudioPipelineIntegration } from "../types/service-integration";
-import type { AudioConfiguration, ConnectionStatistics } from "../types/webrtc";
+import type {
+  AudioConfiguration,
+  ConnectionStatistics,
+  WebRTCConfig,
+} from "../types/webrtc";
 import {
   ConnectionDiagnosticsEvent,
   ConnectionQuality,
@@ -89,6 +100,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   private isSessionActive = false;
   private currentMicrophoneTrack?: MediaStreamTrack;
   private currentAudioConfig?: AudioConfiguration;
+  private activeRealtimeConfig?: WebRTCConfig;
   private audioPipelineIntegration?: AudioPipelineIntegration;
   private usingPipelineInputTrack = false;
   private lastRemoteStream: MediaStream | null = null;
@@ -99,6 +111,12 @@ export class WebRTCAudioService implements ServiceInitializable {
   private readonly telemetryObservers = new Set<
     (event: RecoveryTelemetryEvent) => void
   >();
+  private readonly sessionPreferences: {
+    voice?: string;
+    instructions?: string;
+  } = {};
+  private responsePending = false;
+  private activeResponseId?: string;
 
   // Event callbacks
   private onSessionStateChangedCallback?: (state: string) => Promise<void>;
@@ -245,6 +263,9 @@ export class WebRTCAudioService implements ServiceInitializable {
         this.ephemeralKeyService,
       );
 
+      this.activeRealtimeConfig = config;
+      this.applySessionPreferencesToConfig(config);
+
       this.audioManager.setAudioConfiguration(config.audioConfig);
       this.currentAudioConfig = config.audioConfig;
       await this.prepareAudioContext(config.audioConfig);
@@ -261,7 +282,8 @@ export class WebRTCAudioService implements ServiceInitializable {
 
       if (this.audioPipelineIntegration) {
         try {
-          microphoneTrack = await this.audioPipelineIntegration.onAudioInputRequired();
+          microphoneTrack =
+            await this.audioPipelineIntegration.onAudioInputRequired();
           this.usingPipelineInputTrack = !!microphoneTrack;
         } catch (error: any) {
           this.logger.warn("Audio pipeline failed to provide input track", {
@@ -313,6 +335,8 @@ export class WebRTCAudioService implements ServiceInitializable {
       });
       await this.suspendAudioContext();
       this.currentAudioConfig = undefined;
+      this.activeRealtimeConfig = undefined;
+      this.resetPendingResponseState("session-start-failed");
       this.onErrorCallback?.(error);
       throw error;
     }
@@ -354,9 +378,11 @@ export class WebRTCAudioService implements ServiceInitializable {
       await this.transport.closeConnection();
 
       this.lastRemoteStream = null;
-    await this.suspendAudioContext();
+      await this.suspendAudioContext();
 
       this.isSessionActive = false;
+      this.resetPendingResponseState("session-stopped");
+      this.activeRealtimeConfig = undefined;
       this.onSessionStateChangedCallback?.("inactive");
 
       this.logger.info("WebRTC voice session stopped");
@@ -374,25 +400,36 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ensureActiveSession();
 
     try {
-      const conversationItem: RealtimeEvent = {
-        type: "conversation.item.create",
-        item: {
-          type: "message",
-          role: "user",
-          content: [{ type: "input_text", text }],
-        },
-      };
+      const payload = text?.trim();
+      if (!payload) {
+        throw new Error(
+          "Cannot send an empty text message to the realtime service",
+        );
+      }
 
+      this.assertNoPendingResponse();
+
+      const sessionUpdate = this.buildSessionUpdateEvent();
+      if (sessionUpdate) {
+        await this.transport.sendDataChannelMessage(sessionUpdate);
+      }
+
+      const conversationItem = this.buildConversationItemEvent(payload);
       await this.transport.sendDataChannelMessage(conversationItem);
 
-      // Request response
-      await this.transport.sendDataChannelMessage({ type: "response.create" });
+      const responseCreate = this.buildResponseCreateEvent();
+      await this.transport.sendDataChannelMessage(responseCreate);
 
-      this.logger.debug("Text message sent", { text });
+      this.recordResponsePending();
+
+      this.logger.debug("Text message dispatched to realtime service", {
+        text: payload,
+      });
     } catch (error: any) {
       this.logger.error("Failed to send text message", {
         error: error.message,
       });
+      this.resetPendingResponseState("response-create-failed");
       throw error;
     }
   }
@@ -519,9 +556,9 @@ export class WebRTCAudioService implements ServiceInitializable {
    * @param integration - Object implementing the audio pipeline contract.
    * @returns Disposable that removes the integration when invoked.
    */
-  registerAudioPipelineIntegration(
-    integration: AudioPipelineIntegration,
-  ): { dispose: () => void } {
+  registerAudioPipelineIntegration(integration: AudioPipelineIntegration): {
+    dispose: () => void;
+  } {
     this.audioPipelineIntegration = integration;
 
     const statistics = this.transport.getConnectionStatistics();
@@ -552,15 +589,84 @@ export class WebRTCAudioService implements ServiceInitializable {
     };
   }
 
+  async updateSessionPreferences(preferences: {
+    voice?: string | null;
+    instructions?: string | null;
+  }): Promise<void> {
+    const changes: Array<"voice" | "instructions"> = [];
+
+    if (Object.prototype.hasOwnProperty.call(preferences, "voice")) {
+      const normalized = this.normalizePreferenceInput(preferences.voice);
+      if (normalized !== this.sessionPreferences.voice) {
+        this.sessionPreferences.voice = normalized;
+        changes.push("voice");
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(preferences, "instructions")) {
+      const normalized = this.normalizePreferenceInput(
+        preferences.instructions,
+      );
+      if (normalized !== this.sessionPreferences.instructions) {
+        this.sessionPreferences.instructions = normalized;
+        changes.push("instructions");
+      }
+    }
+
+    if (changes.length === 0) {
+      return;
+    }
+
+    if (this.activeRealtimeConfig) {
+      if (changes.includes("voice")) {
+        this.activeRealtimeConfig.sessionConfig.voice =
+          this.sessionPreferences.voice;
+      }
+
+      if (changes.includes("instructions")) {
+        this.activeRealtimeConfig.sessionConfig.instructions =
+          this.sessionPreferences.instructions;
+      }
+    }
+
+    if (!this.isSessionActive) {
+      this.logger.debug("Session preferences updated while inactive", {
+        changes,
+      });
+      return;
+    }
+
+    const sessionUpdate = this.buildSessionUpdateEvent();
+    if (!sessionUpdate) {
+      this.logger.debug("Skipped session preference push; no active config", {
+        changes,
+      });
+      return;
+    }
+
+    try {
+      await this.transport.sendDataChannelMessage(sessionUpdate);
+      this.logger.debug("Realtime session preferences updated", {
+        changes,
+      });
+    } catch (error: any) {
+      this.logger.warn("Failed to propagate session preference update", {
+        error: error?.message ?? error,
+        changes,
+      });
+      throw error;
+    }
+  }
+
   /**
    * Adds an observer notified about connection state transitions.
    *
    * @param observer - Callback receiving the latest {@link WebRTCConnectionState}.
    * @returns Disposable that unregisters the observer.
    */
-  addSessionStateObserver(
-    observer: (state: WebRTCConnectionState) => void,
-  ): { dispose: () => void } {
+  addSessionStateObserver(observer: (state: WebRTCConnectionState) => void): {
+    dispose: () => void;
+  } {
     this.sessionStateObservers.add(observer);
     observer(this.transport.getConnectionState());
 
@@ -578,9 +684,9 @@ export class WebRTCAudioService implements ServiceInitializable {
    * @param observer - Callback that handles {@link RecoveryTelemetryEvent}.
    * @returns Disposable that unregisters the observer.
    */
-  addTelemetryObserver(
-    observer: (event: RecoveryTelemetryEvent) => void,
-  ): { dispose: () => void } {
+  addTelemetryObserver(observer: (event: RecoveryTelemetryEvent) => void): {
+    dispose: () => void;
+  } {
     this.telemetryObservers.add(observer);
     return {
       dispose: () => this.telemetryObservers.delete(observer),
@@ -658,12 +764,9 @@ export class WebRTCAudioService implements ServiceInitializable {
       }
     });
 
-    this.transport.addEventListener(
-      "fallbackStateChanged",
-      (event: any) => {
-        this.handleFallbackTelemetry(event as DataChannelStateChangedEvent);
-      },
-    );
+    this.transport.addEventListener("fallbackStateChanged", (event: any) => {
+      this.handleFallbackTelemetry(event as DataChannelStateChangedEvent);
+    });
 
     // Transport errors
     this.transport.addEventListener("error", async (event) => {
@@ -726,9 +829,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
   }
 
-  private handleFallbackTelemetry(
-    event: DataChannelStateChangedEvent,
-  ): void {
+  private handleFallbackTelemetry(event: DataChannelStateChangedEvent): void {
     this.logger.info("Fallback state changed", {
       fallbackActive: event.data.fallbackActive,
       queuedMessages: event.data.queuedMessages,
@@ -756,9 +857,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
   }
 
-  private handleConnectionDiagnostics(
-    event: ConnectionDiagnosticsEvent,
-  ): void {
+  private handleConnectionDiagnostics(event: ConnectionDiagnosticsEvent): void {
     this.logger.debug("Connection diagnostics sample", {
       intervalMs: event.data.statsIntervalMs,
       negotiation: event.data.negotiation,
@@ -850,6 +949,23 @@ export class WebRTCAudioService implements ServiceInitializable {
 
     try {
       switch (message.type) {
+        case "session.updated":
+          this.handleSessionUpdated(message as SessionUpdateEvent);
+          break;
+
+        case "response.created":
+          this.handleResponseCreated(message as ResponseCreatedEvent);
+          break;
+
+        case "response.done":
+          this.forwardRealtimeTranscriptEvent(message);
+          this.handleResponseDone(message as ResponseDoneEvent);
+          break;
+
+        case "response.interrupted":
+          this.handleResponseInterrupted(message as ResponseInterruptedEvent);
+          break;
+
         case "response.audio.delta":
           if (this.onAudioReceivedCallback && "delta" in message) {
             const audioBuffer = Buffer.from(message.delta as string, "base64");
@@ -863,6 +979,7 @@ export class WebRTCAudioService implements ServiceInitializable {
         case "response.output_audio_transcript.delta":
         case "response.output_audio_transcription.delta":
         case "conversation.item.audio_transcription.delta":
+          this.forwardRealtimeTranscriptEvent(message);
           if (this.onTranscriptReceivedCallback) {
             const transcript = extractTranscriptText(message);
             if (transcript !== undefined) {
@@ -871,6 +988,20 @@ export class WebRTCAudioService implements ServiceInitializable {
               this.logger.debug("Transcript delta missing textual payload", {
                 type: message.type,
               });
+            }
+          }
+          break;
+
+        case "response.text.done":
+        case "response.output_text.done":
+        case "response.audio_transcript.done":
+        case "response.output_audio_transcript.done":
+        case "response.output_audio_transcription.done":
+          this.forwardRealtimeTranscriptEvent(message);
+          if (this.onTranscriptReceivedCallback) {
+            const transcript = extractTranscriptText(message);
+            if (transcript !== undefined) {
+              await this.onTranscriptReceivedCallback(transcript);
             }
           }
           break;
@@ -909,6 +1040,87 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
   }
 
+  private handleSessionUpdated(event: SessionUpdateEvent): void {
+    if (!event.session) {
+      return;
+    }
+
+    if (typeof event.session.voice === "string") {
+      this.sessionPreferences.voice = this.normalizePreferenceInput(
+        event.session.voice,
+      );
+    }
+
+    if (typeof event.session.instructions === "string") {
+      this.sessionPreferences.instructions = this.normalizePreferenceInput(
+        event.session.instructions,
+      );
+    }
+
+    if (this.activeRealtimeConfig) {
+      this.activeRealtimeConfig.sessionConfig.voice =
+        this.sessionPreferences.voice;
+      this.activeRealtimeConfig.sessionConfig.instructions =
+        this.sessionPreferences.instructions;
+    }
+  }
+
+  private handleResponseCreated(event: ResponseCreatedEvent): void {
+    if (!event.response?.id) {
+      return;
+    }
+    this.activeResponseId = event.response.id;
+    this.responsePending = true;
+  }
+
+  private handleResponseDone(event: ResponseDoneEvent): void {
+    if (!event.response?.id) {
+      this.resetPendingResponseState("response-done-missing-id");
+      return;
+    }
+
+    if (
+      (this.activeResponseId && event.response.id === this.activeResponseId) ||
+      (!this.activeResponseId && this.responsePending)
+    ) {
+      this.resetPendingResponseState("response-done");
+    }
+  }
+
+  private handleResponseInterrupted(event: ResponseInterruptedEvent): void {
+    if (event.response_id && event.response_id === this.activeResponseId) {
+      this.resetPendingResponseState("response-interrupted");
+      return;
+    }
+
+    if (!event.response_id && this.responsePending) {
+      this.resetPendingResponseState("response-interrupted-untracked");
+    }
+  }
+
+  private forwardRealtimeTranscriptEvent(event: RealtimeEvent): void {
+    if (!this.sessionManager) {
+      return;
+    }
+
+    const target = this.sessionManager as {
+      handleRealtimeTranscriptEvent?: (evt: RealtimeEvent) => void;
+    };
+
+    if (typeof target.handleRealtimeTranscriptEvent !== "function") {
+      return;
+    }
+
+    try {
+      target.handleRealtimeTranscriptEvent(event);
+    } catch (error: any) {
+      this.logger.warn("Failed to forward realtime transcript event", {
+        error: error?.message ?? error,
+        type: event.type,
+      });
+    }
+  }
+
   private async emitTurnEvent(event: RealtimeTurnEvent): Promise<void> {
     if (!this.onTurnEventCallback) {
       return;
@@ -941,6 +1153,9 @@ export class WebRTCAudioService implements ServiceInitializable {
         this.configurationManager,
         this.ephemeralKeyService!,
       );
+
+      this.activeRealtimeConfig = config;
+      this.applySessionPreferencesToConfig(config);
 
       await this.errorHandler.handleError(error, this.transport, config);
     } catch (handlingError: any) {
@@ -996,6 +1211,9 @@ export class WebRTCAudioService implements ServiceInitializable {
       this.ephemeralKeyService,
     );
 
+    this.activeRealtimeConfig = config;
+    this.applySessionPreferencesToConfig(config);
+
     // Re-establish connection
     const result = await this.transport.establishConnection(config);
     if (!result.success) {
@@ -1003,6 +1221,153 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
 
     this.logger.info("Session restarted with new key");
+  }
+
+  private normalizePreferenceInput(
+    value: string | null | undefined,
+  ): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private applySessionPreferencesToConfig(config: WebRTCConfig): void {
+    const sessionConfig = config.sessionConfig;
+
+    if (this.sessionPreferences.voice === undefined) {
+      this.sessionPreferences.voice = this.normalizePreferenceInput(
+        sessionConfig.voice,
+      );
+      sessionConfig.voice = this.sessionPreferences.voice;
+    } else {
+      sessionConfig.voice = this.sessionPreferences.voice;
+    }
+
+    if (this.sessionPreferences.instructions === undefined) {
+      this.sessionPreferences.instructions = this.normalizePreferenceInput(
+        sessionConfig.instructions,
+      );
+      sessionConfig.instructions = this.sessionPreferences.instructions;
+    } else {
+      sessionConfig.instructions = this.sessionPreferences.instructions;
+    }
+  }
+
+  private buildSessionUpdateEvent(): SessionUpdateEvent | undefined {
+    const config = this.activeRealtimeConfig;
+    if (!config) {
+      return undefined;
+    }
+
+    const sessionConfig = config.sessionConfig;
+
+    const sessionPayload: SessionUpdateEvent["session"] = {
+      modalities: ["audio", "text"],
+      output_modalities: ["audio", "text"],
+      input_audio_format: config.audioConfig.format,
+      output_audio_format:
+        sessionConfig.outputAudioFormat ?? config.audioConfig.format,
+    };
+
+    if (sessionConfig.voice) {
+      sessionPayload.voice = sessionConfig.voice;
+    }
+
+    if (sessionConfig.instructions) {
+      sessionPayload.instructions = sessionConfig.instructions;
+    }
+
+    if (sessionConfig.locale) {
+      sessionPayload.locale = sessionConfig.locale;
+    }
+
+    if (sessionConfig.transcriptionModel) {
+      sessionPayload.input_audio_transcription = {
+        model: sessionConfig.transcriptionModel,
+      };
+    }
+
+    if (sessionConfig.turnDetection) {
+      sessionPayload.turn_detection = this.mapTurnDetectionConfiguration(
+        sessionConfig.turnDetection,
+      );
+    }
+
+    return {
+      type: "session.update",
+      session: sessionPayload,
+    };
+  }
+
+  private mapTurnDetectionConfiguration(
+    source: NonNullable<WebRTCConfig["sessionConfig"]["turnDetection"]>,
+  ): NonNullable<SessionUpdateEvent["session"]["turn_detection"]> {
+    return {
+      type: source.type,
+      threshold: source.threshold,
+      prefix_padding_ms: source.prefixPaddingMs,
+      silence_duration_ms: source.silenceDurationMs,
+      create_response: source.createResponse,
+      interrupt_response: source.interruptResponse,
+      eagerness: source.eagerness,
+    };
+  }
+
+  private buildConversationItemEvent(text: string): RealtimeEvent {
+    return {
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text }],
+      },
+    };
+  }
+
+  private buildResponseCreateEvent(): ResponseCreateEvent {
+    const responsePayload: NonNullable<ResponseCreateEvent["response"]> = {
+      modalities: ["audio", "text"],
+      output_modalities: ["audio", "text"],
+    };
+
+    if (this.sessionPreferences.voice) {
+      responsePayload.voice = this.sessionPreferences.voice;
+    }
+
+    if (this.sessionPreferences.instructions) {
+      responsePayload.instructions = this.sessionPreferences.instructions;
+    }
+
+    return {
+      type: "response.create",
+      response: responsePayload,
+    };
+  }
+
+  private recordResponsePending(): void {
+    this.responsePending = true;
+    this.activeResponseId = undefined;
+  }
+
+  private assertNoPendingResponse(): void {
+    if (!this.responsePending) {
+      return;
+    }
+
+    throw new Error(
+      "A response is already pending from the realtime service; awaiting completion before dispatching another request.",
+    );
+  }
+
+  private resetPendingResponseState(reason: string): void {
+    if (this.responsePending || this.activeResponseId) {
+      this.logger.debug("Resetting response lifecycle state", { reason });
+    }
+    this.responsePending = false;
+    this.activeResponseId = undefined;
   }
 
   private validateDependencies(): void {
@@ -1031,9 +1396,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
   }
 
-  private notifySessionStateObservers(
-    state: WebRTCConnectionState,
-  ): void {
+  private notifySessionStateObservers(state: WebRTCConnectionState): void {
     for (const observer of Array.from(this.sessionStateObservers)) {
       try {
         observer(state);

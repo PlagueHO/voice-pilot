@@ -45,6 +45,7 @@ export class WebRTCConfigFactory {
       const endpoint = this.createEndpoint(
         azureConfig.region,
         azureConfig.deploymentName,
+        realtimePreferences.apiVersion,
       );
 
       const authentication = this.createAuthentication(realtimeSession);
@@ -100,6 +101,7 @@ export class WebRTCConfigFactory {
   private createEndpoint(
     region: string,
     deploymentName: string,
+    apiVersion: string,
   ): WebRTCEndpoint {
     // Map Azure regions to supported WebRTC regions
     const regionMapping: Record<string, "eastus2" | "swedencentral"> = {
@@ -124,6 +126,7 @@ export class WebRTCConfigFactory {
       region: webrtcRegion,
       url,
       deployment: deploymentName,
+      apiVersion,
     };
   }
 
@@ -165,9 +168,12 @@ export class WebRTCConfigFactory {
     audioPreferences: AudioConfig,
   ): AudioConfiguration {
     if (audioPreferences.sampleRate !== 24000) {
-      this.logger.warn("Audio sample rate adjusted to 24 kHz for transport compliance", {
-        requestedSampleRate: audioPreferences.sampleRate,
-      });
+      this.logger.warn(
+        "Audio sample rate adjusted to 24 kHz for transport compliance",
+        {
+          requestedSampleRate: audioPreferences.sampleRate,
+        },
+      );
     }
 
     const sharedContext = audioPreferences.sharedContext ?? {
@@ -365,7 +371,8 @@ export class WebRTCConfigFactory {
         !config.endpoint ||
         !config.endpoint.url ||
         !config.endpoint.region ||
-        !config.endpoint.deployment
+        !config.endpoint.deployment ||
+        !config.endpoint.apiVersion
       ) {
         throw new Error("Invalid endpoint configuration");
       }
@@ -492,6 +499,7 @@ export class WebRTCConfigFactory {
         region: "eastus2",
         url: "https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc",
         deployment: "gpt-4o-realtime-preview",
+        apiVersion: realtimePreferences.apiVersion,
       },
       authentication: testAuthentication,
       audioConfig,

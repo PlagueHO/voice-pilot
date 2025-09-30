@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
+import type { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
 import type { TurnEvent as InterruptionTurnEvent } from "../types/conversation";
 import { SessionInfo } from "../types/session";
 import {
@@ -131,6 +132,12 @@ export interface ConversationStateMachineOptions {
   logger?: Logger;
 }
 
+interface TranscriptEventSource {
+  subscribeTranscript(
+    handler: (event: TranscriptEvent) => void | Promise<void>,
+  ): { dispose(): void };
+}
+
 export class ConversationStateMachine implements ServiceInitializable {
   private readonly logger: Logger;
   private readonly emitter = new EventEmitter();
@@ -145,6 +152,7 @@ export class ConversationStateMachine implements ServiceInitializable {
   private turnSequence = 0;
   private faultTimestamps: number[] = [];
   private circuitOpenUntil = 0;
+  private readonly transcriptSourceDisposables = new Set<{ dispose(): void }>();
 
   constructor(options?: ConversationStateMachineOptions) {
     this.logger = options?.logger ?? new Logger("ConversationStateMachine");
@@ -172,6 +180,10 @@ export class ConversationStateMachine implements ServiceInitializable {
 
   dispose(): void {
     this.emitter.removeAllListeners();
+    for (const subscription of Array.from(this.transcriptSourceDisposables)) {
+      subscription.dispose();
+    }
+    this.transcriptSourceDisposables.clear();
     this.initialized = false;
     this.sessionInfo = undefined;
     this.currentTurn = undefined;
@@ -258,6 +270,23 @@ export class ConversationStateMachine implements ServiceInitializable {
     return {
       dispose: () => this.emitter.off("transcript-event", handler),
     };
+  }
+
+  attachTranscriptSource(
+    source: TranscriptEventSource | RealtimeSpeechToTextService,
+  ): { dispose(): void } {
+    this.ensureInitialized("attachTranscriptSource");
+    const subscription = source.subscribeTranscript(async (event) => {
+      await this.notifyTranscript(event);
+    });
+    const disposable = {
+      dispose: () => {
+        subscription.dispose();
+        this.transcriptSourceDisposables.delete(disposable);
+      },
+    };
+    this.transcriptSourceDisposables.add(disposable);
+    return disposable;
   }
 
   async notifyTranscript(event: TranscriptEvent): Promise<void> {

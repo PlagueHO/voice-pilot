@@ -21,7 +21,10 @@ export function extractTranscriptText(
   }
 
   // Fallbacks for message formats that surface transcript content directly.
-  const possibleDirectText = getFirstStringProperty(message, TRANSCRIPT_TEXT_KEYS);
+  const possibleDirectText = getFirstStringProperty(
+    message,
+    TRANSCRIPT_TEXT_KEYS,
+  );
   if (possibleDirectText !== undefined) {
     return possibleDirectText;
   }

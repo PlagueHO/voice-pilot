@@ -1,7 +1,7 @@
 import type {
-    AudioCaptureConfig,
-    AudioCaptureSampleRate,
-    AudioProcessingConfig,
+  AudioCaptureConfig,
+  AudioCaptureSampleRate,
+  AudioProcessingConfig,
 } from "./audio-capture";
 
 /**

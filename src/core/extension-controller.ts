@@ -3,10 +3,10 @@ import { CredentialManagerImpl } from "../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-  StateChangeEvent as ConversationStateChangeEvent,
-  TurnContext as ConversationTurnContext,
-  TurnEvent as ConversationTurnEvent,
-  CopilotResponseEvent,
+    StateChangeEvent as ConversationStateChangeEvent,
+    TurnContext as ConversationTurnContext,
+    TurnEvent as ConversationTurnEvent,
+    CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
@@ -16,14 +16,15 @@ import { ErrorEventBusImpl } from "../services/error/error-event-bus";
 import { RecoveryOrchestrator } from "../services/error/recovery-orchestrator";
 import { RecoveryRegistrationCenter } from "../services/error/recovery-registrar";
 import { PrivacyController } from "../services/privacy/privacy-controller";
+import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
 import { InterruptionEngineImpl } from "../session/interruption-engine";
 import { SessionManagerImpl } from "../session/session-manager";
 import { SessionTimerManagerImpl } from "../session/session-timer-manager";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type {
-  RecoveryPlan,
-  VoicePilotError,
+    RecoveryPlan,
+    VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
@@ -49,6 +50,7 @@ export class ExtensionController implements ServiceInitializable {
   private readonly interruptionEngine: InterruptionEngineImpl;
   private readonly conversationMachine: ConversationStateMachine;
   private readonly chatIntegration: ChatIntegration;
+  private readonly realtimeSttService: RealtimeSpeechToTextService;
   private readonly transcriptAggregator: TranscriptPrivacyAggregator;
   private readonly controllerDisposables: vscode.Disposable[] = [];
   private readonly dispatchedUserTurnIds = new Set<string>();
@@ -85,6 +87,7 @@ export class ExtensionController implements ServiceInitializable {
     this.conversationMachine = new ConversationStateMachine({
       logger: this.logger,
     });
+    this.realtimeSttService = new RealtimeSpeechToTextService(this.logger);
     this.chatIntegration = new ChatIntegration(this.logger);
     this.transcriptAggregator = new TranscriptPrivacyAggregator(
       this.voicePanel,
@@ -224,6 +227,15 @@ export class ExtensionController implements ServiceInitializable {
         "conversationStateMachine",
       );
 
+      this.sessionManager.setRealtimeSpeechToTextService(
+        this.realtimeSttService,
+      );
+      const realtimeTranscriptDisposable =
+        this.conversationMachine.attachTranscriptSource(
+          this.realtimeSttService,
+        );
+      this.controllerDisposables.push(realtimeTranscriptDisposable);
+
       await this.safeInit(
         "interruption engine",
         async () => {
@@ -290,6 +302,7 @@ export class ExtensionController implements ServiceInitializable {
     const steps: Array<[string, () => void]> = [
       ["controller observers", () => this.disposeControllerDisposables()],
       ["conversation state machine", () => this.conversationMachine.dispose()],
+      ["realtime stt service", () => this.realtimeSttService.dispose()],
       ["chat integration", () => this.chatIntegration.dispose()],
       ["transcript aggregator", () => this.transcriptAggregator.dispose()],
       ["privacy controller", () => this.privacyController.dispose()],
