@@ -26,14 +26,23 @@ describe('SessionManagerImpl - Comprehensive Tests', () => {
       sessionId: 'mock-session-id',
       expiresAt: new Date(Date.now() + 300000) // 5 minutes
     }),
-    getCurrentKey: (): EphemeralKeyInfo => ({
-      key: 'mock-key',
-      sessionId: 'mock-session-id',
-      issuedAt: new Date(),
-      expiresAt: new Date(Date.now() + 300000),
-      isValid: true,
-      secondsRemaining: 300
-    }),
+    getCurrentKey: (): EphemeralKeyInfo => {
+      const issuedAt = new Date();
+      const expiresAt = new Date(Date.now() + 300000);
+      const refreshAt = new Date(Date.now() + 45000);
+      return {
+        key: 'mock-key',
+        sessionId: 'mock-session-id',
+        issuedAt,
+        expiresAt,
+        isValid: true,
+        secondsRemaining: 300,
+        refreshAt,
+        secondsUntilRefresh: 45,
+        ttlSeconds: 300,
+        refreshIntervalSeconds: 45
+      };
+    },
     renewKey: async (): Promise<EphemeralKeyResult> => ({
       success: true,
       ephemeralKey: 'renewed-key',
@@ -518,7 +527,11 @@ describe('SessionManagerImpl - Comprehensive Tests', () => {
         issuedAt: new Date(Date.now() - 400000),
         expiresAt: new Date(Date.now() - 100000), // Expired
         isValid: false,
-        secondsRemaining: 0
+        secondsRemaining: 0,
+        refreshAt: new Date(Date.now() - 200000),
+        secondsUntilRefresh: 0,
+        ttlSeconds: 300,
+        refreshIntervalSeconds: 45
       });
 
       const healthResult = await sessionManager.testSessionHealth(sessionInfo.sessionId);

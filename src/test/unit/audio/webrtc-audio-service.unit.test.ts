@@ -3,6 +3,7 @@ import * as assert from "assert";
 import { WebRTCAudioService } from "../../../audio/webrtc-audio-service";
 import { WebRTCConfigFactory } from "../../../audio/webrtc-config-factory";
 import { Logger } from "../../../core/logger";
+import type { EphemeralKeyInfo } from "../../../types/ephemeral";
 import type { RealtimeEvent, ResponseCreateEvent, SessionUpdateEvent } from "../../../types/realtime-events";
 
 class TransportStub {
@@ -126,5 +127,34 @@ describe("WebRTCAudioService realtime orchestration", () => {
     });
 
     assert.deepStrictEqual(transcripts, ["All set"]);
+  });
+
+  it("tracks credential metadata snapshots", async () => {
+    const snapshots: EphemeralKeyInfo[] = [];
+    service.onCredentialStatusUpdated(async (info) => {
+      snapshots.push(info);
+    });
+
+    const now = Date.now();
+    (service as any).updateCredentialStatus({
+      key: "test-ephemeral",
+      sessionId: "session-credential",
+      issuedAt: new Date(now),
+      expiresAt: new Date(now + 60000),
+      isValid: true,
+      secondsRemaining: 60,
+      refreshAt: new Date(now + 45000),
+      secondsUntilRefresh: 45,
+      ttlSeconds: 60,
+      refreshIntervalSeconds: 45,
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const status = service.getCredentialStatus();
+    assert.ok(status);
+    assert.strictEqual(status?.sessionId, "session-credential");
+    assert.ok(status!.secondsRemaining <= 60);
+    assert.strictEqual(snapshots.length, 1);
   });
 });

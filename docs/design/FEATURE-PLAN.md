@@ -87,5 +87,4 @@ This document lists all planned features in implementation phase order. It will 
 
 | Date | Change | Author |
 |------|--------|--------|
-| 2025-09-28 | Documented GOAL-004 transport diagnostics implementation | system |
 | 2025-09-19 | Initial backlog created | system |

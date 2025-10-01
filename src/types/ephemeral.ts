@@ -105,6 +105,14 @@ export interface EphemeralKeyResult {
   sessionId?: string;
   /** Expiration timestamp for the key. */
   expiresAt?: Date;
+  /** Timestamp when the key was minted. */
+  issuedAt?: Date;
+  /** Recommended timestamp to proactively refresh the key. */
+  refreshAt?: Date;
+  /** Seconds remaining before the key should be refreshed. */
+  secondsUntilRefresh?: number;
+  /** Seconds defining the proactive refresh cadence. */
+  refreshIntervalSeconds?: number;
   /** Detailed error information when the request failed. */
   error?: AuthenticationError;
 }
@@ -125,6 +133,14 @@ export interface EphemeralKeyInfo {
   isValid: boolean;
   /** Number of seconds remaining before expiration. */
   secondsRemaining: number;
+  /** Timestamp when the key should be proactively refreshed. */
+  refreshAt: Date;
+  /** Seconds remaining before the proactive refresh window elapses. */
+  secondsUntilRefresh: number;
+  /** Total TTL reported by the service in seconds. */
+  ttlSeconds: number;
+  /** Seconds defining the proactive refresh cadence. */
+  refreshIntervalSeconds: number;
 }
 
 /**
@@ -141,6 +157,14 @@ export interface RealtimeSessionInfo {
   webrtcUrl: string;
   /** Expiration date for the realtime session. */
   expiresAt: Date;
+  /** Timestamp indicating when the session credentials were minted. */
+  issuedAt: Date;
+  /** Timestamp indicating when the credentials should be refreshed. */
+  refreshAt: Date;
+  /** Interval in milliseconds representing the proactive refresh cadence. */
+  refreshIntervalMs: number;
+  /** Complete key metadata shared with downstream services. */
+  keyInfo: EphemeralKeyInfo;
 }
 
 /**
@@ -192,19 +216,25 @@ export interface AzureSessionRequest {
   /** Optional system instructions applied to the session. */
   instructions?: string;
   /** Audio input format supported by the session. */
-  input_audio_format?: "pcm16";
+  input_audio_format?: "pcm16" | "pcm24" | "pcm32";
   /** Audio output format produced by the session. */
-  output_audio_format?: "pcm16";
+  output_audio_format?: "pcm16" | "pcm24" | "pcm32";
   /** Optional server-side voice activity detection configuration. */
   turn_detection?: {
     /** VAD mode requested for the session. */
-    type: "server_vad";
+    type: "server_vad" | "semantic_vad";
     /** Optional threshold for detecting speech. */
     threshold?: number;
     /** Optional prefix padding to include before detected speech. */
     prefix_padding_ms?: number;
     /** Optional required silence duration to close a turn. */
     silence_duration_ms?: number;
+    /** Automatically create responses when a turn closes. */
+    create_response?: boolean;
+    /** Interrupt active responses when new speech is detected. */
+    interrupt_response?: boolean;
+    /** Aggressiveness level for semantic VAD. */
+    eagerness?: "low" | "auto" | "high";
   };
 }
 
@@ -287,6 +317,8 @@ export interface AuthenticationErrorHandler {
 export interface EphemeralKeyServiceConfig {
   /** Margin in seconds before expiry when proactive renewal should occur. */
   renewalMarginSeconds: number;
+  /** Interval in milliseconds to proactively refresh ephemeral keys. */
+  proactiveRenewalIntervalMs: number;
   /** Maximum number of retry attempts for key requests. */
   maxRetryAttempts: number;
   /** Backoff delay in milliseconds between retries. */

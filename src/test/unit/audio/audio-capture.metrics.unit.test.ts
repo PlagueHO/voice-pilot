@@ -6,6 +6,7 @@ import { AudioDeviceValidator } from "../../../audio/device-validator";
 import type {
     AudioMetrics,
     AudioProcessingGraph,
+    RenderQuantumTelemetry,
 } from "../../../types/audio-capture";
 import { AudioErrorCode } from "../../../types/audio-errors";
 import {
@@ -60,7 +61,10 @@ describe("AudioCapture performance diagnostics", () => {
     });
   }
 
-  function createCapture(overrideMetrics?: Partial<AudioMetrics>) {
+  function createCapture(
+    overrideMetrics?: Partial<AudioMetrics>,
+    telemetrySink?: RenderQuantumTelemetry[],
+  ) {
     const provider = {
       configure: () => {},
       getOrCreateContext: async () => new MockAudioContext({ sampleRate: 24000 }) as unknown as AudioContext,
@@ -94,6 +98,13 @@ describe("AudioCapture performance diagnostics", () => {
       analysisDurationMs: 2,
       cpuUtilization: 0.025,
       updatedAt: Date.now(),
+      renderQuantumFrames: 128,
+      expectedRenderQuantumFrames: 128,
+      renderUnderrunCount: 0,
+      renderOverrunCount: 0,
+      renderDroppedFrameCount: 0,
+      consecutiveUnderruns: 0,
+      lastRenderUnderrunAt: undefined,
       ...overrideMetrics,
     };
 
@@ -103,6 +114,14 @@ describe("AudioCapture performance diagnostics", () => {
       analyzeAudioLevel: () => metrics,
       measureLatency: async () => metrics.latencyEstimate,
       disposeGraph: () => {},
+      ingestRenderTelemetry: (
+        _graph: AudioProcessingGraph,
+        telemetry: RenderQuantumTelemetry,
+      ) => {
+        telemetrySink?.push(telemetry);
+      },
+      addRenderTelemetryListener: () => () => {},
+      removeRenderTelemetryListener: () => {},
     } as unknown as WebAudioProcessingChain;
 
     const deviceValidator = {
@@ -160,6 +179,51 @@ describe("AudioCapture performance diagnostics", () => {
         typeof diagnostics.cpu!.maxUtilization === "number",
         "CPU diagnostics should include utilization statistics",
       );
+    } finally {
+      await capture.stopCapture();
+      capture.dispose();
+    }
+  });
+
+  it("forwards render telemetry payloads from the audio worklet", async () => {
+    const telemetryEvents: RenderQuantumTelemetry[] = [];
+    const capture = createCapture(undefined, telemetryEvents);
+
+    await capture.initialize();
+
+    try {
+      await capture.startCapture();
+      const graph = (capture as any).processingGraph as AudioProcessingGraph;
+      const port = graph.workletNode.port as Record<string, any>;
+
+      assert.ok(typeof port.onmessage === "function", "Worklet port should have an onmessage handler");
+
+      port.onmessage({
+        data: {
+          type: "render-quantum",
+          frameCount: 96,
+          expectedFrameCount: 128,
+          underrun: true,
+          overrun: false,
+          droppedFrames: 32,
+          timestamp: 0.02,
+          sequence: 7,
+          totals: {
+            underrunCount: 3,
+            overrunCount: 0,
+          },
+        },
+      });
+
+      assert.strictEqual(telemetryEvents.length, 1, "Expected telemetry to be forwarded once");
+      const event = telemetryEvents[0];
+      assert.strictEqual(event.frameCount, 96);
+      assert.strictEqual(event.expectedFrameCount, 128);
+      assert.strictEqual(event.droppedFrames, 32);
+      assert.strictEqual(event.sequence, 7);
+      assert.ok(event.underrun);
+      assert.ok(event.timestamp > 0);
+      assert.strictEqual(event.totals?.underrunCount, 3);
     } finally {
       await capture.stopCapture();
       capture.dispose();

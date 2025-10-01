@@ -3,28 +3,29 @@ import { ConfigurationManager } from "../config/configuration-manager";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { SessionManager } from "../session/session-manager";
+import type { EphemeralKeyInfo } from "../types/ephemeral";
 import type {
-  RealtimeEvent,
-  ResponseCreateEvent,
-  ResponseCreatedEvent,
-  ResponseDoneEvent,
-  ResponseInterruptedEvent,
-  SessionUpdateEvent,
+    RealtimeEvent,
+    ResponseCreateEvent,
+    ResponseCreatedEvent,
+    ResponseDoneEvent,
+    ResponseInterruptedEvent,
+    SessionUpdateEvent,
 } from "../types/realtime-events";
 import type { AudioPipelineIntegration } from "../types/service-integration";
 import type {
-  AudioConfiguration,
-  ConnectionStatistics,
-  WebRTCConfig,
+    AudioConfiguration,
+    ConnectionStatistics,
+    WebRTCConfig,
 } from "../types/webrtc";
 import {
-  ConnectionDiagnosticsEvent,
-  ConnectionQuality,
-  DataChannelStateChangedEvent,
-  RecoveryStrategy,
-  WebRTCConnectionState,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
+    ConnectionDiagnosticsEvent,
+    ConnectionQuality,
+    DataChannelStateChangedEvent,
+    RecoveryStrategy,
+    WebRTCConnectionState,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
 } from "../types/webrtc";
 import { sharedAudioContextProvider } from "./audio-context-provider";
 import { AudioTrackManager } from "./audio-track-manager";
@@ -111,6 +112,12 @@ export class WebRTCAudioService implements ServiceInitializable {
   private readonly telemetryObservers = new Set<
     (event: RecoveryTelemetryEvent) => void
   >();
+  private credentialStatus?: EphemeralKeyInfo;
+  private readonly credentialObservers = new Set<
+    (info: EphemeralKeyInfo) => Promise<void> | void
+  >();
+  private keyRenewalSubscription?: { dispose: () => void };
+  private keyExpirationSubscription?: { dispose: () => void };
   private readonly sessionPreferences: {
     voice?: string;
     instructions?: string;
@@ -137,6 +144,10 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ephemeralKeyService = ephemeralKeyService;
     this.configurationManager = configurationManager;
     this.sessionManager = sessionManager;
+
+    if (this.ephemeralKeyService) {
+      this.attachEphemeralKeyObservers(this.ephemeralKeyService);
+    }
 
     // Initialize components
     this.transport = new WebRTCTransportImpl(this.logger);
@@ -232,6 +243,12 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.recoveryObserverDisposable?.dispose();
     this.recoveryObserverDisposable = undefined;
     this.telemetryObservers.clear();
+  this.keyRenewalSubscription?.dispose();
+  this.keyExpirationSubscription?.dispose();
+  this.keyRenewalSubscription = undefined;
+  this.keyExpirationSubscription = undefined;
+  this.credentialObservers.clear();
+  this.credentialStatus = undefined;
     this.errorHandler.dispose();
 
     this.initialized = false;
@@ -263,6 +280,7 @@ export class WebRTCAudioService implements ServiceInitializable {
         this.ephemeralKeyService,
       );
 
+      this.updateCredentialStatus(config.authentication.keyInfo);
       this.activeRealtimeConfig = config;
       this.applySessionPreferencesToConfig(config);
 
@@ -857,6 +875,138 @@ export class WebRTCAudioService implements ServiceInitializable {
     }
   }
 
+  getCredentialStatus(): EphemeralKeyInfo | undefined {
+    if (!this.credentialStatus) {
+      return undefined;
+    }
+
+    const now = Date.now();
+    const expiresAt = new Date(this.credentialStatus.expiresAt);
+    const refreshAt = new Date(this.credentialStatus.refreshAt);
+
+    return {
+      ...this.credentialStatus,
+      issuedAt: new Date(this.credentialStatus.issuedAt),
+      expiresAt,
+      refreshAt,
+      isValid: expiresAt.getTime() > now,
+      secondsRemaining: Math.max(
+        0,
+        Math.floor((expiresAt.getTime() - now) / 1000),
+      ),
+      secondsUntilRefresh: Math.max(
+        0,
+        Math.floor((refreshAt.getTime() - now) / 1000),
+      ),
+    };
+  }
+
+  onCredentialStatusUpdated(
+    handler: (info: EphemeralKeyInfo) => Promise<void> | void,
+  ): { dispose: () => void } {
+    this.credentialObservers.add(handler);
+
+    if (this.credentialStatus) {
+      try {
+        const result = handler({
+          ...this.credentialStatus,
+          issuedAt: new Date(this.credentialStatus.issuedAt),
+          expiresAt: new Date(this.credentialStatus.expiresAt),
+          refreshAt: new Date(this.credentialStatus.refreshAt),
+        });
+        if (result instanceof Promise) {
+          void result.catch((error: any) => {
+            this.logger.warn("Credential status observer failed", {
+              error: error?.message ?? error,
+            });
+          });
+        }
+      } catch (error: any) {
+        this.logger.warn("Credential status observer failed", {
+          error: error?.message ?? error,
+        });
+      }
+    }
+
+    return {
+      dispose: () => {
+        this.credentialObservers.delete(handler);
+      },
+    };
+  }
+
+  private attachEphemeralKeyObservers(
+    service: EphemeralKeyServiceImpl,
+  ): void {
+    this.keyRenewalSubscription?.dispose();
+    this.keyExpirationSubscription?.dispose();
+
+    this.keyRenewalSubscription = service.onKeyRenewed(async () => {
+      const latest = service.getCurrentKey();
+      if (latest) {
+        this.updateCredentialStatus(latest);
+      }
+    });
+
+    this.keyExpirationSubscription = service.onKeyExpired(async (info) => {
+      const expiredSnapshot: EphemeralKeyInfo = {
+        ...info,
+        isValid: false,
+        secondsRemaining: 0,
+        secondsUntilRefresh: 0,
+      };
+      this.updateCredentialStatus(expiredSnapshot);
+    });
+
+    const current = service.getCurrentKey();
+    if (current) {
+      this.updateCredentialStatus(current);
+    }
+  }
+
+  private updateCredentialStatus(info: EphemeralKeyInfo): void {
+    const now = Date.now();
+    const normalized: EphemeralKeyInfo = {
+      ...info,
+      issuedAt: new Date(info.issuedAt),
+      expiresAt: new Date(info.expiresAt),
+      refreshAt: new Date(info.refreshAt),
+      isValid: info.expiresAt.getTime() > now,
+      secondsRemaining: Math.max(
+        0,
+        Math.floor((info.expiresAt.getTime() - now) / 1000),
+      ),
+      secondsUntilRefresh: Math.max(
+        0,
+        Math.floor((info.refreshAt.getTime() - now) / 1000),
+      ),
+    };
+
+    this.credentialStatus = normalized;
+
+    for (const observer of Array.from(this.credentialObservers)) {
+      try {
+        const result = observer({
+          ...normalized,
+          issuedAt: new Date(normalized.issuedAt),
+          expiresAt: new Date(normalized.expiresAt),
+          refreshAt: new Date(normalized.refreshAt),
+        });
+        if (result instanceof Promise) {
+          void result.catch((error: any) => {
+            this.logger.warn("Credential status observer failed", {
+              error: error?.message ?? error,
+            });
+          });
+        }
+      } catch (error: any) {
+        this.logger.warn("Credential status observer failed", {
+          error: error?.message ?? error,
+        });
+      }
+    }
+  }
+
   private handleConnectionDiagnostics(event: ConnectionDiagnosticsEvent): void {
     this.logger.debug("Connection diagnostics sample", {
       intervalMs: event.data.statsIntervalMs,
@@ -1211,6 +1361,7 @@ export class WebRTCAudioService implements ServiceInitializable {
       this.ephemeralKeyService,
     );
 
+    this.updateCredentialStatus(config.authentication.keyInfo);
     this.activeRealtimeConfig = config;
     this.applySessionPreferencesToConfig(config);
 

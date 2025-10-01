@@ -4,7 +4,8 @@ import { CredentialManagerImpl } from '../../auth/credential-manager';
 import { EphemeralKeyServiceImpl } from '../../auth/ephemeral-key-service';
 import { ConfigurationManager } from '../../config/configuration-manager';
 import { Logger } from '../../core/logger';
-import { AzureOpenAIConfig } from '../../types/configuration';
+import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig } from '../../types/configuration';
+import { EphemeralKeyInfo } from '../../types/ephemeral';
 
 // Mock VS Code extension context
 const createMockContext = (): vscode.ExtensionContext => ({
@@ -71,6 +72,52 @@ class MockConfigurationManager extends ConfigurationManager {
     apiVersion: '2025-04-01-preview'
   };
 
+  private mockRealtimeConfig: AzureRealtimeConfig = {
+    model: 'gpt-realtime-preview',
+    apiVersion: '2025-08-28',
+    transcriptionModel: 'whisper-1',
+    inputAudioFormat: 'pcm16',
+    locale: 'en-US',
+    profanityFilter: 'medium',
+    interimDebounceMs: 250,
+    maxTranscriptHistorySeconds: 120
+  };
+
+  private mockAudioConfig: AudioConfig = {
+    inputDevice: 'default',
+    outputDevice: 'default',
+    noiseReduction: true,
+    echoCancellation: true,
+    sampleRate: 24000,
+    sharedContext: {
+      autoResume: true,
+      requireGesture: true,
+      latencyHint: 'interactive'
+    },
+    workletModules: [],
+    turnDetection: {
+      type: 'server_vad',
+      threshold: 0.5,
+      prefixPaddingMs: 300,
+      silenceDurationMs: 200,
+      createResponse: true,
+      interruptResponse: true,
+      eagerness: 'auto'
+    },
+    tts: {
+      transport: 'webrtc',
+      apiVersion: '2025-04-01-preview',
+      fallbackMode: 'retry',
+      maxInitialLatencyMs: 300,
+      voice: {
+        name: 'alloy',
+        locale: 'en-US',
+        style: 'conversational',
+        gender: 'unspecified'
+      }
+    }
+  };
+
   constructor() {
     super(createMockContext(), new Logger('MockConfigurationManager'));
   }
@@ -85,6 +132,14 @@ class MockConfigurationManager extends ConfigurationManager {
 
   getAzureOpenAIConfig(): AzureOpenAIConfig {
     return this.mockConfig;
+  }
+
+  getAzureRealtimeConfig(): AzureRealtimeConfig {
+    return this.mockRealtimeConfig;
+  }
+
+  getAudioConfig(): AudioConfig {
+    return this.mockAudioConfig;
   }
 
   setMockConfig(config: Partial<AzureOpenAIConfig>): void {
@@ -238,6 +293,41 @@ describe('EphemeralKeyService Tests', () => {
       assert.strictEqual(result.ephemeralKey, 'ephemeral-key-456');
       assert.strictEqual(result.sessionId, 'session-456');
       assert.ok(result.expiresAt instanceof Date);
+      assert.ok(result.issuedAt instanceof Date);
+      assert.ok(result.refreshAt instanceof Date);
+      const refreshDelta = result.refreshAt!.getTime() - result.issuedAt!.getTime();
+      assert.ok(
+        refreshDelta >= 40000 && refreshDelta <= 50000,
+        `Expected refresh delta around 45s but received ${refreshDelta}`
+      );
+      assert.strictEqual(result.refreshIntervalSeconds, 45);
+      assert.ok(typeof result.secondsUntilRefresh === 'number');
+    });
+
+  it('should notify listeners with refresh metadata on key issuance', async () => {
+      const mockResponse = {
+        id: 'session-457',
+        model: 'gpt-4o-realtime-preview',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        client_secret: {
+          value: 'ephemeral-key-457',
+          expires_at: Math.floor(Date.now() / 1000) + 60
+        }
+      };
+
+      setMockFetch(mockResponse);
+
+      let renewalEvent: any;
+      service.onKeyRenewed(async (result) => {
+        renewalEvent = result;
+      });
+
+      await service.requestEphemeralKey();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.ok(renewalEvent);
+      assert.strictEqual(renewalEvent.refreshIntervalSeconds, 45);
+      assert.ok(renewalEvent.refreshAt instanceof Date);
     });
 
   it('should handle missing credentials', async () => {
@@ -281,6 +371,10 @@ describe('EphemeralKeyService Tests', () => {
       assert.strictEqual(keyInfo.sessionId, 'session-789');
       assert.strictEqual(keyInfo.isValid, true);
       assert.ok(keyInfo.secondsRemaining > 0);
+  assert.ok(keyInfo.refreshAt instanceof Date);
+  assert.ok(keyInfo.secondsUntilRefresh > 0);
+  assert.strictEqual(keyInfo.refreshIntervalSeconds, 45);
+  assert.ok(keyInfo.ttlSeconds >= 60);
     });
 
   it('should validate key expiration', async () => {
@@ -304,6 +398,7 @@ describe('EphemeralKeyService Tests', () => {
       assert.ok(keyInfo);
       assert.strictEqual(keyInfo.isValid, false);
       assert.strictEqual(keyInfo.secondsRemaining, 0);
+      assert.strictEqual(keyInfo.secondsUntilRefresh, 0);
     });
 
   it('should revoke current key', async () => {
@@ -321,13 +416,21 @@ describe('EphemeralKeyService Tests', () => {
       setMockFetch(mockResponse);
       await service.requestEphemeralKey();
 
+      let expiredEvent: EphemeralKeyInfo | undefined;
+      service.onKeyExpired(async (info) => {
+        expiredEvent = info;
+      });
+
       // Mock successful session deletion
       setMockFetch({}, 204);
 
       await service.revokeCurrentKey();
+      await new Promise((resolve) => setImmediate(resolve));
 
       assert.strictEqual(service.getCurrentKey(), undefined);
       assert.strictEqual(service.isKeyValid(), false);
+      assert.ok(expiredEvent);
+      assert.strictEqual(expiredEvent?.isValid, false);
     });
   });
 
@@ -366,6 +469,12 @@ describe('EphemeralKeyService Tests', () => {
       assert.strictEqual(sessionInfo.ephemeralKey, 'ephemeral-key-realtime');
       assert.strictEqual(sessionInfo.webrtcUrl, 'https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc');
       assert.ok(sessionInfo.expiresAt instanceof Date);
+      assert.ok(sessionInfo.issuedAt instanceof Date);
+      assert.ok(sessionInfo.refreshAt instanceof Date);
+      assert.strictEqual(sessionInfo.refreshIntervalMs, 45000);
+      assert.ok(sessionInfo.keyInfo);
+      assert.strictEqual(sessionInfo.keyInfo.sessionId, 'session-realtime');
+      assert.strictEqual(sessionInfo.keyInfo.refreshIntervalSeconds, 45);
     });
 
   it('should end session gracefully', async () => {

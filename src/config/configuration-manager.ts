@@ -2,17 +2,21 @@ import * as vscode from "vscode";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
-  AudioConfig,
-  AzureOpenAIConfig,
-  AzureRealtimeConfig,
-  CommandsConfig,
-  ConfigurationChange,
-  ConfigurationChangeHandler,
-  ConversationConfig,
-  GitHubConfig,
-  ValidationResult,
+    AudioConfig,
+    AzureOpenAIConfig,
+    AzureRealtimeConfig,
+    CommandsConfig,
+    ConfigurationChange,
+    ConfigurationChangeHandler,
+    ConversationConfig,
+    GitHubConfig,
+    ValidationResult,
 } from "../types/configuration";
 import type { PrivacyPolicyConfig } from "../types/privacy";
+import {
+    resolveRealtimeSessionPreferences,
+    type RealtimeSessionPreferences,
+} from "./realtime-session";
 import { AudioSection } from "./sections/audio-config-section";
 import { AzureOpenAISection } from "./sections/azure-openai-config-section";
 import { AzureOpenAIRealtimeSection } from "./sections/azure-openai-realtime-config-section";
@@ -138,6 +142,14 @@ export class ConfigurationManager implements ServiceInitializable {
   getAudioConfig(): AudioConfig {
     return this.cached("audio", () => this.audioSection.read());
   }
+  getRealtimeSessionPreferences(): RealtimeSessionPreferences {
+    return this.cached("realtimeSessionPreferences", () =>
+      resolveRealtimeSessionPreferences(
+        this.getAzureRealtimeConfig(),
+        this.getAudioConfig(),
+      ),
+    );
+  }
   getCommandsConfig(): CommandsConfig {
     return this.cached("commands", () => this.commandsSection.read());
   }
@@ -190,6 +202,7 @@ export class ConfigurationManager implements ServiceInitializable {
     this.getAzureOpenAIConfig();
     this.getAzureRealtimeConfig();
     this.getAudioConfig();
+    this.getRealtimeSessionPreferences();
     this.getCommandsConfig();
     this.getGitHubConfig();
     this.getConversationConfig();

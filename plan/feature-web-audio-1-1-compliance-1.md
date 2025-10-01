@@ -48,23 +48,23 @@ This implementation plan schedules the VoicePilot runtime updates required to sa
 
 ### Implementation Phase 3
 
-- GOAL-003: Enforce Web Audio 1.1 render loop compliance and telemetry collection.
+- GOAL-003: Enforce Web Audio 1.1 render loop compliance and telemetry collection *(Status: Complete)*.
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-007 | Update `src/audio/audio-processing-chain.ts` and the PCM worklet (`src/audio/worklets/pcm-encoder-worklet.ts`) to validate 128-frame render quantums, log underruns, and expose an observable metric channel. |  |  |
-| TASK-008 | Enhance `src/audio/audio-metrics.ts` to aggregate render-quantum health, latency, and CPU sampling, emitting structured telemetry for diagnostics dashboards. |  |  |
-| TASK-009 | Build audio telemetry unit tests in `src/test/audio/audio-processing-chain.test.ts` verifying underrun detection, metric emission, and fallback behaviour. |  |  |
+| TASK-007 | Update `src/audio/audio-processing-chain.ts` and the PCM worklet (`src/audio/worklets/pcm-encoder-worklet.ts`) to validate 128-frame render quantums, log underruns, and expose an observable metric channel. | ✅ | 2025-09-30 |
+| TASK-008 | Enhance `src/audio/audio-metrics.ts` to aggregate render-quantum health, latency, and CPU sampling, emitting structured telemetry for diagnostics dashboards. | ✅ | 2025-09-30 |
+| TASK-009 | Build audio telemetry unit tests in `src/test/unit/audio/audio-processing-chain.render.unit.test.ts` (and extend metrics coverage) verifying underrun detection, metric emission, and fallback behaviour. | ✅ | 2025-09-30 |
 
 ### Implementation Phase 4
 
-- GOAL-004: Harden ephemeral key lifecycle and configuration alignment.
+- GOAL-004: Harden ephemeral key lifecycle and configuration alignment *(Status: Complete)*.
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-010 | Extend `src/services/ephemeral-key-service.ts` (or equivalent) to refresh keys proactively at 45-second intervals and expose expiry metadata to `WebRTCAudioService`. |  |  |
-| TASK-011 | Update `src/config/realtime-session.ts` (or create if missing) to surface voice selection, turn-detection defaults, and API version constants referenced in Phases 1–2. |  |  |
-| TASK-012 | Document the configuration flow in `docs/design/FEATURE-PLAN.md` and `docs/design/TECHNICAL-REFERENCE-INDEX.md`, linking to the Azure quickstart/how-to sources. |  |  |
+| TASK-010 | Extend `src/services/ephemeral-key-service.ts` (or equivalent) to refresh keys proactively at 45-second intervals and expose expiry metadata to `WebRTCAudioService`. | ✅ | 2025-10-01 |
+| TASK-011 | Update `src/config/realtime-session.ts` (or create if missing) to surface voice selection, turn-detection defaults, and API version constants referenced in Phases 1–2. | ✅ | 2025-10-01 |
+| TASK-012 | Document the configuration flow in `docs/design/FEATURE-PLAN.md` and `docs/design/TECHNICAL-REFERENCE-INDEX.md`, linking to the Azure quickstart/how-to sources. | ✅ | 2025-10-01 |
 
 ## 3. Alternatives
 

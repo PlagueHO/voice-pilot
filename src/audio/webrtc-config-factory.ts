@@ -1,19 +1,23 @@
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
+import {
+    resolveRealtimeSessionPreferences,
+    type RealtimeSessionPreferences,
+} from "../config/realtime-session";
 import { Logger } from "../core/logger";
 import type { AudioConfig, AzureRealtimeConfig } from "../types/configuration";
 import { EphemeralKeyInfo, RealtimeSessionInfo } from "../types/ephemeral";
 import {
-  AudioConfiguration,
-  ConnectionConfiguration,
-  DataChannelConfiguration,
-  EphemeralAuthentication,
-  WebRTCConfig,
-  WebRTCEndpoint,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  WebRTCSessionConfiguration,
-  validateAudioConfiguration,
+    AudioConfiguration,
+    ConnectionConfiguration,
+    DataChannelConfiguration,
+    EphemeralAuthentication,
+    WebRTCConfig,
+    WebRTCEndpoint,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    WebRTCSessionConfiguration,
+    validateAudioConfiguration,
 } from "../types/webrtc";
 
 /**
@@ -38,6 +42,8 @@ export class WebRTCConfigFactory {
       const azureConfig = configManager.getAzureOpenAIConfig();
       const realtimePreferences = configManager.getAzureRealtimeConfig();
       const audioPreferences = configManager.getAudioConfig();
+      const sessionPreferences =
+        configManager.getRealtimeSessionPreferences();
 
       const realtimeSession = await ephemeralKeyService.createRealtimeSession();
       this.assertSessionExpiryWindow(realtimeSession);
@@ -45,7 +51,7 @@ export class WebRTCConfigFactory {
       const endpoint = this.createEndpoint(
         azureConfig.region,
         azureConfig.deploymentName,
-        realtimePreferences.apiVersion,
+        sessionPreferences.apiVersion,
       );
 
       const authentication = this.createAuthentication(realtimeSession);
@@ -55,6 +61,7 @@ export class WebRTCConfigFactory {
       const sessionConfig = this.createSessionConfiguration(
         audioPreferences,
         realtimePreferences,
+        sessionPreferences,
       );
 
       const dataChannelConfig = this.createDataChannelConfiguration();
@@ -143,14 +150,18 @@ export class WebRTCConfigFactory {
   private createAuthentication(
     realtimeSession: RealtimeSessionInfo,
   ): EphemeralAuthentication {
+    const now = Date.now();
+    const baseInfo = realtimeSession.keyInfo;
     const keyInfo: EphemeralKeyInfo = {
-      key: realtimeSession.ephemeralKey,
-      sessionId: realtimeSession.sessionId,
-      issuedAt: new Date(),
-      expiresAt: realtimeSession.expiresAt,
-      isValid: true,
-      secondsRemaining: Math.floor(
-        (realtimeSession.expiresAt.getTime() - Date.now()) / 1000,
+      ...baseInfo,
+      isValid: baseInfo.expiresAt.getTime() > now,
+      secondsRemaining: Math.max(
+        0,
+        Math.floor((baseInfo.expiresAt.getTime() - now) / 1000),
+      ),
+      secondsUntilRefresh: Math.max(
+        0,
+        Math.floor((baseInfo.refreshAt.getTime() - now) / 1000),
       ),
     };
 
@@ -236,23 +247,23 @@ export class WebRTCConfigFactory {
   private createSessionConfiguration(
     audioPreferences: AudioConfig,
     realtimePreferences: AzureRealtimeConfig,
+    sessionPreferences: RealtimeSessionPreferences,
   ): WebRTCSessionConfiguration {
-    const turnDetection = audioPreferences.turnDetection;
-    const turnDetectionConfig =
-      turnDetection.type === "none"
-        ? undefined
-        : {
-            type: turnDetection.type,
-            threshold: turnDetection.threshold,
-            prefixPaddingMs: turnDetection.prefixPaddingMs,
-            silenceDurationMs: turnDetection.silenceDurationMs,
-            createResponse: turnDetection.createResponse,
-            interruptResponse: turnDetection.interruptResponse,
-            eagerness: turnDetection.eagerness,
-          };
+    const turnDetectionPreference = sessionPreferences.turnDetection;
+    const turnDetectionConfig = turnDetectionPreference
+      ? {
+          type: turnDetectionPreference.type,
+          threshold: turnDetectionPreference.threshold,
+          prefixPaddingMs: turnDetectionPreference.prefix_padding_ms,
+          silenceDurationMs: turnDetectionPreference.silence_duration_ms,
+          createResponse: turnDetectionPreference.create_response,
+          interruptResponse: turnDetectionPreference.interrupt_response,
+          eagerness: turnDetectionPreference.eagerness,
+        }
+      : undefined;
 
     return {
-      voice: audioPreferences.tts.voice.name,
+      voice: sessionPreferences.voice ?? audioPreferences.tts.voice.name,
       locale: realtimePreferences.locale,
       inputAudioFormat: realtimePreferences.inputAudioFormat,
       outputAudioFormat: realtimePreferences.inputAudioFormat,
@@ -442,6 +453,10 @@ export class WebRTCConfigFactory {
         expiresAt: new Date(Date.now() + 300000),
         isValid: true,
         secondsRemaining: 300,
+        refreshAt: new Date(Date.now() + 45000),
+        secondsUntilRefresh: 45,
+        ttlSeconds: 300,
+        refreshIntervalSeconds: 45,
       },
     };
 
@@ -493,6 +508,10 @@ export class WebRTCConfigFactory {
 
     const audioConfig = this.createAudioConfiguration(audioPreferences);
     this.ensureAudioConfiguration(audioConfig);
+    const sessionPreferences = resolveRealtimeSessionPreferences(
+      realtimePreferences,
+      audioPreferences,
+    );
 
     return {
       endpoint: {
@@ -506,6 +525,7 @@ export class WebRTCConfigFactory {
       sessionConfig: this.createSessionConfiguration(
         audioPreferences,
         realtimePreferences,
+        sessionPreferences,
       ),
       dataChannelConfig: this.createDataChannelConfiguration(),
       connectionConfig: this.createConnectionConfiguration(),

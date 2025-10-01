@@ -1,10 +1,10 @@
 import {
-  AudioMetrics,
-  AudioPerformanceDiagnostics,
-  CpuUtilizationSample,
-  CpuUtilizationSummary,
-  PerformanceBudgetSample,
-  PerformanceBudgetSummary,
+    AudioMetrics,
+    AudioPerformanceDiagnostics,
+    CpuUtilizationSample,
+    CpuUtilizationSummary,
+    PerformanceBudgetSample,
+    PerformanceBudgetSummary,
 } from "../types/audio-capture";
 
 /**
@@ -31,6 +31,7 @@ export interface ConversationInterruptionMetrics {
 }
 
 const EPSILON = 1e-8;
+export const DEFAULT_EXPECTED_RENDER_QUANTUM = 128;
 
 /**
  * Produces a zeroed `AudioMetrics` structure for initializing analysis pipelines.
@@ -51,6 +52,13 @@ export function createEmptyMetrics(): AudioMetrics {
     analysisDurationMs: 0,
     cpuUtilization: 0,
     updatedAt: Date.now(),
+    renderQuantumFrames: DEFAULT_EXPECTED_RENDER_QUANTUM,
+    expectedRenderQuantumFrames: DEFAULT_EXPECTED_RENDER_QUANTUM,
+    renderUnderrunCount: 0,
+    renderOverrunCount: 0,
+    renderDroppedFrameCount: 0,
+    consecutiveUnderruns: 0,
+    lastRenderUnderrunAt: undefined,
   };
 }
 

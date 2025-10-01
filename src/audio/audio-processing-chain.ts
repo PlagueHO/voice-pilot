@@ -1,26 +1,28 @@
 import { Logger } from "../core/logger";
 import {
-  AudioMetrics,
-  AudioProcessingChain,
-  AudioProcessingConfig,
-  AudioProcessingGraph,
+    AudioMetrics,
+    AudioProcessingChain,
+    AudioProcessingConfig,
+    AudioProcessingGraph,
+    RenderQuantumTelemetry,
 } from "../types/audio-capture";
 import {
-  AudioContextProvider,
-  sharedAudioContextProvider,
+    AudioContextProvider,
+    sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-  calculatePeak,
-  calculateRms,
-  computeBufferHealth,
-  createEmptyMetrics,
-  estimateSnr,
-  getTimestampMs,
-  mergeMetrics,
+    calculatePeak,
+    calculateRms,
+    computeBufferHealth,
+    createEmptyMetrics,
+    DEFAULT_EXPECTED_RENDER_QUANTUM,
+    estimateSnr,
+    getTimestampMs,
+    mergeMetrics,
 } from "./audio-metrics";
 import {
-  ensurePcmEncoderWorklet,
-  PCM_ENCODER_WORKLET_NAME,
+    ensurePcmEncoderWorklet,
+    PCM_ENCODER_WORKLET_NAME,
 } from "./worklets/pcm-encoder-worklet";
 
 interface MetricsState {
@@ -28,9 +30,19 @@ interface MetricsState {
   droppedFrames: number;
   lastAnalysisTimestamp: number;
   metrics: AudioMetrics;
+  lastRenderQuantum: number;
+  expectedRenderQuantum: number;
+  renderUnderrunCount: number;
+  renderOverrunCount: number;
+  consecutiveUnderruns: number;
+  lastRenderUnderrunAt?: number;
+  renderFrameTotal: number;
+  telemetryListeners: Set<RenderTelemetryListener>;
 }
 
 const DEFAULT_ANALYSIS_INTERVAL_MS = 100;
+
+type RenderTelemetryListener = (telemetry: RenderQuantumTelemetry) => void;
 
 /**
  * Creates and manages a Web Audio graph for microphone capture and analysis.
@@ -109,6 +121,13 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
         droppedFrames: 0,
         lastAnalysisTimestamp: performance.now(),
         metrics: createEmptyMetrics(),
+  lastRenderQuantum: DEFAULT_EXPECTED_RENDER_QUANTUM,
+  expectedRenderQuantum: DEFAULT_EXPECTED_RENDER_QUANTUM,
+        renderUnderrunCount: 0,
+        renderOverrunCount: 0,
+        consecutiveUnderruns: 0,
+        renderFrameTotal: 0,
+        telemetryListeners: new Set<RenderTelemetryListener>(),
       });
 
       this.logger.debug("Audio processing graph created");
@@ -136,6 +155,96 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     this.logger.debug("Audio processing parameters updated", { config });
   }
 
+  addRenderTelemetryListener(
+    graph: AudioProcessingGraph,
+    listener: RenderTelemetryListener,
+  ): () => void {
+    const state = this.metricsState.get(graph);
+    if (!state) {
+      this.logger.warn("Attempted to register telemetry listener for unknown graph");
+      return () => {
+        // no-op cleanup for unknown graph
+      };
+    }
+
+    state.telemetryListeners.add(listener);
+    return () => {
+      state.telemetryListeners.delete(listener);
+    };
+  }
+
+  removeRenderTelemetryListener(
+    graph: AudioProcessingGraph,
+    listener: RenderTelemetryListener,
+  ): void {
+    const state = this.metricsState.get(graph);
+    state?.telemetryListeners.delete(listener);
+  }
+
+  ingestRenderTelemetry(
+    graph: AudioProcessingGraph,
+    telemetry: RenderQuantumTelemetry,
+  ): void {
+    const state = this.metricsState.get(graph);
+    if (!state) {
+      this.logger.debug("Render telemetry received for unknown audio graph");
+      return;
+    }
+
+    const expected = telemetry.expectedFrameCount ?? state.expectedRenderQuantum;
+    const frameCount = telemetry.frameCount ?? 0;
+    const droppedFrames = telemetry.droppedFrames ?? Math.max(expected - frameCount, 0);
+    const underrun = Boolean(telemetry.underrun);
+    const overrun = Boolean(telemetry.overrun);
+    const timestampMs = telemetry.timestamp ?? getTimestampMs();
+
+    state.lastRenderQuantum = frameCount;
+    state.expectedRenderQuantum = expected;
+    state.renderFrameTotal += expected;
+    state.droppedFrames += droppedFrames;
+
+    if (underrun) {
+      state.renderUnderrunCount += 1;
+      state.consecutiveUnderruns += 1;
+      state.lastRenderUnderrunAt = timestampMs;
+      this.logger.warn("Audio worklet underrun detected", {
+        frameCount,
+        expected,
+        droppedFrames,
+        sequence: telemetry.sequence,
+      });
+    } else {
+      state.consecutiveUnderruns = 0;
+    }
+
+    if (overrun) {
+      state.renderOverrunCount += 1;
+      this.logger.warn("Audio worklet overrun detected", {
+        frameCount,
+        expected,
+        sequence: telemetry.sequence,
+      });
+    }
+
+    state.metrics = mergeMetrics(state.metrics, {
+      renderQuantumFrames: state.lastRenderQuantum,
+      expectedRenderQuantumFrames: state.expectedRenderQuantum,
+      renderUnderrunCount: state.renderUnderrunCount,
+      renderOverrunCount: state.renderOverrunCount,
+      renderDroppedFrameCount: state.droppedFrames,
+      consecutiveUnderruns: state.consecutiveUnderruns,
+      lastRenderUnderrunAt: state.lastRenderUnderrunAt,
+    });
+
+    this.notifyRenderTelemetry(state, {
+      ...telemetry,
+      expectedFrameCount: expected,
+      frameCount,
+      droppedFrames,
+      timestamp: timestampMs,
+    });
+  }
+
   /**
    * Analyses the current audio level and aggregates metrics for the provided graph.
    *
@@ -158,6 +267,8 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     const rmsLevel = calculateRms(dataArray);
     const snr = estimateSnr(dataArray);
     state.totalFrames += bufferLength;
+    const totalRenderFrames =
+      state.renderFrameTotal > 0 ? state.renderFrameTotal : state.totalFrames;
 
     const now = performance.now();
     const analysisWindowMs = now - state.lastAnalysisTimestamp;
@@ -169,8 +280,11 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       peakLevel,
       rmsLevel,
       signalToNoiseRatio: snr,
-      bufferHealth: computeBufferHealth(state.totalFrames, state.droppedFrames),
-      totalFrameCount: state.totalFrames,
+      bufferHealth: computeBufferHealth(
+        totalRenderFrames,
+        state.droppedFrames,
+      ),
+      totalFrameCount: totalRenderFrames,
       droppedFrameCount: state.droppedFrames,
       analysisWindowMs,
       analysisDurationMs,
@@ -218,6 +332,8 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       });
     }
 
+    const state = this.metricsState.get(graph);
+    state?.telemetryListeners.clear();
     this.metricsState.delete(graph);
     this.logger.debug("Audio processing graph disposed");
   }
@@ -241,6 +357,21 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       };
       gainNode.gain.value =
         levelMap[config.autoGainControlLevel] ?? gainNode.gain.value;
+    }
+  }
+
+  private notifyRenderTelemetry(
+    state: MetricsState,
+    telemetry: RenderQuantumTelemetry,
+  ): void {
+    for (const listener of state.telemetryListeners) {
+      try {
+        listener(telemetry);
+      } catch (error: any) {
+        this.logger.error("Render telemetry listener failed", {
+          error: error?.message,
+        });
+      }
     }
   }
 }

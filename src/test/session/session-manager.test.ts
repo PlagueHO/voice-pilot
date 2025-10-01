@@ -44,7 +44,11 @@ describe('SessionManagerImpl - Backward Compatibility', () => {
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 300000),
         isValid: true,
-        secondsRemaining: 300
+        secondsRemaining: 300,
+        refreshAt: new Date(Date.now() + 45000),
+        secondsUntilRefresh: 45,
+        ttlSeconds: 300,
+        refreshIntervalSeconds: 45
       }),
       endSession: async () => {},
       onKeyRenewed: () => ({ dispose: () => {} }),
@@ -85,7 +89,11 @@ describe('SessionManagerImpl - Backward Compatibility', () => {
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 300000),
         isValid: true,
-        secondsRemaining: 300
+        secondsRemaining: 300,
+        refreshAt: new Date(Date.now() + 45000),
+        secondsUntilRefresh: 45,
+        ttlSeconds: 300,
+        refreshIntervalSeconds: 45
       }),
       endSession: async () => {},
       onKeyRenewed: () => ({ dispose: () => {} }),

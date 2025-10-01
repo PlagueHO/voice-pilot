@@ -1,25 +1,80 @@
 export const PCM_ENCODER_WORKLET_NAME = "voicepilot-pcm-encoder";
 
 const PCM_ENCODER_WORKLET_SOURCE = `
+const EXPECTED_RENDER_QUANTUM_FRAMES = 128;
+
 class VoicePilotPcmEncoderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._sequence = 0;
+    this._underrunCount = 0;
+    this._overrunCount = 0;
+  }
+
   process(inputs) {
     const input = inputs[0];
+    const expected = EXPECTED_RENDER_QUANTUM_FRAMES;
+    this._sequence += 1;
+
     if (!input || input.length === 0) {
+      this._underrunCount += 1;
+      this.port.postMessage({
+        type: 'render-quantum',
+        frameCount: 0,
+        expectedFrameCount: expected,
+        underrun: true,
+        overrun: false,
+        droppedFrames: expected,
+        timestamp: currentTime,
+        sequence: this._sequence,
+        totals: {
+          underrunCount: this._underrunCount,
+          overrunCount: this._overrunCount,
+        },
+      });
       return true;
     }
 
-    const channelData = input[0];
+    const channelData = input[0] || new Float32Array(0);
     const frameCount = channelData.length;
-    const pcmBuffer = new ArrayBuffer(frameCount * 2);
-    const view = new DataView(pcmBuffer);
+    const underrun = frameCount < expected;
+    const overrun = frameCount > expected;
 
-    for (let i = 0; i < frameCount; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]));
-      const value = sample < 0 ? Math.round(sample * 0x8000) : Math.round(sample * 0x7fff);
-      view.setInt16(i * 2, value, true);
+    if (underrun) {
+      this._underrunCount += 1;
+    } else if (overrun) {
+      this._overrunCount += 1;
     }
 
-    this.port.postMessage(pcmBuffer, [pcmBuffer]);
+    if (frameCount > 0) {
+      const pcmBuffer = new ArrayBuffer(frameCount * 2);
+      const view = new DataView(pcmBuffer);
+
+      for (let i = 0; i < frameCount; i++) {
+        const sample = Math.max(-1, Math.min(1, channelData[i]));
+        const value = sample < 0 ? Math.round(sample * 0x8000) : Math.round(sample * 0x7fff);
+        view.setInt16(i * 2, value, true);
+      }
+
+      this.port.postMessage(pcmBuffer, [pcmBuffer]);
+    }
+
+    const droppedFrames = underrun ? expected - frameCount : 0;
+    this.port.postMessage({
+      type: 'render-quantum',
+      frameCount,
+      expectedFrameCount: expected,
+      underrun,
+      overrun,
+      droppedFrames,
+      timestamp: currentTime,
+      sequence: this._sequence,
+      totals: {
+        underrunCount: this._underrunCount,
+        overrunCount: this._overrunCount,
+      },
+    });
+
     return true;
   }
 }

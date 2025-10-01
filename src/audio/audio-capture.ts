@@ -1,43 +1,45 @@
 import { Logger } from "../core/logger";
 import {
-  AudioCaptureConfig,
-  AudioCaptureEventHandler,
-  AudioCaptureEventType,
-  AudioCapturePipeline,
-  AudioCapturePipelineEvent,
-  AudioCaptureSampleRate,
-  AudioMetrics,
-  AudioPerformanceDiagnostics,
-  AudioProcessingConfig,
-  AudioProcessingGraph,
-  CpuUtilizationSample,
-  DeviceValidationResult,
-  PerformanceBudgetSample,
-  VoiceActivityResult,
+    AudioCaptureConfig,
+    AudioCaptureEventHandler,
+    AudioCaptureEventType,
+    AudioCapturePipeline,
+    AudioCapturePipelineEvent,
+    AudioCaptureSampleRate,
+    AudioMetrics,
+    AudioPerformanceDiagnostics,
+    AudioProcessingConfig,
+    AudioProcessingGraph,
+    CpuUtilizationSample,
+    DeviceValidationResult,
+    PerformanceBudgetSample,
+    RenderQuantumTelemetry,
+    VoiceActivityResult,
 } from "../types/audio-capture";
 import type { AudioErrorRecoveryMetadata } from "../types/audio-errors";
 import {
-  AudioErrorCode,
-  AudioErrorSeverity,
-  AudioProcessingError,
+    AudioErrorCode,
+    AudioErrorSeverity,
+    AudioProcessingError,
 } from "../types/audio-errors";
 import {
-  AudioConfiguration,
-  MINIMUM_AUDIO_SAMPLE_RATE,
-  SUPPORTED_AUDIO_SAMPLE_RATES,
+    AudioConfiguration,
+    MINIMUM_AUDIO_SAMPLE_RATE,
+    SUPPORTED_AUDIO_SAMPLE_RATES,
 } from "../types/webrtc";
 import {
-  AudioContextProvider,
-  sharedAudioContextProvider,
+    AudioContextProvider,
+    sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-  CpuLoadTracker,
-  PerformanceBudgetDefinition,
-  PerformanceBudgetTracker,
-  createEmptyMetrics,
-  getTimestampMs,
-  mergeDiagnostics,
-  mergeMetrics,
+    CpuLoadTracker,
+    createEmptyMetrics,
+    DEFAULT_EXPECTED_RENDER_QUANTUM,
+    getTimestampMs,
+    mergeDiagnostics,
+    mergeMetrics,
+    PerformanceBudgetDefinition,
+    PerformanceBudgetTracker,
 } from "./audio-metrics";
 import { WebAudioProcessingChain } from "./audio-processing-chain";
 import { AudioDeviceValidator } from "./device-validator";
@@ -89,6 +91,23 @@ const CPU_BUDGET_RATIO = 0.05;
 type EventHandlerSet = Set<AudioCaptureEventHandler>;
 
 type MicrophonePermissionState = PermissionState | "unsupported" | "unknown";
+
+interface WorkletRenderTelemetryTotalsPayload {
+  underrunCount?: number;
+  overrunCount?: number;
+}
+
+interface WorkletRenderTelemetryPayload {
+  type: "render-quantum";
+  frameCount?: number;
+  expectedFrameCount?: number;
+  underrun?: boolean;
+  overrun?: boolean;
+  droppedFrames?: number;
+  timestamp?: number;
+  sequence?: number;
+  totals?: WorkletRenderTelemetryTotalsPayload;
+}
 
 /**
  * Optional dependency overrides that allow the capture pipeline to run with custom collaborators.
@@ -709,6 +728,11 @@ export class AudioCapture implements AudioCapturePipeline {
       }
 
       const payload = event.data;
+      if (this.isRenderTelemetryPayload(payload)) {
+        this.handleRenderTelemetryPayload(payload);
+        return;
+      }
+
       if (payload instanceof ArrayBuffer) {
         const pcmBuffer = Buffer.from(new Uint8Array(payload));
         this.notifyAudioCallbacks(pcmBuffer);
@@ -779,6 +803,60 @@ export class AudioCapture implements AudioCapturePipeline {
         });
       }
     }
+  }
+
+  private isRenderTelemetryPayload(
+    payload: unknown,
+  ): payload is WorkletRenderTelemetryPayload {
+    if (!payload || typeof payload !== "object") {
+      return false;
+    }
+
+    const candidate = payload as { type?: unknown };
+    return candidate.type === "render-quantum";
+  }
+
+  private handleRenderTelemetryPayload(
+    payload: WorkletRenderTelemetryPayload,
+  ): void {
+    if (!this.processingGraph) {
+      return;
+    }
+
+    const expected =
+      payload.expectedFrameCount ?? DEFAULT_EXPECTED_RENDER_QUANTUM;
+    const frameCount = payload.frameCount ?? 0;
+    const droppedFrames =
+      payload.droppedFrames ?? Math.max(expected - frameCount, 0);
+    const timestampSeconds = payload.timestamp;
+    const timestampMs =
+      typeof timestampSeconds === "number"
+        ? Math.round(timestampSeconds * 1000)
+        : Date.now();
+
+    const totalsPayload = payload.totals;
+    const totals = totalsPayload
+      ? {
+          underrunCount: totalsPayload.underrunCount ?? 0,
+          overrunCount: totalsPayload.overrunCount ?? 0,
+        }
+      : undefined;
+
+    const telemetry: RenderQuantumTelemetry = {
+      frameCount,
+      expectedFrameCount: expected,
+      underrun: Boolean(payload.underrun),
+      overrun: Boolean(payload.overrun),
+      droppedFrames,
+      timestamp: timestampMs,
+      sequence: payload.sequence,
+      totals,
+    };
+
+    this.processingChain.ingestRenderTelemetry(
+      this.processingGraph,
+      telemetry,
+    );
   }
 
   private resolveSampleRate(requested?: number | null): AudioCaptureSampleRate {

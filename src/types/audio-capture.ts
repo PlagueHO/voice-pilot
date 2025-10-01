@@ -73,6 +73,29 @@ export interface AudioMetrics {
   analysisDurationMs: number;
   cpuUtilization: number;
   updatedAt: number;
+  renderQuantumFrames: number;
+  expectedRenderQuantumFrames: number;
+  renderUnderrunCount: number;
+  renderOverrunCount: number;
+  renderDroppedFrameCount: number;
+  consecutiveUnderruns: number;
+  lastRenderUnderrunAt?: number;
+}
+
+export interface RenderQuantumTelemetryTotals {
+  underrunCount: number;
+  overrunCount: number;
+}
+
+export interface RenderQuantumTelemetry {
+  frameCount: number;
+  expectedFrameCount: number;
+  underrun: boolean;
+  overrun: boolean;
+  droppedFrames: number;
+  timestamp: number;
+  sequence?: number;
+  totals?: RenderQuantumTelemetryTotals;
 }
 
 export interface PerformanceBudgetSample {
@@ -323,6 +346,18 @@ export interface AudioProcessingChain {
   analyzeAudioLevel(graph: AudioProcessingGraph): AudioMetrics;
   measureLatency(context: AudioContext): Promise<number>;
   disposeGraph(graph: AudioProcessingGraph): void;
+  addRenderTelemetryListener(
+    graph: AudioProcessingGraph,
+    listener: (telemetry: RenderQuantumTelemetry) => void,
+  ): () => void;
+  removeRenderTelemetryListener(
+    graph: AudioProcessingGraph,
+    listener: (telemetry: RenderQuantumTelemetry) => void,
+  ): void;
+  ingestRenderTelemetry(
+    graph: AudioProcessingGraph,
+    telemetry: RenderQuantumTelemetry,
+  ): void;
 }
 
 /**

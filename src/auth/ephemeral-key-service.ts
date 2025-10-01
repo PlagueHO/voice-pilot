@@ -50,6 +50,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
   // Service configuration
   private config: EphemeralKeyServiceConfig = {
     renewalMarginSeconds: 10,
+    proactiveRenewalIntervalMs: 45000,
     maxRetryAttempts: 3,
     retryBackoffMs: 1000,
     sessionTimeoutMs: 300000, // 5 minutes
@@ -251,18 +252,60 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       );
 
       const ephemeralKey = sessionResponse.client_secret.value;
+      const issuedAt = new Date();
       const expiresAt = new Date(
         sessionResponse.client_secret.expires_at * 1000,
+      );
+      const ttlSeconds = Math.max(
+        0,
+        sessionResponse.client_secret.expires_at -
+          Math.floor(issuedAt.getTime() / 1000),
+      );
+      const marginMs = this.config.renewalMarginSeconds * 1000;
+      const proactiveMs = this.config.proactiveRenewalIntervalMs;
+      const safeNowMs = Date.now() + 500;
+      const refreshDeadlineMs = Math.max(
+        issuedAt.getTime() + 500,
+        expiresAt.getTime() - marginMs,
+      );
+      const candidateMs = Math.min(
+        refreshDeadlineMs,
+        issuedAt.getTime() + proactiveMs,
+      );
+      const upperBoundMs = Math.max(
+        issuedAt.getTime() + 1000,
+        expiresAt.getTime() - 500,
+      );
+      let refreshAtMs = Math.min(candidateMs, upperBoundMs);
+      refreshAtMs = Math.max(safeNowMs, refreshAtMs);
+      const expiryGuardMs = Math.max(
+        issuedAt.getTime() + 250,
+        expiresAt.getTime() - 250,
+      );
+      refreshAtMs = Math.min(refreshAtMs, expiryGuardMs);
+      if (!Number.isFinite(refreshAtMs)) {
+        refreshAtMs = safeNowMs;
+      }
+      const refreshAt = new Date(refreshAtMs);
+      const secondsUntilRefresh = Math.max(
+        0,
+        Math.floor((refreshAt.getTime() - Date.now()) / 1000),
       );
 
       // Store current key info
       this.currentKey = {
         key: ephemeralKey,
         sessionId: sessionResponse.id,
-        issuedAt: new Date(),
+        issuedAt,
         expiresAt,
         isValid: true,
-        secondsRemaining: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
+        secondsRemaining: Math.floor(
+          (expiresAt.getTime() - Date.now()) / 1000,
+        ),
+        refreshAt,
+        secondsUntilRefresh,
+        ttlSeconds,
+        refreshIntervalSeconds: Math.floor(proactiveMs / 1000),
       };
 
       // Schedule automatic renewal
@@ -271,14 +314,23 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       this.logger.info("Ephemeral key requested successfully", {
         sessionId: sessionResponse.id,
         expiresAt: expiresAt.toISOString(),
+        refreshAt: refreshAt.toISOString(),
       });
 
-      return {
+      const result: EphemeralKeyResult = {
         success: true,
         ephemeralKey,
         sessionId: sessionResponse.id,
         expiresAt,
+        issuedAt,
+        refreshAt,
+        secondsUntilRefresh,
+        refreshIntervalSeconds: Math.floor(proactiveMs / 1000),
       };
+
+      void this.dispatchKeyRenewed(result);
+
+      return result;
     } catch (error: any) {
       this.logger.error("Failed to request ephemeral key", {
         error: error.message,
@@ -303,11 +355,19 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       0,
       Math.floor((this.currentKey.expiresAt.getTime() - now.getTime()) / 1000),
     );
+    const secondsUntilRefresh = Math.max(
+      0,
+      Math.floor(
+        (this.currentKey.refreshAt.getTime() - now.getTime()) / 1000,
+      ),
+    );
+
+    this.currentKey.isValid = isValid;
+    this.currentKey.secondsRemaining = secondsRemaining;
+    this.currentKey.secondsUntilRefresh = secondsUntilRefresh;
 
     return {
       ...this.currentKey,
-      isValid,
-      secondsRemaining,
     };
   }
 
@@ -318,6 +378,12 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
 
   async revokeCurrentKey(): Promise<void> {
     if (this.currentKey) {
+      const expiredSnapshot: EphemeralKeyInfo = {
+        ...this.getCurrentKey()!,
+        isValid: false,
+        secondsRemaining: 0,
+        secondsUntilRefresh: 0,
+      };
       try {
         await this.endSession(this.currentKey.sessionId);
       } catch (error: any) {
@@ -335,6 +401,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       }
 
       this.logger.info("Current key revoked");
+      void this.dispatchKeyExpired(expiredSnapshot);
     }
   }
 
@@ -349,26 +416,38 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
 
     const config = this.configManager.getAzureOpenAIConfig();
     const webrtcUrl = `https://${config.region}.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
+    const keyInfo = this.getCurrentKey();
+
+    if (!keyInfo) {
+      throw new Error("Ephemeral key metadata unavailable after acquisition");
+    }
 
     return {
-      sessionId: this.currentKey!.sessionId,
-      ephemeralKey: this.currentKey!.key,
+      sessionId: keyInfo.sessionId,
+      ephemeralKey: keyInfo.key,
       webrtcUrl,
-      expiresAt: this.currentKey!.expiresAt,
+      expiresAt: keyInfo.expiresAt,
+      issuedAt: keyInfo.issuedAt,
+      refreshAt: keyInfo.refreshAt,
+      refreshIntervalMs: this.config.proactiveRenewalIntervalMs,
+      keyInfo,
     };
   }
 
   async endSession(sessionId: string): Promise<void> {
     try {
       const config = this.configManager.getAzureOpenAIConfig();
+      const sessionPreferences =
+        this.configManager.getRealtimeSessionPreferences();
       const apiKey = await this.credentialManager.getAzureOpenAIKey();
+      const apiVersion = sessionPreferences.apiVersion;
 
       if (apiKey) {
         // Notify Azure to end session
         const response = await this.executeAuthOperation(
           () =>
             fetch(
-              `${config.endpoint}/openai/realtimeapi/sessions/${sessionId}?api-version=${config.apiVersion || "2025-04-01-preview"}`,
+              `${config.endpoint}/openai/realtimeapi/sessions/${sessionId}?api-version=${apiVersion}`,
               {
                 method: "DELETE",
                 headers: { "api-key": apiKey },
@@ -442,21 +521,29 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
 
     try {
       const startTime = Date.now();
+      const sessionPreferences =
+        this.configManager.getRealtimeSessionPreferences();
+      const realtimeConfig = this.configManager.getAzureRealtimeConfig();
+      const inputFormat = realtimeConfig.inputAudioFormat ?? "pcm16";
+
+      const sessionRequest: AzureSessionRequest = {
+        model: config.deploymentName,
+        voice: sessionPreferences.voice,
+        input_audio_format: inputFormat,
+        output_audio_format: inputFormat,
+        turn_detection: sessionPreferences.turnDetection,
+      };
 
       // Test session creation
       const response = await fetch(
-        `${config.endpoint}/openai/realtimeapi/sessions?api-version=${config.apiVersion || "2025-04-01-preview"}`,
+        `${config.endpoint}/openai/realtimeapi/sessions?api-version=${sessionPreferences.apiVersion}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "api-key": apiKey,
           },
-          body: JSON.stringify({
-            model: config.deploymentName,
-            input_audio_format: "pcm16",
-            output_audio_format: "pcm16",
-          } as AzureSessionRequest),
+          body: JSON.stringify(sessionRequest),
         },
       );
 
@@ -519,20 +606,21 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     config: AzureOpenAIConfig,
     apiKey: string,
   ): Promise<AzureSessionResponse> {
+    const sessionPreferences =
+      this.configManager.getRealtimeSessionPreferences();
+    const realtimeConfig = this.configManager.getAzureRealtimeConfig();
+    const inputFormat = realtimeConfig.inputAudioFormat ?? "pcm16";
+
     const sessionRequest: AzureSessionRequest = {
       model: config.deploymentName,
-      input_audio_format: "pcm16",
-      output_audio_format: "pcm16",
-      turn_detection: {
-        type: "server_vad",
-        threshold: 0.5,
-        prefix_padding_ms: 300,
-        silence_duration_ms: 200,
-      },
+      voice: sessionPreferences.voice,
+      input_audio_format: inputFormat,
+      output_audio_format: inputFormat,
+      turn_detection: sessionPreferences.turnDetection,
     };
 
     const response = await fetch(
-      `${config.endpoint}/openai/realtimeapi/sessions?api-version=${config.apiVersion || "2025-04-01-preview"}`,
+      `${config.endpoint}/openai/realtimeapi/sessions?api-version=${sessionPreferences.apiVersion}`,
       {
         method: "POST",
         headers: {
@@ -558,49 +646,82 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       clearTimeout(this.renewalTimer);
     }
 
-    if (!this.currentKey) {
+    const currentKey = this.currentKey;
+    if (!currentKey) {
       return;
     }
 
-    // Schedule renewal with safety margin
-    const renewalTime =
-      this.currentKey.expiresAt.getTime() -
-      Date.now() -
-      this.config.renewalMarginSeconds * 1000;
+    const refreshDelay = Math.max(
+      1000,
+      currentKey.refreshAt.getTime() - Date.now(),
+    );
 
-    if (renewalTime > 0) {
-      this.renewalTimer = setTimeout(async () => {
-        this.logger.info("Automatic key renewal triggered");
-        const result = await this.renewKey();
+    this.renewalTimer = setTimeout(async () => {
+      this.logger.info("Automatic key renewal triggered");
+      const result = await this.renewKey();
 
-        if (result.success) {
-          for (const handler of this.keyRenewalHandlers) {
-            try {
-              await handler(result);
-            } catch (error: any) {
-              this.logger.error("Key renewal handler failed", {
-                error: error.message,
-              });
-            }
-          }
-        } else {
-          this.logger.error("Automatic key renewal failed", result.error);
-          for (const handler of this.authErrorHandlers) {
-            try {
-              await handler(result.error!);
-            } catch (error: any) {
-              this.logger.error("Authentication error handler failed", {
-                error: error.message,
-              });
-            }
+      if (!result.success) {
+        this.logger.error("Automatic key renewal failed", result.error);
+        for (const handler of this.authErrorHandlers) {
+          try {
+            await handler(result.error!);
+          } catch (error: any) {
+            this.logger.error("Authentication error handler failed", {
+              error: error.message,
+            });
           }
         }
-      }, renewalTime);
+      }
+    }, refreshDelay);
 
-      this.logger.debug("Key renewal scheduled", {
-        renewalTime: new Date(Date.now() + renewalTime).toISOString(),
-        marginSeconds: this.config.renewalMarginSeconds,
-      });
+    this.logger.debug("Key renewal scheduled", {
+      refreshAt: currentKey.refreshAt.toISOString(),
+      secondsUntilRefresh: Math.max(
+        0,
+        Math.floor(
+          (currentKey.refreshAt.getTime() - Date.now()) / 1000,
+        ),
+      ),
+      marginSeconds: this.config.renewalMarginSeconds,
+      proactiveIntervalMs: this.config.proactiveRenewalIntervalMs,
+    });
+  }
+
+  private async dispatchKeyRenewed(
+    result: EphemeralKeyResult,
+  ): Promise<void> {
+    const currentKey = this.getCurrentKey();
+    const enrichedResult = currentKey
+      ? {
+          ...result,
+          expiresAt: currentKey.expiresAt,
+          issuedAt: currentKey.issuedAt,
+          refreshAt: currentKey.refreshAt,
+          secondsUntilRefresh: currentKey.secondsUntilRefresh,
+          refreshIntervalSeconds: currentKey.refreshIntervalSeconds,
+        }
+      : result;
+
+    for (const handler of this.keyRenewalHandlers) {
+      try {
+        await handler(enrichedResult);
+      } catch (error: any) {
+        this.logger.error("Key renewal handler failed", {
+          error: error.message,
+        });
+      }
+    }
+  }
+
+  private async dispatchKeyExpired(info: EphemeralKeyInfo): Promise<void> {
+    for (const handler of this.keyExpirationHandlers) {
+      try {
+        await handler(info);
+      } catch (error: any) {
+        this.logger.error("Key expiration handler failed", {
+          error: error.message,
+        });
+      }
     }
   }
 
