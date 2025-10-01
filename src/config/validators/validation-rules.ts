@@ -1,10 +1,11 @@
-import { AudioConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConversationConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
+import { AudioConfig, AudioFeedbackConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConversationConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
 import type { PrivacyPolicyConfig } from '../../types/privacy';
 
 export interface RuleContext {
   azureOpenAI: AzureOpenAIConfig;
   azureRealtime: AzureRealtimeConfig;
   audio: AudioConfig;
+  audioFeedback: AudioFeedbackConfig;
   commands: CommandsConfig;
   github: GitHubConfig;
   conversation: ConversationConfig;
@@ -162,4 +163,61 @@ export const privacyRetentionRule: ValidationRule = ({ privacy }) => {
 export const audioDevicesRule: ValidationRule = () => ({ errors: [], warnings: [] });
 export const networkReachabilityRule: ValidationRule = () => ({ errors: [], warnings: [] });
 
-export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, privacyRetentionRule, audioDevicesRule, networkReachabilityRule];
+export const audioFeedbackRule: ValidationRule = ({ audioFeedback }) => {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  const gains = audioFeedback.categoryGains;
+  for (const [category, value] of Object.entries(gains)) {
+    if (value < 0 || value > 2) {
+      errors.push(
+        err(
+          `voicepilot.audioFeedback.volume.${category}`,
+          "Audio feedback gain must be between 0.0 and 2.0",
+          "AUDIO_FEEDBACK_GAIN_RANGE",
+          "Adjust gain to a value between 0.0 and 2.0",
+        ),
+      );
+    } else if (value > 1.5) {
+      warnings.push({
+        path: `voicepilot.audioFeedback.volume.${category}`,
+        message: "High gain may cause clipping in shared audio context",
+        code: "AUDIO_FEEDBACK_GAIN_HIGH",
+        remediation: "Consider reducing gain below 1.5 to avoid distortion.",
+      });
+    }
+  }
+
+  if (audioFeedback.degradedMode.failureThreshold < 1) {
+    errors.push(
+      err(
+        "voicepilot.audioFeedback.degradedFailureThreshold",
+        "Degraded-mode failure threshold must be at least 1",
+        "AUDIO_FEEDBACK_DEGRADED_THRESHOLD",
+        "Set the failure threshold to a value of 1 or higher.",
+      ),
+    );
+  }
+  if (audioFeedback.degradedMode.windowMs < 1000) {
+    errors.push(
+      err(
+        "voicepilot.audioFeedback.degradedWindowSeconds",
+        "Degraded-mode window must be at least one second",
+        "AUDIO_FEEDBACK_DEGRADED_WINDOW",
+        "Increase the degraded mode window to at least 1 second.",
+      ),
+    );
+  }
+  if (audioFeedback.degradedMode.cooldownMs < 5000) {
+    warnings.push({
+      path: "voicepilot.audioFeedback.degradedCooldownSeconds",
+      message: "Short cooldown may cause rapid degraded-mode oscillation",
+      code: "AUDIO_FEEDBACK_DEGRADED_COOLDOWN",
+      remediation: "Increase cooldown to at least 5 seconds to stabilize recovery.",
+    });
+  }
+
+  return { errors, warnings };
+};
+
+export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, privacyRetentionRule, audioFeedbackRule, audioDevicesRule, networkReachabilityRule];

@@ -1,5 +1,11 @@
 import * as vscode from "vscode";
 import type { ServiceInitializable } from "../core/service-initializable";
+import type {
+  AudioFeedbackControlMessage,
+  AudioFeedbackEventMessage,
+  AudioFeedbackPanelAdapter,
+  AudioFeedbackStateMessage,
+} from "../types/audio-feedback";
 import type { TurnEventDiagnostics } from "../types/conversation";
 import { renderVoiceControlPanelHtml } from "./templates/voice-control-panel.html";
 import {
@@ -55,13 +61,19 @@ interface TurnStatusUpdateOptions {
  * visible to avoid race conditions during activation.
  */
 export class VoiceControlPanel
-  implements ServiceInitializable, vscode.WebviewViewProvider
+  implements
+    ServiceInitializable,
+    vscode.WebviewViewProvider,
+    AudioFeedbackPanelAdapter
 {
   public static readonly viewType = "voicepilot.voiceControl";
 
   private readonly actionHandlers = new Set<PanelActionHandler>();
   private readonly feedbackHandlers = new Set<PanelFeedbackHandler>();
   private readonly pendingMessages: PanelOutboundMessage[] = [];
+  private readonly audioFeedbackHandlers = new Set<
+    (message: AudioFeedbackEventMessage) => void
+  >();
 
   private initialized = false;
   private visible = false;
@@ -102,6 +114,7 @@ export class VoiceControlPanel
     this.pendingMessages.length = 0;
     this.actionHandlers.clear();
     this.feedbackHandlers.clear();
+    this.audioFeedbackHandlers.clear();
     this.initialized = false;
     this.visible = false;
   }
@@ -181,6 +194,26 @@ export class VoiceControlPanel
   onFeedback(handler: PanelFeedbackHandler): vscode.Disposable {
     this.feedbackHandlers.add(handler);
     return new vscode.Disposable(() => this.feedbackHandlers.delete(handler));
+  }
+
+  sendAudioFeedbackControl(message: AudioFeedbackControlMessage): void {
+    this.enqueueMessage(message);
+  }
+
+  sendAudioFeedbackState(payload: AudioFeedbackStateMessage["payload"]): void {
+    this.enqueueMessage({
+      type: "audioFeedback.state",
+      payload,
+    });
+  }
+
+  onAudioFeedbackEvent(
+    handler: (message: AudioFeedbackEventMessage) => void,
+  ): vscode.Disposable {
+    this.audioFeedbackHandlers.add(handler);
+    return new vscode.Disposable(() => {
+      this.audioFeedbackHandlers.delete(handler);
+    });
   }
 
   /**
@@ -585,6 +618,15 @@ export class VoiceControlPanel
             handler(message);
           } catch (error) {
             console.warn("VoicePilot: Feedback handler failed", error);
+          }
+        });
+        break;
+      case "audioFeedback.event":
+        this.audioFeedbackHandlers.forEach((handler) => {
+          try {
+            handler(message);
+          } catch (error) {
+            console.warn("VoicePilot: Audio feedback handler failed", error);
           }
         });
         break;

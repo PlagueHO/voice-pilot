@@ -1,45 +1,45 @@
 import { Logger } from "../core/logger";
 import {
-    AudioCaptureConfig,
-    AudioCaptureEventHandler,
-    AudioCaptureEventType,
-    AudioCapturePipeline,
-    AudioCapturePipelineEvent,
-    AudioCaptureSampleRate,
-    AudioMetrics,
-    AudioPerformanceDiagnostics,
-    AudioProcessingConfig,
-    AudioProcessingGraph,
-    CpuUtilizationSample,
-    DeviceValidationResult,
-    PerformanceBudgetSample,
-    RenderQuantumTelemetry,
-    VoiceActivityResult,
+  AudioCaptureConfig,
+  AudioCaptureEventHandler,
+  AudioCaptureEventType,
+  AudioCapturePipeline,
+  AudioCapturePipelineEvent,
+  AudioCaptureSampleRate,
+  AudioMetrics,
+  AudioPerformanceDiagnostics,
+  AudioProcessingConfig,
+  AudioProcessingGraph,
+  CpuUtilizationSample,
+  DeviceValidationResult,
+  PerformanceBudgetSample,
+  RenderQuantumTelemetry,
+  VoiceActivityResult,
 } from "../types/audio-capture";
 import type { AudioErrorRecoveryMetadata } from "../types/audio-errors";
 import {
-    AudioErrorCode,
-    AudioErrorSeverity,
-    AudioProcessingError,
+  AudioErrorCode,
+  AudioErrorSeverity,
+  AudioProcessingError,
 } from "../types/audio-errors";
 import {
-    AudioConfiguration,
-    MINIMUM_AUDIO_SAMPLE_RATE,
-    SUPPORTED_AUDIO_SAMPLE_RATES,
+  AudioConfiguration,
+  MINIMUM_AUDIO_SAMPLE_RATE,
+  SUPPORTED_AUDIO_SAMPLE_RATES,
 } from "../types/webrtc";
 import {
-    AudioContextProvider,
-    sharedAudioContextProvider,
+  AudioContextProvider,
+  sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-    CpuLoadTracker,
-    createEmptyMetrics,
-    DEFAULT_EXPECTED_RENDER_QUANTUM,
-    getTimestampMs,
-    mergeDiagnostics,
-    mergeMetrics,
-    PerformanceBudgetDefinition,
-    PerformanceBudgetTracker,
+  CpuLoadTracker,
+  createEmptyMetrics,
+  DEFAULT_EXPECTED_RENDER_QUANTUM,
+  getTimestampMs,
+  mergeDiagnostics,
+  mergeMetrics,
+  PerformanceBudgetDefinition,
+  PerformanceBudgetTracker,
 } from "./audio-metrics";
 import { WebAudioProcessingChain } from "./audio-processing-chain";
 import { AudioDeviceValidator } from "./device-validator";
@@ -853,10 +853,7 @@ export class AudioCapture implements AudioCapturePipeline {
       totals,
     };
 
-    this.processingChain.ingestRenderTelemetry(
-      this.processingGraph,
-      telemetry,
-    );
+    this.processingChain.ingestRenderTelemetry(this.processingGraph, telemetry);
   }
 
   private resolveSampleRate(requested?: number | null): AudioCaptureSampleRate {

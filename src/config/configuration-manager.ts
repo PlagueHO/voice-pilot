@@ -2,22 +2,24 @@ import * as vscode from "vscode";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
-    AudioConfig,
-    AzureOpenAIConfig,
-    AzureRealtimeConfig,
-    CommandsConfig,
-    ConfigurationChange,
-    ConfigurationChangeHandler,
-    ConversationConfig,
-    GitHubConfig,
-    ValidationResult,
+  AudioConfig,
+  AudioFeedbackConfig,
+  AzureOpenAIConfig,
+  AzureRealtimeConfig,
+  CommandsConfig,
+  ConfigurationChange,
+  ConfigurationChangeHandler,
+  ConversationConfig,
+  GitHubConfig,
+  ValidationResult,
 } from "../types/configuration";
 import type { PrivacyPolicyConfig } from "../types/privacy";
 import {
-    resolveRealtimeSessionPreferences,
-    type RealtimeSessionPreferences,
+  resolveRealtimeSessionPreferences,
+  type RealtimeSessionPreferences,
 } from "./realtime-session";
 import { AudioSection } from "./sections/audio-config-section";
+import { AudioFeedbackSection } from "./sections/audio-feedback-section";
 import { AzureOpenAISection } from "./sections/azure-openai-config-section";
 import { AzureOpenAIRealtimeSection } from "./sections/azure-openai-realtime-config-section";
 import { CommandsSection } from "./sections/commands-config-section";
@@ -49,6 +51,7 @@ export class ConfigurationManager implements ServiceInitializable {
   private conversationSection: ConversationSection;
   private gitHubSection: GitHubSection;
   private privacySection: PrivacyPolicySection;
+  private audioFeedbackSection: AudioFeedbackSection;
   private validator: ConfigurationValidator;
 
   private context!: vscode.ExtensionContext;
@@ -70,6 +73,7 @@ export class ConfigurationManager implements ServiceInitializable {
     this.azureOpenAISection = new AzureOpenAISection();
     this.azureRealtimeSection = new AzureOpenAIRealtimeSection();
     this.audioSection = new AudioSection();
+    this.audioFeedbackSection = new AudioFeedbackSection();
     this.commandsSection = new CommandsSection();
     this.conversationSection = new ConversationSection();
     this.gitHubSection = new GitHubSection();
@@ -78,6 +82,7 @@ export class ConfigurationManager implements ServiceInitializable {
       getAzureOpenAI: () => this.getAzureOpenAIConfig(),
       getAzureRealtime: () => this.getAzureRealtimeConfig(),
       getAudio: () => this.getAudioConfig(),
+      getAudioFeedback: () => this.getAudioFeedbackConfig(),
       getCommands: () => this.getCommandsConfig(),
       getGitHub: () => this.getGitHubConfig(),
       getConversation: () => this.getConversationConfig(),
@@ -142,6 +147,9 @@ export class ConfigurationManager implements ServiceInitializable {
   getAudioConfig(): AudioConfig {
     return this.cached("audio", () => this.audioSection.read());
   }
+  getAudioFeedbackConfig(): AudioFeedbackConfig {
+    return this.cached("audioFeedback", () => this.audioFeedbackSection.read());
+  }
   getRealtimeSessionPreferences(): RealtimeSessionPreferences {
     return this.cached("realtimeSessionPreferences", () =>
       resolveRealtimeSessionPreferences(
@@ -202,6 +210,7 @@ export class ConfigurationManager implements ServiceInitializable {
     this.getAzureOpenAIConfig();
     this.getAzureRealtimeConfig();
     this.getAudioConfig();
+    this.getAudioFeedbackConfig();
     this.getRealtimeSessionPreferences();
     this.getCommandsConfig();
     this.getGitHubConfig();
@@ -307,6 +316,9 @@ export class ConfigurationManager implements ServiceInitializable {
         break;
       case "audio":
         base.push("audioService");
+        break;
+      case "audioFeedback":
+        base.push("audioFeedbackService");
         break;
       case "commands":
         base.push("sessionManager");

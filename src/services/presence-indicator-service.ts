@@ -26,14 +26,23 @@ import {
   SessionStateEvent,
 } from "../types/session";
 
+/**
+ * Configuration for {@link PresenceIndicatorService} controlling logging and batching behavior.
+ */
 export interface PresenceIndicatorServiceOptions {
+  /** Logger used for diagnostic output. */
   logger: Logger;
+  /** Optional override for the debounce window used to batch presence updates. */
   batchWindowMs?: number;
+  /** Optional threshold for emitting latency warnings when batching takes too long. */
   latencyWarningMs?: number;
 }
 
 const DEFAULT_LATENCY_WARNING_MS = 150;
 
+/**
+ * Publishes aggregated presence updates reflecting session, conversation, and Copilot availability state.
+ */
 export class PresenceIndicatorService implements vscode.Disposable {
   public readonly onDidChangePresence: vscode.Event<PresenceUpdate>;
 
@@ -64,6 +73,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private disposed = false;
 
+  /**
+   * Creates a new presence indicator service using the provided options.
+   *
+   * @param options - Logger configuration along with optional batching overrides.
+   */
   constructor(options: PresenceIndicatorServiceOptions) {
     this.logger = options.logger;
     this.batchWindowMs = options.batchWindowMs ?? PRESENCE_BATCH_WINDOW_MS;
@@ -72,6 +86,12 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.onDidChangePresence = this.emitter.event;
   }
 
+  /**
+   * Registers listeners on the session manager to track activation, state, and errors.
+   *
+   * @param manager - Session manager responsible for connection lifecycle.
+   * @returns Disposable that removes subscriptions when invoked.
+   */
   bindSessionManager(manager: SessionManager): vscode.Disposable {
     this.ensureNotDisposed();
     this.sessionManager = manager;
@@ -116,6 +136,12 @@ export class PresenceIndicatorService implements vscode.Disposable {
     return disposable;
   }
 
+  /**
+   * Registers listeners on the conversation state machine for state and turn updates.
+   *
+   * @param machine - Conversation state machine to observe.
+   * @returns Disposable that tears down associated subscriptions.
+   */
   bindConversationMachine(
     machine: ConversationStateMachine,
   ): vscode.Disposable {
@@ -139,6 +165,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     return disposable;
   }
 
+  /**
+   * Updates whether GitHub Copilot is available within the environment and triggers re-evaluation.
+   *
+   * @param available - Indicates Copilot extension availability.
+   */
   setCopilotAvailability(available: boolean): void {
     if (this.copilotAvailable === available) {
       return;
@@ -150,6 +181,9 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Forces any pending presence state to emit immediately, bypassing the batching delay.
+   */
   requestImmediateEmit(): void {
     this.ensureNotDisposed();
     if (this.flushHandle) {
@@ -162,6 +196,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.flushPresenceUpdate();
   }
 
+  /**
+   * Handles session lifecycle events to maintain presence state and diagnostics context.
+   *
+   * @param event - Session event describing start or end changes.
+   */
   async handleSessionEvent(event: SessionEvent): Promise<void> {
     if (event.type === "started") {
       this.sessionId = event.sessionId;
@@ -187,6 +226,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Processes session state transitions to synchronize diagnostics and error recovery flags.
+   *
+   * @param event - State transition payload from the session manager.
+   */
   async handleSessionStateChange(event: SessionStateEvent): Promise<void> {
     this.sessionId = event.sessionId;
     this.sessionState = event.newState;
@@ -226,6 +270,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Responds to session renewal progress, updating diagnostics and stored errors.
+   *
+   * @param event - Renewal lifecycle event emitted by the session manager.
+   */
   async handleSessionRenewal(event: SessionRenewalEvent): Promise<void> {
     if (event.type === "renewal-started") {
       this.renewalInProgress = true;
@@ -255,6 +304,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Captures session error events and triggers an updated presence notification.
+   *
+   * @param event - Error payload emitted by the session manager.
+   */
   async handleSessionErrorEvent(event: SessionErrorEvent): Promise<void> {
     this.lastSessionError = event.error;
     this.logger.warn("PresenceIndicator: session error received", {
@@ -264,6 +318,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Updates internal state when the conversation state machine transitions between states.
+   *
+   * @param event - Conversation state change notification.
+   */
   handleConversationStateChange(event: ConversationStateChangeEvent): void {
     this.conversationState = event.transition.to;
     this.conversationMetadata = event.metadata?.metadata ?? undefined;
@@ -276,6 +335,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Tracks conversation turn events to maintain the latest turn identifier for diagnostics.
+   *
+   * @param event - Conversation turn event raised by the state machine.
+   */
   handleConversationTurnEvent(event: ConversationTurnEvent): void {
     if (event.turnContext) {
       this.currentTurnId = event.turnContext.turnId;
@@ -283,6 +347,9 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.scheduleEmit();
   }
 
+  /**
+   * Disposes all resources owned by the service and prevents further state updates.
+   */
   dispose(): void {
     if (this.disposed) {
       return;
@@ -297,6 +364,9 @@ export class PresenceIndicatorService implements vscode.Disposable {
     this.emitter.dispose();
   }
 
+  /**
+   * Schedules a batched presence emission, respecting the configured debounce window.
+   */
   private scheduleEmit(): void {
     if (this.disposed) {
       return;
@@ -313,6 +383,9 @@ export class PresenceIndicatorService implements vscode.Disposable {
     }, this.batchWindowMs);
   }
 
+  /**
+   * Emits the current presence snapshot if it differs from the last dispatched state.
+   */
   private flushPresenceUpdate(): void {
     const update = this.buildPresenceUpdate();
     if (this.lastPresence && isPresenceStateEqual(this.lastPresence, update)) {
@@ -341,6 +414,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     }
   }
 
+  /**
+   * Builds a presence record incorporating session status, diagnostics, and Copilot availability.
+   *
+   * @returns Presence update ready for downstream consumers.
+   */
   private buildPresenceUpdate(): PresenceUpdate {
     const state = this.determinePresenceState();
     const descriptor = resolvePresenceDescriptor(state);
@@ -366,6 +444,13 @@ export class PresenceIndicatorService implements vscode.Disposable {
     };
   }
 
+  /**
+   * Derives detailed presence metadata such as diagnostics and retry hints.
+   *
+   * @param state - Resolved presence state for the user.
+   * @param descriptor - Descriptor containing default messaging for the state.
+   * @returns Detailed presence descriptor used in UI surfaces.
+   */
   private buildPresenceDetails(
     state: VoicePilotPresenceState,
     descriptor: PresenceStateDescriptor,
@@ -420,6 +505,12 @@ export class PresenceIndicatorService implements vscode.Disposable {
     return details;
   }
 
+  /**
+   * Computes a user-facing status mode string based on the presence state.
+   *
+   * @param state - Current presence state.
+   * @returns Status mode string when applicable.
+   */
   private computeStatusMode(
     state: VoicePilotPresenceState,
   ): string | undefined {
@@ -441,6 +532,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     return undefined;
   }
 
+  /**
+   * Determines the aggregate presence state by combining session and conversation inputs.
+   *
+   * @returns The resolved presence state string.
+   */
   private determinePresenceState(): VoicePilotPresenceState {
     if (
       !this.sessionId ||
@@ -479,6 +575,12 @@ export class PresenceIndicatorService implements vscode.Disposable {
     return mapped;
   }
 
+  /**
+   * Maps conversation state machine values to presence states understood by the UI layer.
+   *
+   * @param state - Conversation state emitted by the state machine.
+   * @returns Mapped presence state value.
+   */
   private mapConversationState(
     state: ConversationState,
   ): VoicePilotPresenceState {
@@ -508,6 +610,12 @@ export class PresenceIndicatorService implements vscode.Disposable {
     }
   }
 
+  /**
+   * Captures diagnostic information from the session manager when available.
+   *
+   * @param sessionId - Identifier of the active session.
+   * @returns Snapshot of session diagnostics or undefined when unavailable.
+   */
   private captureDiagnostics(
     sessionId: string,
   ): SessionDiagnostics | undefined {
@@ -525,6 +633,11 @@ export class PresenceIndicatorService implements vscode.Disposable {
     }
   }
 
+  /**
+   * Ensures the service hasn't been disposed prior to performing stateful operations.
+   *
+   * @throws Error when the service is already disposed.
+   */
   private ensureNotDisposed(): void {
     if (this.disposed) {
       throw new Error("PresenceIndicatorService disposed");

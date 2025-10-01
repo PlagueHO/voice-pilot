@@ -1,28 +1,28 @@
 import { Logger } from "../core/logger";
 import {
-    AudioMetrics,
-    AudioProcessingChain,
-    AudioProcessingConfig,
-    AudioProcessingGraph,
-    RenderQuantumTelemetry,
+  AudioMetrics,
+  AudioProcessingChain,
+  AudioProcessingConfig,
+  AudioProcessingGraph,
+  RenderQuantumTelemetry,
 } from "../types/audio-capture";
 import {
-    AudioContextProvider,
-    sharedAudioContextProvider,
+  AudioContextProvider,
+  sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-    calculatePeak,
-    calculateRms,
-    computeBufferHealth,
-    createEmptyMetrics,
-    DEFAULT_EXPECTED_RENDER_QUANTUM,
-    estimateSnr,
-    getTimestampMs,
-    mergeMetrics,
+  calculatePeak,
+  calculateRms,
+  computeBufferHealth,
+  createEmptyMetrics,
+  DEFAULT_EXPECTED_RENDER_QUANTUM,
+  estimateSnr,
+  getTimestampMs,
+  mergeMetrics,
 } from "./audio-metrics";
 import {
-    ensurePcmEncoderWorklet,
-    PCM_ENCODER_WORKLET_NAME,
+  ensurePcmEncoderWorklet,
+  PCM_ENCODER_WORKLET_NAME,
 } from "./worklets/pcm-encoder-worklet";
 
 interface MetricsState {
@@ -121,8 +121,8 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
         droppedFrames: 0,
         lastAnalysisTimestamp: performance.now(),
         metrics: createEmptyMetrics(),
-  lastRenderQuantum: DEFAULT_EXPECTED_RENDER_QUANTUM,
-  expectedRenderQuantum: DEFAULT_EXPECTED_RENDER_QUANTUM,
+        lastRenderQuantum: DEFAULT_EXPECTED_RENDER_QUANTUM,
+        expectedRenderQuantum: DEFAULT_EXPECTED_RENDER_QUANTUM,
         renderUnderrunCount: 0,
         renderOverrunCount: 0,
         consecutiveUnderruns: 0,
@@ -161,7 +161,9 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
   ): () => void {
     const state = this.metricsState.get(graph);
     if (!state) {
-      this.logger.warn("Attempted to register telemetry listener for unknown graph");
+      this.logger.warn(
+        "Attempted to register telemetry listener for unknown graph",
+      );
       return () => {
         // no-op cleanup for unknown graph
       };
@@ -191,9 +193,11 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       return;
     }
 
-    const expected = telemetry.expectedFrameCount ?? state.expectedRenderQuantum;
+    const expected =
+      telemetry.expectedFrameCount ?? state.expectedRenderQuantum;
     const frameCount = telemetry.frameCount ?? 0;
-    const droppedFrames = telemetry.droppedFrames ?? Math.max(expected - frameCount, 0);
+    const droppedFrames =
+      telemetry.droppedFrames ?? Math.max(expected - frameCount, 0);
     const underrun = Boolean(telemetry.underrun);
     const overrun = Boolean(telemetry.overrun);
     const timestampMs = telemetry.timestamp ?? getTimestampMs();
@@ -280,10 +284,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       peakLevel,
       rmsLevel,
       signalToNoiseRatio: snr,
-      bufferHealth: computeBufferHealth(
-        totalRenderFrames,
-        state.droppedFrames,
-      ),
+      bufferHealth: computeBufferHealth(totalRenderFrames, state.droppedFrames),
       totalFrameCount: totalRenderFrames,
       droppedFrameCount: state.droppedFrames,
       analysisWindowMs,

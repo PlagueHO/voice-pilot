@@ -9,6 +9,7 @@
 
 export * from "./audio-capture";
 export * from "./audio-errors";
+export * from "./audio-feedback";
 export * from "./configuration";
 export * from "./conversation";
 export * from "./credentials";

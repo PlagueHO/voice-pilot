@@ -21,7 +21,7 @@ export function resolveRealtimeSessionPreferences(
   const turnDetection =
     normalizedTurn.type === "none"
       ? undefined
-      : {
+      : ({
           type:
             normalizedTurn.type === "semantic_vad"
               ? "semantic_vad"
@@ -34,11 +34,10 @@ export function resolveRealtimeSessionPreferences(
           ...(normalizedTurn.type === "semantic_vad" && normalizedTurn.eagerness
             ? { eagerness: normalizedTurn.eagerness }
             : {}),
-        } satisfies AzureSessionRequest["turn_detection"];
+        } satisfies AzureSessionRequest["turn_detection"]);
 
   return {
-    apiVersion:
-      realtimeConfig.apiVersion || DEFAULT_REALTIME_API_VERSION,
+    apiVersion: realtimeConfig.apiVersion || DEFAULT_REALTIME_API_VERSION,
     voice: audioConfig.tts.voice?.name,
     turnDetection,
   };

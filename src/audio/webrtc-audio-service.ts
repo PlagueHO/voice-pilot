@@ -5,27 +5,27 @@ import { ServiceInitializable } from "../core/service-initializable";
 import { SessionManager } from "../session/session-manager";
 import type { EphemeralKeyInfo } from "../types/ephemeral";
 import type {
-    RealtimeEvent,
-    ResponseCreateEvent,
-    ResponseCreatedEvent,
-    ResponseDoneEvent,
-    ResponseInterruptedEvent,
-    SessionUpdateEvent,
+  RealtimeEvent,
+  ResponseCreateEvent,
+  ResponseCreatedEvent,
+  ResponseDoneEvent,
+  ResponseInterruptedEvent,
+  SessionUpdateEvent,
 } from "../types/realtime-events";
 import type { AudioPipelineIntegration } from "../types/service-integration";
 import type {
-    AudioConfiguration,
-    ConnectionStatistics,
-    WebRTCConfig,
+  AudioConfiguration,
+  ConnectionStatistics,
+  WebRTCConfig,
 } from "../types/webrtc";
 import {
-    ConnectionDiagnosticsEvent,
-    ConnectionQuality,
-    DataChannelStateChangedEvent,
-    RecoveryStrategy,
-    WebRTCConnectionState,
-    WebRTCErrorCode,
-    WebRTCErrorImpl,
+  ConnectionDiagnosticsEvent,
+  ConnectionQuality,
+  DataChannelStateChangedEvent,
+  RecoveryStrategy,
+  WebRTCConnectionState,
+  WebRTCErrorCode,
+  WebRTCErrorImpl,
 } from "../types/webrtc";
 import { sharedAudioContextProvider } from "./audio-context-provider";
 import { AudioTrackManager } from "./audio-track-manager";
@@ -243,12 +243,12 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.recoveryObserverDisposable?.dispose();
     this.recoveryObserverDisposable = undefined;
     this.telemetryObservers.clear();
-  this.keyRenewalSubscription?.dispose();
-  this.keyExpirationSubscription?.dispose();
-  this.keyRenewalSubscription = undefined;
-  this.keyExpirationSubscription = undefined;
-  this.credentialObservers.clear();
-  this.credentialStatus = undefined;
+    this.keyRenewalSubscription?.dispose();
+    this.keyExpirationSubscription?.dispose();
+    this.keyRenewalSubscription = undefined;
+    this.keyExpirationSubscription = undefined;
+    this.credentialObservers.clear();
+    this.credentialStatus = undefined;
     this.errorHandler.dispose();
 
     this.initialized = false;
@@ -935,9 +935,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     };
   }
 
-  private attachEphemeralKeyObservers(
-    service: EphemeralKeyServiceImpl,
-  ): void {
+  private attachEphemeralKeyObservers(service: EphemeralKeyServiceImpl): void {
     this.keyRenewalSubscription?.dispose();
     this.keyExpirationSubscription?.dispose();
 
@@ -1117,6 +1115,7 @@ export class WebRTCAudioService implements ServiceInitializable {
           break;
 
         case "response.audio.delta":
+        case "response.output_audio.delta":
           if (this.onAudioReceivedCallback && "delta" in message) {
             const audioBuffer = Buffer.from(message.delta as string, "base64");
             await this.onAudioReceivedCallback(audioBuffer);

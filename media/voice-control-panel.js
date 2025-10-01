@@ -1,3 +1,4 @@
+import { createAudioFeedbackPlayer } from './audio-feedback-player.js';
 import { sanitizeHtml } from './sanitize-html.js';
 
 const vscode = acquireVsCodeApi();
@@ -35,6 +36,10 @@ const dom = {
   liveRegion: document.getElementById('vp-live-region'),
   settingsButton: document.getElementById('vp-settings')
 };
+
+const audioFeedback = createAudioFeedbackPlayer({
+  postMessage: (message) => vscode.postMessage(message)
+});
 
 function announce(message) {
   if (!dom.liveRegion) {
@@ -357,6 +362,17 @@ window.addEventListener('message', event => {
       state.copilotAvailable = message.available;
       renderCopilotBanner();
       break;
+    case 'audioFeedback.control':
+      audioFeedback.handleControl(message);
+      break;
+    case 'audioFeedback.state':
+      audioFeedback.updateState(message.payload);
+      if (message.payload?.degraded) {
+        announce('Audio feedback temporarily unavailable');
+      } else {
+        announce('Audio feedback restored');
+      }
+      break;
     default:
       break;
   }
@@ -374,6 +390,10 @@ if (dom.installCopilot) {
 if (dom.settingsButton) {
   dom.settingsButton.addEventListener('click', handleSettingsClick);
 }
+
+window.addEventListener('unload', () => {
+  audioFeedback.dispose();
+});
 
 renderStatus();
 renderMic();

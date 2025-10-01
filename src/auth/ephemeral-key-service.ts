@@ -299,9 +299,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         issuedAt,
         expiresAt,
         isValid: true,
-        secondsRemaining: Math.floor(
-          (expiresAt.getTime() - Date.now()) / 1000,
-        ),
+        secondsRemaining: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
         refreshAt,
         secondsUntilRefresh,
         ttlSeconds,
@@ -357,9 +355,7 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
     );
     const secondsUntilRefresh = Math.max(
       0,
-      Math.floor(
-        (this.currentKey.refreshAt.getTime() - now.getTime()) / 1000,
-      ),
+      Math.floor((this.currentKey.refreshAt.getTime() - now.getTime()) / 1000),
     );
 
     this.currentKey.isValid = isValid;
@@ -678,18 +674,14 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       refreshAt: currentKey.refreshAt.toISOString(),
       secondsUntilRefresh: Math.max(
         0,
-        Math.floor(
-          (currentKey.refreshAt.getTime() - Date.now()) / 1000,
-        ),
+        Math.floor((currentKey.refreshAt.getTime() - Date.now()) / 1000),
       ),
       marginSeconds: this.config.renewalMarginSeconds,
       proactiveIntervalMs: this.config.proactiveRenewalIntervalMs,
     });
   }
 
-  private async dispatchKeyRenewed(
-    result: EphemeralKeyResult,
-  ): Promise<void> {
+  private async dispatchKeyRenewed(result: EphemeralKeyResult): Promise<void> {
     const currentKey = this.getCurrentKey();
     const enrichedResult = currentKey
       ? {

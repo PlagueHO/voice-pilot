@@ -16,6 +16,7 @@
     "out/**/*.js",
     "out/**/*.js.map",
     "resources/**",
+    "media/**",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
@@ -242,6 +243,89 @@
             "high"
           ],
           "description": "Semantic VAD eagerness level when mode is semantic_vad"
+        },
+        "voicepilot.audioFeedback.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable short-form audio cues that signal session and state changes"
+        },
+        "voicepilot.audioFeedback.accessibilityProfile": {
+          "type": "string",
+          "default": "standard",
+          "enum": [
+            "standard",
+            "high-contrast",
+            "silent"
+          ],
+          "description": "Accessibility gain profile applied to audio cues"
+        },
+        "voicepilot.audioFeedback.defaultDucking": {
+          "type": "string",
+          "default": "attenuate",
+          "enum": [
+            "none",
+            "attenuate",
+            "pause",
+            "crossfade"
+          ],
+          "description": "Default ducking behaviour when cues overlap with text-to-speech audio"
+        },
+        "voicepilot.audioFeedback.telemetryEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Emit anonymised telemetry for cue latency and reliability diagnostics"
+        },
+        "voicepilot.audioFeedback.volume.session": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Gain multiplier for session lifecycle cues"
+        },
+        "voicepilot.audioFeedback.volume.state": {
+          "type": "number",
+          "default": 0.9,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Gain multiplier for conversational state cues"
+        },
+        "voicepilot.audioFeedback.volume.error": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Gain multiplier for error cues"
+        },
+        "voicepilot.audioFeedback.volume.accessibility": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Gain multiplier for accessibility cues"
+        },
+        "voicepilot.audioFeedback.psychoacousticSpacingMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "description": "Minimum spacing between cues in the same category to reduce fatigue"
+        },
+        "voicepilot.audioFeedback.degradedFailureThreshold": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "Number of cue playback failures before entering degraded mode"
+        },
+        "voicepilot.audioFeedback.degradedWindowSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 1,
+          "description": "Rolling window in seconds for counting playback failures"
+        },
+        "voicepilot.audioFeedback.degradedCooldownSeconds": {
+          "type": "number",
+          "default": 180,
+          "minimum": 5,
+          "description": "Cooldown in seconds before automatically attempting to exit degraded mode"
         },
         "voicepilot.commands.wakeWord": {
           "type": "string",

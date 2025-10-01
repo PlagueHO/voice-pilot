@@ -3,15 +3,16 @@ import { CredentialManagerImpl } from "../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-    StateChangeEvent as ConversationStateChangeEvent,
-    TurnContext as ConversationTurnContext,
-    TurnEvent as ConversationTurnEvent,
-    CopilotResponseEvent,
+  StateChangeEvent as ConversationStateChangeEvent,
+  TurnContext as ConversationTurnContext,
+  TurnEvent as ConversationTurnEvent,
+  CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
 import { createVoicePilotError } from "../helpers/error/envelope";
 import { sanitizeForLog } from "../helpers/error/redaction";
+import { AudioFeedbackServiceImpl } from "../services/audio-feedback/audio-feedback-service";
 import { ErrorEventBusImpl } from "../services/error/error-event-bus";
 import { RecoveryOrchestrator } from "../services/error/recovery-orchestrator";
 import { RecoveryRegistrationCenter } from "../services/error/recovery-registrar";
@@ -23,8 +24,8 @@ import { SessionTimerManagerImpl } from "../session/session-timer-manager";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type {
-    RecoveryPlan,
-    VoicePilotError,
+  RecoveryPlan,
+  VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
@@ -52,6 +53,7 @@ export class ExtensionController implements ServiceInitializable {
   private readonly chatIntegration: ChatIntegration;
   private readonly realtimeSttService: RealtimeSpeechToTextService;
   private readonly transcriptAggregator: TranscriptPrivacyAggregator;
+  private readonly audioFeedbackService: AudioFeedbackServiceImpl;
   private readonly controllerDisposables: vscode.Disposable[] = [];
   private readonly dispatchedUserTurnIds = new Set<string>();
   private readonly errorEventBus: ErrorEventBusImpl;
@@ -92,6 +94,11 @@ export class ExtensionController implements ServiceInitializable {
     this.transcriptAggregator = new TranscriptPrivacyAggregator(
       this.voicePanel,
       this.privacyController,
+      this.logger,
+    );
+    this.audioFeedbackService = new AudioFeedbackServiceImpl(
+      this.configurationManager,
+      this.voicePanel,
       this.logger,
     );
     this.errorEventBus = new ErrorEventBusImpl(this.logger);
@@ -251,6 +258,14 @@ export class ExtensionController implements ServiceInitializable {
       this.registerConversationIntegration();
 
       await this.safeInit(
+        "audio feedback service",
+        () => this.audioFeedbackService.initialize(),
+        () => this.audioFeedbackService.dispose(),
+        initialized,
+        "audioFeedbackService",
+      );
+
+      await this.safeInit(
         "voice control panel",
         () => this.voicePanel.initialize(),
         () => this.voicePanel.dispose(),
@@ -307,6 +322,7 @@ export class ExtensionController implements ServiceInitializable {
       ["transcript aggregator", () => this.transcriptAggregator.dispose()],
       ["privacy controller", () => this.privacyController.dispose()],
       ["voice panel", () => this.voicePanel.dispose()],
+      ["audio feedback service", () => this.audioFeedbackService.dispose()],
       ["session manager", () => this.sessionManager.dispose()],
       ["interruption engine", () => this.interruptionEngine.dispose()],
       ["ephemeral key service", () => this.ephemeralKeyService?.dispose()],
@@ -757,6 +773,16 @@ export class ExtensionController implements ServiceInitializable {
       detail,
     });
 
+    if (this.audioFeedbackService.isInitialized()) {
+      try {
+        this.audioFeedbackService.handleConversationStateChange(event);
+      } catch (error: any) {
+        this.logger.warn("Audio feedback state sync failed", {
+          error: error?.message ?? error,
+        });
+      }
+    }
+
     if (event.transition.to === "idle") {
       this.dispatchedUserTurnIds.clear();
     }
@@ -881,6 +907,15 @@ export class ExtensionController implements ServiceInitializable {
 
   private handleFallbackChanged(active: boolean, reason: string): void {
     this.voicePanel.setFallbackState(active, reason);
+    if (this.audioFeedbackService.isInitialized()) {
+      try {
+        this.audioFeedbackService.handleFallbackState(active, reason);
+      } catch (error: any) {
+        this.logger.warn("Audio feedback fallback sync failed", {
+          error: error?.message ?? error,
+        });
+      }
+    }
   }
 
   private mapStateToLabel(state: string): string {

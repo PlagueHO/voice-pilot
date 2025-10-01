@@ -1,4 +1,9 @@
 import { randomUUID } from "crypto";
+import type {
+  AudioFeedbackControlMessage,
+  AudioFeedbackEventMessage,
+  AudioFeedbackStateMessage,
+} from "../types/audio-feedback";
 import type { TurnEventDiagnostics } from "../types/conversation";
 
 /**
@@ -150,7 +155,9 @@ export type PanelOutboundMessage =
   | TranscriptTruncatedMessage
   | TranscriptRemoveMessage
   | AudioStatusMessage
-  | CopilotAvailabilityMessage;
+  | CopilotAvailabilityMessage
+  | AudioFeedbackControlMessage
+  | AudioFeedbackStateMessage;
 
 /**
  * Message emitted by the panel when a user invokes an action control.
@@ -171,7 +178,10 @@ export interface PanelFeedbackMessage {
 /**
  * Union of messages received by the extension host from the voice control panel.
  */
-export type PanelInboundMessage = PanelActionMessage | PanelFeedbackMessage;
+export type PanelInboundMessage =
+  | PanelActionMessage
+  | PanelFeedbackMessage
+  | AudioFeedbackEventMessage;
 
 /**
  * Maximum number of transcript entries retained in panel memory.

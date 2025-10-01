@@ -8,36 +8,36 @@ import { PrivacyController } from "../services/privacy/privacy-controller";
 import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
 import { EphemeralKeyInfo, EphemeralKeyResult } from "../types/ephemeral";
 import type {
-    RecoveryExecutionOptions,
-    RecoveryExecutor,
-    RecoveryPlan,
-    RecoveryRegistrar,
+  RecoveryExecutionOptions,
+  RecoveryExecutor,
+  RecoveryPlan,
+  RecoveryRegistrar,
 } from "../types/error/voice-pilot-error";
 import type { PurgeCommand, PurgeReason } from "../types/privacy";
 import { RealtimeEvent } from "../types/realtime-events";
 import {
-    HealthCheck,
-    RenewalResult,
-    SessionConfig,
-    SessionDiagnostics,
-    SessionError,
-    SessionErrorEvent,
-    SessionErrorHandler,
-    SessionEvent,
-    SessionEventHandler,
-    SessionHealthResult,
-    SessionInfo,
-    SessionManager,
-    SessionRenewalEvent,
-    SessionRenewalHandler,
-    SessionState,
-    SessionStateEvent,
-    SessionStateHandler,
-    SessionStatistics,
+  HealthCheck,
+  RenewalResult,
+  SessionConfig,
+  SessionDiagnostics,
+  SessionError,
+  SessionErrorEvent,
+  SessionErrorHandler,
+  SessionEvent,
+  SessionEventHandler,
+  SessionHealthResult,
+  SessionInfo,
+  SessionManager,
+  SessionRenewalEvent,
+  SessionRenewalHandler,
+  SessionState,
+  SessionStateEvent,
+  SessionStateHandler,
+  SessionStatistics,
 } from "../types/session";
 import {
-    TranscriptEvent,
-    TranscriptEventHandler,
+  TranscriptEvent,
+  TranscriptEventHandler,
 } from "../types/speech-to-text";
 import { SessionTimerManagerImpl } from "./session-timer-manager";
 
@@ -71,7 +71,8 @@ export class SessionManagerImpl implements SessionManager {
   private defaultRecoveryPlan?: RecoveryPlan;
   private realtimeTranscriptionService?: RealtimeSpeechToTextService;
   private realtimeTranscriptSubscription?: { dispose(): void };
-  private readonly realtimeTranscriptHandlers = new Set<TranscriptEventHandler>();
+  private readonly realtimeTranscriptHandlers =
+    new Set<TranscriptEventHandler>();
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
@@ -169,9 +170,7 @@ export class SessionManagerImpl implements SessionManager {
     }
   }
 
-  setRealtimeSpeechToTextService(
-    service: RealtimeSpeechToTextService,
-  ): void {
+  setRealtimeSpeechToTextService(service: RealtimeSpeechToTextService): void {
     if (this.realtimeTranscriptionService === service) {
       return;
     }

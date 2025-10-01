@@ -1,3 +1,4 @@
+import type { AudioFeedbackConfig } from "./audio-feedback";
 import type { PrivacyPolicyConfig } from "./privacy";
 
 /**
@@ -235,6 +236,8 @@ export interface ConfigurationAccessors {
   getAzureRealtime(): AzureRealtimeConfig;
   /** Retrieve audio device and processing preferences. */
   getAudio(): AudioConfig;
+  /** Retrieve audio cue playback and accessibility preferences. */
+  getAudioFeedback(): AudioFeedbackConfig;
   /** Retrieve wake word command settings. */
   getCommands(): CommandsConfig;
   /** Retrieve GitHub integration settings. */
@@ -245,4 +248,5 @@ export interface ConfigurationAccessors {
   getPrivacyPolicy(): PrivacyPolicyConfig;
 }
 
+export type { AudioFeedbackConfig } from "./audio-feedback";
 export type { PrivacyPolicyConfig } from "./privacy";

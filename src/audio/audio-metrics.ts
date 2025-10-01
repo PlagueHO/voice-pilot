@@ -1,10 +1,10 @@
 import {
-    AudioMetrics,
-    AudioPerformanceDiagnostics,
-    CpuUtilizationSample,
-    CpuUtilizationSummary,
-    PerformanceBudgetSample,
-    PerformanceBudgetSummary,
+  AudioMetrics,
+  AudioPerformanceDiagnostics,
+  CpuUtilizationSample,
+  CpuUtilizationSummary,
+  PerformanceBudgetSample,
+  PerformanceBudgetSummary,
 } from "../types/audio-capture";
 
 /**

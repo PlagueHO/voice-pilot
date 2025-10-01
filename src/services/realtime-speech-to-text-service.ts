@@ -33,10 +33,18 @@ const SUPPORTED_FINAL_EVENT_TYPES = new Set<string>([
   "conversation.item.audio_transcription.completed",
 ]);
 
+/**
+ * Describes a callback that receives realtime transcript events as they are emitted.
+ *
+ * @param event - Transcript payload containing partial or final speech-to-text content.
+ */
 interface TranscriptSubscriber {
   (event: TranscriptEvent): void | Promise<void>;
 }
 
+/**
+ * Maintains mutable state for an in-flight utterance emitted by the realtime service.
+ */
 interface UtteranceState {
   utteranceId: string;
   responseId: string;
@@ -51,14 +59,35 @@ interface UtteranceState {
   confidence?: number;
 }
 
+/**
+ * Returns the current timestamp in milliseconds.
+ *
+ * @returns Current epoch timestamp in milliseconds.
+ */
 function now(): number {
   return Date.now();
 }
 
-function buildUtteranceId(responseId: string, itemId: string | undefined): string {
+/**
+ * Builds a stable utterance identifier using the response and item identifiers.
+ *
+ * @param responseId - Identifier assigned to the parent realtime response.
+ * @param itemId - Optional response item identifier for multi-item responses.
+ * @returns Stable utterance identifier.
+ */
+function buildUtteranceId(
+  responseId: string,
+  itemId: string | undefined,
+): string {
   return itemId ? `${responseId}-${itemId}` : responseId;
 }
 
+/**
+ * Creates a defensive copy of utterance metadata so callers cannot mutate shared state.
+ *
+ * @param metadata - Metadata associated with the utterance.
+ * @returns A shallow clone of the provided metadata object.
+ */
 function cloneMetadata(metadata: UtteranceMetadata): UtteranceMetadata {
   return {
     startOffsetMs: metadata.startOffsetMs,
@@ -71,6 +100,9 @@ function cloneMetadata(metadata: UtteranceMetadata): UtteranceMetadata {
   };
 }
 
+/**
+ * Manages realtime speech-to-text events, tracking partial transcripts and notifying subscribers.
+ */
 export class RealtimeSpeechToTextService implements ServiceInitializable {
   private readonly logger: Logger;
   private initialized = false;
@@ -78,10 +110,21 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
   private readonly subscribers = new Set<TranscriptSubscriber>();
   private readonly activeUtterances = new Map<string, UtteranceState>();
 
+  /**
+   * Creates a new instance of the realtime speech-to-text service.
+   *
+   * @param logger - Optional logger instance for structured diagnostics.
+   */
   constructor(logger?: Logger) {
     this.logger = logger ?? new Logger("RealtimeSpeechToTextService");
   }
 
+  /**
+   * Initializes the service with an optional session identifier.
+   *
+   * @param sessionId - Optional session identifier associated with the realtime connection.
+   * @throws Error if initialization occurs in an invalid state.
+   */
   async initialize(sessionId?: string): Promise<void> {
     if (this.initialized) {
       if (sessionId) {
@@ -97,10 +140,18 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     });
   }
 
+  /**
+   * Indicates whether the service has completed initialization.
+   *
+   * @returns True when the service is initialized.
+   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
+  /**
+   * Disposes internal resources, clearing subscribers and tracked utterances.
+   */
   dispose(): void {
     this.logger.debug("Disposing RealtimeSpeechToTextService");
     this.initialized = false;
@@ -109,10 +160,21 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     this.activeUtterances.clear();
   }
 
+  /**
+   * Updates the active session identifier.
+   *
+   * @param sessionId - Identifier for the active realtime session.
+   */
   setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
   }
 
+  /**
+   * Registers a subscriber to receive transcript events emitted by the service.
+   *
+   * @param handler - Callback invoked for each transcript event.
+   * @returns Disposable used to unregister the subscriber.
+   */
   subscribeTranscript(handler: TranscriptSubscriber): { dispose(): void } {
     this.subscribers.add(handler);
     return {
@@ -122,6 +184,12 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     };
   }
 
+  /**
+   * Processes a realtime event emitted by the Azure OpenAI Realtime API.
+   *
+   * @param event - Event payload received from the realtime session.
+   * @throws Error when invoked prior to initialization.
+   */
   ingestRealtimeEvent(event: RealtimeEvent): void {
     if (!this.initialized) {
       throw new Error(
@@ -157,6 +225,11 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     });
   }
 
+  /**
+   * Retrieves the current collection of active (partial) utterances.
+   *
+   * @returns Array of utterance snapshots describing partial transcript state.
+   */
   getActiveUtterances(): UtteranceSnapshot[] {
     return Array.from(this.activeUtterances.values()).map((state) => ({
       utteranceId: state.utteranceId,
@@ -171,10 +244,18 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     }));
   }
 
+  /**
+   * Removes all active utterances tracked by the service.
+   */
   clearActiveUtterances(): void {
     this.activeUtterances.clear();
   }
 
+  /**
+   * Handles incremental transcript updates emitted by the realtime API.
+   *
+   * @param event - Realtime delta event containing partial transcript content.
+   */
   private handleDeltaEvent(event: RealtimeEvent): void {
     const responseId = (event as { response_id?: string }).response_id;
     const itemId = (event as { item_id?: string }).item_id;
@@ -227,6 +308,11 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     this.dispatch(deltaEvent);
   }
 
+  /**
+   * Handles `response.done` events to finalize any remaining utterances for the response.
+   *
+   * @param event - Response completion event payload.
+   */
   private handleResponseDone(event: ResponseDoneEvent): void {
     if (!event.response?.id) {
       this.logger.warn("response.done missing response id");
@@ -249,6 +335,11 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     }
   }
 
+  /**
+   * Finalizes utterances when a terminal transcript event is received.
+   *
+   * @param event - Realtime event representing the final transcript payload.
+   */
   private handleUtteranceFinalEvent(event: RealtimeEvent): void {
     const responseId = (event as { response_id?: string }).response_id;
     const itemId = (event as { item_id?: string }).item_id;
@@ -282,6 +373,11 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     this.activeUtterances.delete(utteranceId);
   }
 
+  /**
+   * Emits a final transcript event to subscribers and removes the utterance from active tracking.
+   *
+   * @param state - Utterance state to finalize.
+   */
   private emitFinalEvent(state: UtteranceState): void {
     const completedAt = now();
     const metadata = cloneMetadata(state.metadata);
@@ -300,6 +396,15 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     this.dispatch(finalEvent);
   }
 
+  /**
+   * Ensures an utterance state exists for the provided identifiers, creating one when absent.
+   *
+   * @param utteranceId - Combined utterance identifier.
+   * @param responseId - Parent response identifier.
+   * @param itemId - Optional response item identifier.
+   * @param sessionId - Active realtime session identifier.
+   * @returns Mutable utterance state reference.
+   */
   private ensureUtteranceState(
     utteranceId: string,
     responseId: string,
@@ -335,6 +440,12 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     return state;
   }
 
+  /**
+   * Extracts confidence values from realtime delta or final events.
+   *
+   * @param event - Realtime transcript event payload.
+   * @returns Confidence score when provided by the event; otherwise undefined.
+   */
   private extractConfidence(event: RealtimeEvent): number | undefined {
     const delta = (event as { delta?: unknown }).delta;
     if (delta && typeof delta === "object" && "confidence" in delta) {
@@ -352,6 +463,11 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     return undefined;
   }
 
+  /**
+   * Dispatches transcript events to subscribers and logs any synchronous or asynchronous failures.
+   *
+   * @param event - Transcript event to deliver.
+   */
   private dispatch(event: TranscriptEvent): void {
     for (const subscriber of Array.from(this.subscribers)) {
       try {

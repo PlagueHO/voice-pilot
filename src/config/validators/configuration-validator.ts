@@ -10,6 +10,7 @@ export class ConfigurationValidator {
       azureOpenAI: this.access.getAzureOpenAI(),
       azureRealtime: this.access.getAzureRealtime(),
       audio: this.access.getAudio(),
+      audioFeedback: this.access.getAudioFeedback(),
       commands: this.access.getCommands(),
       github: this.access.getGitHub(),
       conversation: this.access.getConversation(),
