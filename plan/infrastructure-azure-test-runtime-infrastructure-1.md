@@ -4,13 +4,13 @@ version: 1.0
 date_created: 2025-10-04
 last_updated: 2025-10-04
 owner: VoicePilot Security Architecture
-status: 'Planned'
+status: 'Complete'
 tags: [infrastructure, azure, diagnostics, ci]
 ---
 
 # Introduction
 
-![Status: Planned](https://img.shields.io/badge/status-Planned-blue)
+![Status: Complete](https://img.shields.io/badge/status-Complete-green)
 
 This plan implements the Azure Test & Runtime Infrastructure defined in `spec/sp-031-spec-azure-test-runtime-infrastructure.md`, ensuring the VoicePilot project provisions Azure AI Foundry with GPT Realtime deployments, required diagnostics, and conditional role assignments for supplied principals.
 
@@ -36,9 +36,9 @@ This plan implements the Azure Test & Runtime Infrastructure defined in `spec/sp
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Add `aiFoundryDisableLocalAuth` parameter to `infra/main.bicep`, propagate to `infra/cognitive-services/accounts/main.bicep`, and default to `false` to maintain CI compatibility while allowing hardening in long-lived environments. |  |  |
-| TASK-002 | Update `infra/main.bicep` to apply `Contributor` and `Cognitive Services OpenAI Contributor` roles only when `principalId` is supplied, guarding against empty GUID values; `infra/core/security/role_aifoundry.bicep` already no-ops on empty arrays so no module change required. |  |  |
-| TASK-003 | Align `infra/azure-ai-foundry-models.json` deployments with AI Foundry parameters, ensuring GPT Realtime SKUs are present and resource naming supports collision resistance per `GUD-001`. |  |  |
+| TASK-001 | Add `aiFoundryDisableLocalAuth` parameter to `infra/main.bicep`, propagate to `infra/cognitive-services/accounts/main.bicep`, and default to `false` to maintain CI compatibility while allowing hardening in long-lived environments. | ✅ | 2025-10-03 |
+| TASK-002 | Update `infra/main.bicep` to apply `Contributor` and `Cognitive Services OpenAI Contributor` roles only when `principalId` is supplied, guarding against empty GUID values; `infra/core/security/role_aifoundry.bicep` already no-ops on empty arrays so no module change required. | ✅ | 2025-10-03 |
+| TASK-003 | Align `infra/azure-ai-foundry-models.json` deployments with AI Foundry parameters, ensuring GPT Realtime SKUs are present and resource naming supports collision resistance per `GUD-001`. | ✅ | 2025-10-03 |
 
 ### Implementation Phase 2
 
@@ -46,9 +46,9 @@ This plan implements the Azure Test & Runtime Infrastructure defined in `spec/sp
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-004 | Update `infra/main.bicep` to declare diagnostics workspace parameters and instantiate `br/public:avm/res/operational-insights/workspace:0.4.1` directly with retention ≤ 30 days and optional retention override. |  |  |
-| TASK-005 | Configure the AI Foundry deployment to pass a `diagnosticSettings` parameter (mirroring the specification example) that routes `Administrative` and `Policy` logs to the workspace. |  |  |
-| TASK-006 | Constrain workspace access to the supplied `principalId` by validating role assignments and avoiding additional reader principals, satisfying `SEC-002`. |  |  |
+| TASK-004 | Update `infra/main.bicep` to declare diagnostics workspace parameters and instantiate `br/public:avm/res/operational-insights/workspace:0.4.1` directly with retention ≤ 30 days and optional retention override. | ✅ | 2025-10-03 |
+| TASK-005 | Configure the AI Foundry deployment to pass a `diagnosticSettings` parameter (mirroring the specification example) that routes `Administrative` and `Policy` logs to the workspace. | ✅ | 2025-10-03 |
+| TASK-006 | Constrain workspace access to the supplied `principalId` by validating role assignments and avoiding additional reader principals, satisfying `SEC-002`. | ✅ | 2025-10-03 |
 
 ### Implementation Phase 3
 
@@ -56,13 +56,13 @@ This plan implements the Azure Test & Runtime Infrastructure defined in `spec/sp
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-007 | Add a reusable script or documented CLI procedure for GPT Realtime smoke testing, referencing the deployed endpoint to verify deployments post-`azd up`. |  |  |
-| TASK-008 | Create `.github/workflows/lint-and-publish-bicep.yml` to lint Bicep templates and publish artifacts as a reusable workflow. |  |  |
-| TASK-009 | Update `.github/workflows/continuous-integration.yml` to invoke the reusable Bicep lint workflow for pull requests, aligning with the specification’s CI/CD integration requirements. |  |  |
-| TASK-010 | Author `.github/workflows/provision-infrastructure.yml` (reusable) that invokes `azd up` for smoke provisioning, following [`provision-infrastructure.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/provision-infrastructure.yml). |  |  |
-| TASK-011 | Author `.github/workflows/delete-infrastructure.yml` (reusable) that executes `azd down` for teardown, following [`delete-infrastructure.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/delete-infrastructure.yml). |  |  |
-| TASK-012 | Author `.github/workflows/validate-infrastructure.yml` (reusable) that fans out to the provision and delete workflows, mirroring [`validate-infrastructure.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/validate-infrastructure.yml). |  |  |
-| TASK-013 | Author `.github/workflows/continuous-delivery.yml` that invokes the validation workflow to implement the full chaining pattern from [`continuous-delivery.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/continuous-delivery.yml). |  |  |
+| TASK-007 | Add a reusable script or documented CLI procedure for GPT Realtime smoke testing, referencing the deployed endpoint to verify deployments post-`azd up`. | ✅ | 2025-10-03 |
+| TASK-008 | Create `.github/workflows/lint-and-publish-bicep.yml` to lint Bicep templates and publish artifacts as a reusable workflow. | ✅ | 2025-10-03 |
+| TASK-009 | Update `.github/workflows/continuous-integration.yml` to invoke the reusable Bicep lint workflow for pull requests, aligning with the specification’s CI/CD integration requirements. | ✅ | 2025-10-03 |
+| TASK-010 | Author `.github/workflows/provision-infrastructure.yml` (reusable) that invokes `azd up` for smoke provisioning, following [`provision-infrastructure.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/provision-infrastructure.yml). | ✅ | 2025-10-03 |
+| TASK-011 | Author `.github/workflows/delete-infrastructure.yml` (reusable) that executes `azd down` for teardown, following [`delete-infrastructure.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/delete-infrastructure.yml). | ✅ | 2025-10-03 |
+| TASK-012 | Author `.github/workflows/validate-infrastructure.yml` (reusable) that fans out to the provision and delete workflows, mirroring [`validate-infrastructure.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/validate-infrastructure.yml). | ✅ | 2025-10-03 |
+| TASK-013 | Author `.github/workflows/continuous-delivery.yml` that invokes the validation workflow to implement the full chaining pattern from [`continuous-delivery.yml`](https://raw.githubusercontent.com/PlagueHO/genai-database-explorer/main/.github/workflows/continuous-delivery.yml). | ✅ | 2025-10-03 |
 
 ## 3. Alternatives
 
