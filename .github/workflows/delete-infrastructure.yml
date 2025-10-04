@@ -1,0 +1,58 @@
+name: Delete Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      ENVIRONMENT:
+        description: "Environment to delete"
+        required: true
+        type: string
+      AZURE_ENV_NAME:
+        description: "Azure environment name"
+        required: true
+        type: string
+      AZURE_LOCATION:
+        description: "Azure region"
+        required: true
+        type: string
+
+    secrets:
+      AZURE_TENANT_ID:
+        description: "Azure tenant ID"
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        description: "Azure subscription ID"
+        required: true
+      AZURE_CLIENT_ID:
+        description: "Azure client ID"
+        required: true
+
+jobs:
+  delete:
+    name: Delete Infrastructure ${{ inputs.ENVIRONMENT }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT }}
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
+      AZURE_PRINCIPAL_ID_TYPE: ServicePrincipal
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup azd
+        uses: Azure/setup-azd@v2
+
+      - name: Authenticate with Azure
+        run: |
+          azd auth login \
+            --client-id "$AZURE_CLIENT_ID" \
+            --federated-credential-provider github \
+            --tenant-id "$AZURE_TENANT_ID"
+
+      - name: Delete infrastructure
+        run: azd down --no-prompt --purge --force

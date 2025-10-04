@@ -1,0 +1,116 @@
+name: Provision Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      ENVIRONMENT:
+        description: "The environment to provision the application infrastructure for"
+        required: true
+        type: string
+      BUILD_VERSION:
+        description: "The build version to deploy"
+        required: true
+        type: string
+      AZURE_LOCATION:
+        description: "Azure region to deploy"
+        required: true
+        type: string
+      AZURE_ENV_NAME:
+        description: "Name of the Azure environment"
+        required: true
+        type: string
+
+    outputs:
+      AZURE_RESOURCE_GROUP:
+        description: "Provisioned resource group"
+        value: ${{ jobs.provision.outputs.AZURE_RESOURCE_GROUP }}
+      AZURE_PRINCIPAL_ID:
+        description: "Deployment principal ID"
+        value: ${{ jobs.provision.outputs.AZURE_PRINCIPAL_ID }}
+      AZURE_PRINCIPAL_ID_TYPE:
+        description: "Deployment principal type"
+        value: ${{ jobs.provision.outputs.AZURE_PRINCIPAL_ID_TYPE }}
+      AZURE_AI_FOUNDRY_NAME:
+        description: "AI Foundry account name"
+        value: ${{ jobs.provision.outputs.AZURE_AI_FOUNDRY_NAME }}
+      AZURE_AI_FOUNDRY_ENDPOINT:
+        description: "AI Foundry endpoint"
+        value: ${{ jobs.provision.outputs.AZURE_AI_FOUNDRY_ENDPOINT }}
+      LOG_ANALYTICS_WORKSPACE_NAME:
+        description: "Diagnostics workspace name"
+        value: ${{ jobs.provision.outputs.LOG_ANALYTICS_WORKSPACE_NAME }}
+      LOG_ANALYTICS_RESOURCE_ID:
+        description: "Diagnostics workspace resource ID"
+        value: ${{ jobs.provision.outputs.LOG_ANALYTICS_RESOURCE_ID }}
+      LOG_ANALYTICS_WORKSPACE_ID:
+        description: "Workspace ID"
+        value: ${{ jobs.provision.outputs.LOG_ANALYTICS_WORKSPACE_ID }}
+
+    secrets:
+      AZURE_TENANT_ID:
+        description: "Azure tenant ID"
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        description: "Azure subscription ID"
+        required: true
+      AZURE_CLIENT_ID:
+        description: "Azure client ID"
+        required: true
+
+jobs:
+  provision:
+    name: Provision Infrastructure ${{ inputs.ENVIRONMENT }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT }}
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
+      AZURE_PRINCIPAL_ID_TYPE: ServicePrincipal
+
+    outputs:
+      AZURE_RESOURCE_GROUP: ${{ steps.outputs.outputs.AZURE_RESOURCE_GROUP }}
+      AZURE_PRINCIPAL_ID: ${{ steps.outputs.outputs.AZURE_PRINCIPAL_ID }}
+      AZURE_PRINCIPAL_ID_TYPE: ${{ steps.outputs.outputs.AZURE_PRINCIPAL_ID_TYPE }}
+      AZURE_AI_FOUNDRY_NAME: ${{ steps.outputs.outputs.AZURE_AI_FOUNDRY_NAME }}
+      AZURE_AI_FOUNDRY_ENDPOINT: ${{ steps.outputs.outputs.AZURE_AI_FOUNDRY_ENDPOINT }}
+      AZURE_AI_FOUNDRY_RESOURCE_ID: ${{ steps.outputs.outputs.AZURE_AI_FOUNDRY_RESOURCE_ID }}
+      LOG_ANALYTICS_WORKSPACE_NAME: ${{ steps.outputs.outputs.LOG_ANALYTICS_WORKSPACE_NAME }}
+      LOG_ANALYTICS_RESOURCE_ID: ${{ steps.outputs.outputs.LOG_ANALYTICS_RESOURCE_ID }}
+      LOG_ANALYTICS_WORKSPACE_ID: ${{ steps.outputs.outputs.LOG_ANALYTICS_WORKSPACE_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup azd
+        uses: Azure/setup-azd@v2
+
+      - name: Authenticate with Azure
+        run: |
+          azd auth login \
+            --client-id "$AZURE_CLIENT_ID" \
+            --federated-credential-provider github \
+            --tenant-id "$AZURE_TENANT_ID"
+
+      - name: Provision infrastructure
+        run: azd provision --no-prompt
+
+      - name: Capture provisioning outputs
+        id: outputs
+        run: |
+          values=$(azd env get-values)
+          while IFS='=' read -r key value; do
+            key_trimmed=$(echo "$key" | xargs)
+            value_trimmed=$(echo "$value" | xargs)
+            case "$key_trimmed" in
+              AZURE_RESOURCE_GROUP|AZURE_PRINCIPAL_ID|AZURE_PRINCIPAL_ID_TYPE|AZURE_AI_FOUNDRY_NAME|AZURE_AI_FOUNDRY_ENDPOINT|LOG_ANALYTICS_WORKSPACE_NAME|LOG_ANALYTICS_RESOURCE_ID|LOG_ANALYTICS_WORKSPACE_ID)
+                echo "$key_trimmed=$value_trimmed" >>"$GITHUB_OUTPUT"
+                ;;
+              AZURE_AI_FOUNDRY_RESOURCE_ID)
+                echo "$key_trimmed=$value_trimmed" >>"$GITHUB_OUTPUT"
+                ;;
+            esac
+          done <<<"$values"

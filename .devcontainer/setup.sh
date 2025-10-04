@@ -28,6 +28,26 @@ sudo apt-get install -y \
     libxtst6 \
     libxcursor1
 
+# Ensure Azure Developer CLI is available
+echo "☁️ Installing Azure Developer CLI (azd)..."
+if ! command -v azd >/dev/null 2>&1; then
+  curl -fsSL https://aka.ms/install-azd.sh | sudo bash
+else
+  echo "Azure Developer CLI already installed."
+fi
+
+# Ensure Bicep CLI is available via Azure CLI extension
+if command -v az >/dev/null 2>&1; then
+  echo "🏗️ Installing Bicep CLI..."
+  if ! az bicep version >/dev/null 2>&1; then
+    az bicep install
+  else
+    echo "Bicep CLI already installed."
+  fi
+else
+  echo "⚠️ Azure CLI not found; skipping Bicep CLI installation."
+fi
+
 # Install Node.js dependencies
 echo "📦 Installing Node.js dependencies..."
 npm install

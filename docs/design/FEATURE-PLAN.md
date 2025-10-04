@@ -2,7 +2,7 @@
 title: Feature Plan & Roadmap
 version: 1.0
 date_created: 2025-09-19
-last_updated: 2025-09-28
+last_updated: 2025-10-04
 owner: VoicePilot Project
 tags: [process, backlog, roadmap]
 ---
@@ -27,10 +27,9 @@ This document lists all planned features in implementation phase order. It will 
 | 1 | SP-014 | Status / Presence Indicators | design | Define status surfaces—status bar, panel badges, notifications—with iconography, text variants, throttle rules, escalation mapping, and conditions tied to session, auth, and transport health. | sp-014-spec-design-status-indicators.md | SP-005,SP-012 | ✅ Complete |
 | 1 | SP-027 | Privacy & Data Handling Policy | security | Establish data classification, retention, redaction, and masking rules for audio, transcripts, telemetry, logs, and cached artifacts, including user consent flows and configuration toggles for privacy-sensitive deployments. | sp-027-spec-security-privacy-data-handling.md | SP-003,SP-009 | ✅ Complete |
 | 1 | SP-028 | Error Handling & Recovery Framework | architecture | Create the unified error taxonomy, severity ladder, retry/backoff templates, user messaging copy, logging structure, and recovery hooks that services invoke when faults occur. | sp-028-spec-architecture-error-handling.md | SP-004,SP-005,SP-006,SP-007 | ✅ Complete |
-| 1 | SP-031 | Security Role & Permission Model (Azure) | infrastructure | Design Azure role assignments detailing service principals, least-privilege scopes for OpenAI, Key Vault, storage, and monitoring, along with lifecycle management and auditing requirements. | sp-031-spec-infrastructure-security-roles.md |  | ⏳ Pending |
+| 1 | SP-031 | Azure Test & Runtime Infrastructure | infrastructure | Define the Azure resources (AI Foundry, GPT Realtime deployments, diagnostics workspace) required for VoicePilot automated testing and optional end-user deployments, with `azd` supplying principals that receive contributor roles from the templates. | sp-031-spec-azure-test-runtime-infrastructure.md |  | ⏳ Pending |
 | 1 | SP-032 | Infrastructure Provisioning (Bicep Modules) | infrastructure | Define modular Bicep templates, parameter conventions, dependency graph, environment promotion strategy, outputs, and validation steps to provision all Azure resources VoicePilot requires. | sp-032-spec-infrastructure-bicep-provisioning.md | SP-031 | ⏳ Pending |
 | 1 | SP-033 | Azure Resource Configuration Policies | infrastructure | Specify Azure Policy and Blueprint controls enforcing approved regions, SKUs, private networking, encryption, diagnostic logging, and compliance reporting for VoicePilot infrastructure. | sp-033-spec-infrastructure-azure-resource-policies.md | SP-032 | ⏳ Pending |
-| 1 | SP-034 | Key Vault Integration & Secret Sync | design | Document Key Vault integration—secret naming standards, sync cadence into VS Code, caching and invalidation, rotation alerts, fallback handling, and diagnostics for missing or malformed secrets. | sp-034-spec-design-key-vault-integration.md | SP-003,SP-031,SP-032 | ⏳ Pending |
 | 1 | SP-035 | Audio Format & Codec Standards | design | Set the canonical audio formats covering sample rate, bit depth, channel layout, framing, acceptable codecs, normalization, and compatibility matrices across capture, WebRTC, and playback paths with explicit conformity to WebAudio 1.1 requirements. | sp-035-spec-design-audio-codec-standards.md | SP-006,SP-007 | ⏳ Pending |
 | 1 | SP-037 | Retry & Backoff Strategy | process | Define standardized retry envelopes with jitter, caps, circuit breakers, metrics emission, and configuration overrides for network, authorization, and service throttling scenarios. | sp-037-spec-process-retry-backoff.md | SP-028 | ⏳ Pending |
 | 1 | SP-039 | Testing & QA Strategy | process | Outline the layered QA approach: unit, integration, performance, coverage targets, fixture management, test data hygiene, and release gating including when to run each suite. | sp-039-spec-process-testing-strategy.md | SP-001 | ⏳ Pending |
@@ -88,3 +87,4 @@ This document lists all planned features in implementation phase order. It will 
 | Date | Change | Author |
 |------|--------|--------|
 | 2025-09-19 | Initial backlog created | system |
+| 2025-10-04 | Removed Azure Key Vault dependencies from feature plan | assistant |

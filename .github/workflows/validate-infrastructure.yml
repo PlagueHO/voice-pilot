@@ -1,0 +1,125 @@
+name: Validate Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      ENVIRONMENT:
+        description: "The environment to validate"
+        required: true
+        type: string
+      BUILD_VERSION:
+        description: "Build version identifier"
+        required: true
+        type: string
+      AZURE_LOCATION:
+        description: "Azure region used for the validation run"
+        required: true
+        type: string
+      AZURE_ENV_NAME:
+        description: "Name of the Azure Developer CLI environment"
+        required: true
+        type: string
+
+    secrets:
+      AZURE_TENANT_ID:
+        description: "Azure tenant ID for federation"
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        description: "Azure subscription ID for deployments"
+        required: true
+      AZURE_CLIENT_ID:
+        description: "Azure AD application (client) ID configured for OIDC"
+        required: true
+
+jobs:
+  what_if_validation:
+    name: Bicep What-If
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT }}
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
+    steps:
+      - name: Download infrastructure artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: infrastructure_bicep
+          path: infrastructure_bicep
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Run what-if deployment
+        uses: azure/bicep-deploy@v2
+        with:
+          type: deployment
+          operation: whatIf
+          name: ${{ inputs.AZURE_ENV_NAME }}-${{ inputs.AZURE_LOCATION }}-${{ inputs.ENVIRONMENT }}-${{ github.run_id }}
+          scope: subscription
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          location: ${{ inputs.AZURE_LOCATION }}
+          template-file: ./infrastructure_bicep/main.bicep
+          parameters-file: ./infrastructure_bicep/main.bicepparam
+
+  provision:
+    name: Provision Infrastructure
+    needs: what_if_validation
+    uses: ./.github/workflows/provision-infrastructure.yml
+    with:
+      ENVIRONMENT: ${{ inputs.ENVIRONMENT }}
+      BUILD_VERSION: ${{ inputs.BUILD_VERSION }}
+      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
+      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
+    secrets:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+  gpt_realtime_smoke_test:
+    name: GPT Realtime Smoke Test
+    needs: provision
+    runs-on: ubuntu-latest
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_RESOURCE_GROUP: ${{ needs.provision.outputs.AZURE_RESOURCE_GROUP }}
+      AZURE_AI_FOUNDRY_NAME: ${{ needs.provision.outputs.AZURE_AI_FOUNDRY_NAME }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Run GPT Realtime smoke test
+        run: |
+          chmod +x infra/scripts/gpt-realtime-smoke-test.sh
+          infra/scripts/gpt-realtime-smoke-test.sh
+
+  delete:
+    name: Delete Infrastructure
+    needs:
+      - provision
+      - gpt_realtime_smoke_test
+    if: always()
+    uses: ./.github/workflows/delete-infrastructure.yml
+    with:
+      ENVIRONMENT: ${{ inputs.ENVIRONMENT }}
+      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
+    secrets:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

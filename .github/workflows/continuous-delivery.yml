@@ -1,0 +1,54 @@
+name: Continuous Delivery
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+    paths:
+      - infra/**
+      - src/**
+      - package.json
+      - tsconfig.json
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  set_build_variables:
+    name: Set Build Variables
+    runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.set_values.outputs.build_version }}
+      azure_location: ${{ steps.set_values.outputs.azure_location }}
+    env:
+      DEFAULT_AZURE_LOCATION: eastus2
+    steps:
+      - name: Calculate build metadata
+        id: set_values
+        run: |
+          echo "build_version=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "azure_location=${DEFAULT_AZURE_LOCATION}" >> "$GITHUB_OUTPUT"
+
+  lint_and_publish_bicep:
+    name: Lint and Publish Bicep
+    needs: set_build_variables
+    uses: ./.github/workflows/lint-and-publish-bicep.yml
+
+  validate_infrastructure:
+    name: Validate Infrastructure
+    needs:
+      - set_build_variables
+      - lint_and_publish_bicep
+    uses: ./.github/workflows/validate-infrastructure.yml
+    with:
+      ENVIRONMENT: Test
+      BUILD_VERSION: ${{ needs.set_build_variables.outputs.build_version }}
+      AZURE_LOCATION: ${{ needs.set_build_variables.outputs.azure_location }}
+      AZURE_ENV_NAME: voicepilot-${{ github.run_id }}
+    secrets: inherit
