@@ -1,9 +1,9 @@
 import type { AudioCodecProfile } from "../audio/codec";
 import { EphemeralKeyInfo } from "./ephemeral";
 import {
-    ConnectionQuality,
-    WebRTCConnectionState,
-    WebRTCError,
+  ConnectionQuality,
+  WebRTCConnectionState,
+  WebRTCError,
 } from "./webrtc";
 
 /**
@@ -32,9 +32,7 @@ export interface AudioPipelineIntegration {
   onAudioInputRequired: () => Promise<MediaStreamTrack>;
   onAudioOutputReceived: (stream: MediaStream) => Promise<void>;
   onAudioQualityChanged: (quality: ConnectionQuality) => Promise<void>;
-  onCodecProfileChanged?: (
-    profile: AudioCodecProfile,
-  ) => Promise<void> | void;
+  onCodecProfileChanged?: (profile: AudioCodecProfile) => Promise<void> | void;
 }
 
 // Service interfaces (simplified for integration purposes)

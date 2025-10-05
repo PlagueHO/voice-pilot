@@ -1,5 +1,6 @@
 import type { AudioFeedbackConfig } from "./audio-feedback";
 import type { PrivacyPolicyConfig } from "./privacy";
+import type { RetryConfig } from "./retry";
 
 /**
  * Connection settings for Azure OpenAI text and planning workloads.
@@ -246,7 +247,11 @@ export interface ConfigurationAccessors {
   getConversation(): ConversationConfig;
   /** Retrieve the privacy policy configuration snapshot. */
   getPrivacyPolicy(): PrivacyPolicyConfig;
+  /** Retrieve retry/backoff overrides configuration snapshot. */
+  getRetry(): RetryConfig;
 }
 
 export type { AudioFeedbackConfig } from "./audio-feedback";
 export type { PrivacyPolicyConfig } from "./privacy";
+export type { RetryConfig } from "./retry";
+

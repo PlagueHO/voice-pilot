@@ -14,7 +14,8 @@ export class ConfigurationValidator {
       commands: this.access.getCommands(),
       github: this.access.getGitHub(),
       conversation: this.access.getConversation(),
-      privacy: this.access.getPrivacyPolicy()
+      privacy: this.access.getPrivacyPolicy(),
+      retry: this.access.getRetry()
     };
     const errors: ValidationError[] = []; const warnings: ValidationWarning[] = [];
     for (const rule of allRules) {

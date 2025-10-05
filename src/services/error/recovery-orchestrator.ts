@@ -1,68 +1,59 @@
-import { setTimeout as timerSetTimeout } from 'timers/promises';
-import { Logger } from '../../core/logger';
-import type { ServiceInitializable } from '../../core/service-initializable';
-import { createVoicePilotError } from '../../helpers/error/envelope';
-import {
-  DEFAULT_SEVERITY_FOR_DOMAIN,
-  DEFAULT_USER_IMPACT_FOR_DOMAIN
-} from '../../types/error/error-taxonomy';
+import { setTimeout as timerSetTimeout } from "timers/promises";
+import { Logger } from "../../core/logger";
 import type {
-  CircuitBreakerState,
-  ErrorEventBus,
-  RecoveryExecutionOptions,
-  RecoveryExecutor,
-  RetryPlan,
-  VoicePilotError
-} from '../../types/error/voice-pilot-error';
-import type { RecoveryRegistrationCenter } from './recovery-registrar';
+    RetryConfigurationProvider,
+    RetryExecutionContext,
+    RetryExecutor as RetryExecutorContract,
+    RetryFailureContext,
+    RetryFailureResult,
+    RetryMetricsSink,
+} from "../../core/retry/retry-types";
+import type { ServiceInitializable } from "../../core/service-initializable";
+import { createVoicePilotError } from "../../helpers/error/envelope";
+import type { VoicePilotFaultDomain } from "../../types/error/error-taxonomy";
+import {
+    DEFAULT_SEVERITY_FOR_DOMAIN,
+    DEFAULT_USER_IMPACT_FOR_DOMAIN,
+} from "../../types/error/error-taxonomy";
+import type {
+    CircuitBreakerState,
+    ErrorEventBus,
+    RecoveryExecutionOptions,
+    RecoveryExecutor,
+    RetryPlan,
+    VoicePilotError,
+} from "../../types/error/voice-pilot-error";
+import type { RetryEnvelope, RetryPolicy } from "../../types/retry";
+import type { RecoveryRegistrationCenter } from "./recovery-registrar";
 
-const DEFAULT_MAX_ATTEMPTS = 3;
-const DEFAULT_INITIAL_DELAY_MS = 500;
-const DEFAULT_MULTIPLIER = 2;
-const DEFAULT_JITTER = 0.2; // 20%
-const CIRCUIT_THRESHOLD = 3;
-const CIRCUIT_COOLDOWN_MS = 30_000;
-
-/**
- * Dependencies required to construct and operate the recovery orchestrator.
- */
 interface RecoveryOrchestratorDependencies {
   eventBus: ErrorEventBus;
   logger: Logger;
   registry?: RecoveryRegistrationCenter;
-  wait?: (ms: number) => Promise<void>;
-  now?: () => number;
+  retryProvider: RetryConfigurationProvider;
+  retryExecutor: RetryExecutorContract;
+  metrics: RetryMetricsSink;
+  clock?: RetryExecutionContext["clock"];
 }
 
-/**
- * Coordinates recovery execution, including retry strategies, circuit breaker
- * enforcement, and recovery plan invocation when operations fail.
- */
 export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializable {
   private initialized = false;
-  private readonly wait: (ms: number) => Promise<void>;
-  private readonly now: () => number;
-  private readonly breakers = new Map<string, CircuitBreakerState>();
+  private readonly clock: RetryExecutionContext["clock"];
 
-  /**
-   * Builds a new orchestrator instance using the provided dependencies.
-   *
-   * @param deps - Collaborators required for recovery coordination.
-   */
   constructor(private readonly deps: RecoveryOrchestratorDependencies) {
-    this.wait = deps.wait ?? (async (ms: number) => {
-      if (ms <= 0) {
-        return;
-      }
-      await timerSetTimeout(ms);
-    });
-    this.now = deps.now ?? (() => Date.now());
+    this.clock =
+      deps.clock ??
+      ({
+        now: () => Date.now(),
+        wait: async (ms: number) => {
+          if (ms <= 0) {
+            return;
+          }
+          await timerSetTimeout(ms);
+        },
+      } satisfies RetryExecutionContext["clock"]);
   }
 
-  /**
-   * Initializes the orchestrator and its dependencies, ensuring the event bus
-   * is ready before processing recovery operations.
-   */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
@@ -70,241 +61,142 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
     if (!this.deps.eventBus.isInitialized()) {
       await this.deps.eventBus.initialize();
     }
+    if (!this.deps.retryProvider.isInitialized()) {
+      await this.deps.retryProvider.initialize();
+    }
+    if (!this.deps.retryExecutor.isInitialized()) {
+      await this.deps.retryExecutor.initialize();
+    }
     this.initialized = true;
   }
 
-  /**
-   * Indicates whether the orchestrator has completed initialization.
-   *
-   * @returns True when initialization has run, otherwise false.
-   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
-  /**
-   * Disposes orchestrator state, including circuit breaker tracking.
-   */
   dispose(): void {
-    this.breakers.clear();
+    this.deps.retryExecutor.dispose();
+    this.deps.retryProvider.dispose();
     this.initialized = false;
   }
 
-  /**
-   * Executes an operation with retry handling, circuit breaker enforcement, and
-   * optional recovery plan execution upon failure.
-   *
-   * @typeParam T - Return type of the asynchronous operation.
-   * @param operation - Asynchronous action to execute.
-   * @param options - Recovery execution configuration and callbacks.
-   * @returns Resolves with the operation result when successful.
-   * @throws {@link VoicePilotError} when the operation ultimately fails or the
-   * circuit breaker is open.
-   */
-  async execute<T>(operation: () => Promise<T>, options: RecoveryExecutionOptions): Promise<T> {
-    const start = this.now();
-    await this.ensureInitialized();
-
-    const policy = options.retry?.policy ?? 'exponential';
-    const maxAttempts = Math.max(options.retry?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS, 1);
-    const initialDelay = options.retry?.initialDelayMs ?? DEFAULT_INITIAL_DELAY_MS;
-    const multiplier = options.retry?.multiplier ?? DEFAULT_MULTIPLIER;
-    const jitter = options.retry?.jitter ?? DEFAULT_JITTER;
-
-    const breakerKey = `${options.faultDomain}:${options.operation}`;
-    if (this.isCircuitOpen(breakerKey)) {
-      throw createVoicePilotError({
-        faultDomain: options.faultDomain,
-        code: `${options.code}_CIRCUIT_OPEN`,
-        message: `${options.message} (circuit breaker open)`,
-        remediation: options.remediation,
-        severity: DEFAULT_SEVERITY_FOR_DOMAIN[options.faultDomain],
-        userImpact: DEFAULT_USER_IMPACT_FOR_DOMAIN[options.faultDomain],
-        metadata: {
-          ...options.metadata,
-          circuitBreaker: this.breakers.get(breakerKey)
-        }
-      });
-    }
-
-    let attempt = 0;
-    let lastError: VoicePilotError | undefined;
-
-    while (attempt < maxAttempts) {
-      attempt += 1;
-      const attemptStart = this.now();
-
-      try {
-        const result = await operation();
-        const duration = this.now() - start;
-        options.onRecoveryComplete?.({ success: true, durationMs: duration });
-        this.resetCircuit(breakerKey);
-        return result;
-      } catch (error: unknown) {
-        const duration = this.now() - attemptStart;
-        lastError = this.handleFailure(error, options, attempt, maxAttempts, policy, initialDelay, multiplier, jitter, breakerKey, duration);
-
-        if (attempt >= maxAttempts || policy === 'none') {
-          await this.runRecoveryPlan(lastError, options);
-          options.onRecoveryComplete?.({ success: false, durationMs: this.now() - start, error: lastError });
-          throw lastError;
-        }
-
-        const retryPlan = lastError.retryPlan;
-        if (!retryPlan) {
-          await this.runRecoveryPlan(lastError, options);
-          options.onRecoveryComplete?.({ success: false, durationMs: this.now() - start, error: lastError });
-          throw lastError;
-        }
-
-        options.onRetryScheduled?.(retryPlan);
-        await this.wait(Math.max(0, retryPlan.initialDelayMs));
-      }
-    }
-
-    if (lastError) {
-      await this.runRecoveryPlan(lastError, options);
-      options.onRecoveryComplete?.({ success: false, durationMs: this.now() - start, error: lastError });
-      throw lastError;
-    }
-
-    throw createVoicePilotError({
-      faultDomain: options.faultDomain,
-      code: `${options.code}_UNKNOWN_FAILURE`,
-      message: `${options.message} failed for an unknown reason`,
-      remediation: options.remediation,
-      metadata: options.metadata
-    });
+  getCircuitBreakerState(domain: VoicePilotFaultDomain): CircuitBreakerState | undefined {
+    return this.deps.retryExecutor.getCircuitBreakerState(domain);
   }
 
-  /**
-   * Ensures the orchestrator is initialized prior to executing recovery logic.
-   */
+  reset(domain: VoicePilotFaultDomain): void {
+    this.deps.retryExecutor.reset(domain);
+  }
+
+  async execute<T>(operation: () => Promise<T>, options: RecoveryExecutionOptions): Promise<T> {
+    const start = this.clock.now();
+    await this.ensureInitialized();
+    const envelope = this.resolveEnvelope(options);
+
+    const context: RetryExecutionContext = {
+      correlationId: options.correlationId,
+      sessionId: options.sessionId,
+      operation: options.operation,
+      envelope,
+      clock: this.clock,
+      logger: this.deps.logger,
+      metrics: this.deps.metrics,
+      severity: options.severity,
+      metadata: options.metadata,
+      onRetryScheduled: (plan, error) => {
+        if (options.onRetryScheduled) {
+          options.onRetryScheduled(plan);
+        }
+        if (error) {
+          this.deps.logger.debug("Retry scheduled with error context", {
+            domain: envelope.domain,
+            attempt: plan.attempt,
+            error: error.code,
+          });
+        }
+      },
+      onFailure: (failureContext) => this.handleFailure(failureContext, options),
+      onComplete: (outcome) => {
+        options.onRecoveryComplete?.({
+          success: outcome.success,
+          durationMs: outcome.totalDurationMs,
+          error: outcome.lastError,
+        });
+      },
+      onCircuitOpen: (state) => this.handleCircuitOpen(options, state),
+    };
+
+    try {
+      const result = await this.deps.retryExecutor.execute(operation, context);
+      options.onRecoveryComplete?.({
+        success: true,
+        durationMs: this.clock.now() - start,
+      });
+      return result;
+    } catch (error: unknown) {
+      const voiceError = this.normalizeError(error, options);
+      await this.runRecoveryPlan(voiceError, options);
+      options.onRecoveryComplete?.({
+        success: false,
+        durationMs: this.clock.now() - start,
+        error: voiceError,
+      });
+      throw voiceError;
+    }
+  }
+
   private async ensureInitialized(): Promise<void> {
     if (!this.initialized) {
       await this.initialize();
     }
   }
 
-  /**
-   * Converts an operation failure into a {@link VoicePilotError}, publishes it
-   * on the event bus, and updates the circuit breaker state.
-   *
-   * @param error - Original error thrown by the operation.
-   * @param options - Recovery execution configuration.
-   * @param attempt - Current attempt index (1-based).
-   * @param maxAttempts - Maximum permitted attempts.
-   * @param policy - Retry policy in effect.
-   * @param initialDelay - Base delay used for retry calculations.
-   * @param multiplier - Backoff multiplier for exponential retry.
-   * @param jitter - Jitter percentage applied to delay.
-   * @param breakerKey - Key identifying the circuit breaker to update.
-   * @param durationMs - Duration of the failed attempt in milliseconds.
-   * @returns Structured {@link VoicePilotError} describing the failure.
-   */
-  private handleFailure(
-    error: unknown,
-    options: RecoveryExecutionOptions,
-    attempt: number,
-    maxAttempts: number,
-    policy: RetryPlan['policy'],
-    initialDelay: number,
-    multiplier: number,
-    jitter: number,
-    breakerKey: string,
-    durationMs: number
-  ): VoicePilotError {
-    const recoveryPlan = options.recoveryPlan ?? this.deps.registry?.get(options.faultDomain);
-    const retryPlan = this.buildRetryPlan({
-      attempt,
-      maxAttempts,
-      policy,
-      initialDelay,
-      multiplier,
-      jitter,
-      breakerKey
-    });
+  private resolveEnvelope(options: RecoveryExecutionOptions): RetryEnvelope {
+    const baseEnvelope = this.deps.retryProvider.getEnvelope(options.faultDomain);
+    const envelope: RetryEnvelope = { ...baseEnvelope };
+    const runtime = options.retry;
 
-    const voiceError = createVoicePilotError({
-      faultDomain: options.faultDomain,
-      code: options.code,
-      message: options.message,
-      remediation: options.remediation,
-      severity: options.severity,
-      userImpact: options.userImpact,
-      metadata: {
-        ...options.metadata,
-        attempt,
-        maxAttempts,
-        durationMs,
-        originalError: this.serializeError(error)
-      },
-      cause: error instanceof Error ? error : undefined,
-      retryPlan,
-      recoveryPlan,
-      telemetryContext: options.telemetryContext
-    });
-
-    void this.deps.eventBus.publish(voiceError);
-    this.tripCircuit(breakerKey, retryPlan);
-    return voiceError;
-  }
-
-  /**
-   * Creates a retry plan describing the next attempt, honoring the selected
-   * policy and applying jitter when configured.
-   *
-   * @param params - Attributes describing the current retry state.
-   * @returns Calculated retry plan or undefined when policy disables retries.
-   */
-  private buildRetryPlan(params: {
-    attempt: number;
-    maxAttempts: number;
-    policy: RetryPlan['policy'];
-    initialDelay: number;
-    multiplier: number;
-    jitter: number;
-    breakerKey: string;
-  }): RetryPlan | undefined {
-    if (params.policy === 'none') {
-      return undefined;
+    if (runtime?.policy) {
+      envelope.policy = runtime.policy as RetryPolicy;
+    }
+    if (runtime?.maxAttempts !== undefined) {
+      envelope.maxAttempts = Math.max(1, runtime.maxAttempts);
+    }
+    if (runtime?.initialDelayMs !== undefined) {
+      envelope.initialDelayMs = runtime.initialDelayMs;
+    }
+    if (runtime?.multiplier !== undefined) {
+      envelope.multiplier = runtime.multiplier;
+    }
+    if (runtime?.jitter === 0) {
+      envelope.jitterStrategy = "none";
+    } else if (runtime?.jitter && runtime.jitter > 0) {
+      envelope.jitterStrategy = "deterministic-full";
     }
 
-    const nextAttemptAt = this.now();
-
-    let delay = params.policy === 'immediate'
-      ? 0
-      : params.initialDelay * Math.pow(params.multiplier, Math.max(0, params.attempt - 1));
-
-    if (params.jitter > 0 && delay > 0) {
-      const jitterValue = delay * params.jitter;
-      const variation = (Math.random() * jitterValue * 2) - jitterValue;
-      delay = Math.max(0, delay + variation);
+    if (envelope.policy === "none") {
+      envelope.maxAttempts = 1;
+      envelope.initialDelayMs = 0;
+      envelope.jitterStrategy = "none";
     }
 
-    const breaker = this.breakers.get(params.breakerKey);
+    const validation = this.deps.retryProvider.validateEnvelope(envelope);
+    if (!validation.isValid) {
+      this.deps.logger.warn("Retry envelope validation failed; reverting to defaults", {
+        domain: options.faultDomain,
+        errors: validation.errors,
+      });
+      return baseEnvelope;
+    }
 
-    return {
-      policy: params.policy,
-      attempt: params.attempt,
-      maxAttempts: params.maxAttempts,
-      initialDelayMs: delay,
-      multiplier: params.multiplier,
-      jitter: params.jitter,
-      nextAttemptAt: new Date(nextAttemptAt + delay),
-      circuitBreaker: breaker
-    };
+    return envelope;
   }
 
-  /**
-   * Executes all steps and fallback handlers defined in the recovery plan tied
-   * to the supplied error and execution options.
-   *
-   * @param error - VoicePilot error containing the resolved recovery plan.
-   * @param options - Execution options that may include an explicit plan.
-   */
   private async runRecoveryPlan(error: VoicePilotError, options: RecoveryExecutionOptions): Promise<void> {
-    const plan = error.recoveryPlan ?? options.recoveryPlan ?? this.deps.registry?.get(options.faultDomain);
+    const plan =
+      error.recoveryPlan ??
+      options.recoveryPlan ??
+      this.deps.registry?.get(options.faultDomain);
     if (!plan) {
       return;
     }
@@ -316,9 +208,9 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
           await step.compensatingAction();
         }
       } catch (stepError: unknown) {
-        this.deps.logger.warn('Recovery step failed', {
+        this.deps.logger.warn("Recovery step failed", {
           step: step.id,
-          error: this.toErrorMessage(stepError)
+          error: this.toErrorMessage(stepError),
         });
       }
     }
@@ -327,88 +219,113 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
       try {
         await plan.fallbackHandlers[plan.fallbackMode]!();
       } catch (fallbackError: unknown) {
-        this.deps.logger.error('Fallback handler failed', {
+        this.deps.logger.error("Fallback handler failed", {
           fallbackMode: plan.fallbackMode,
-          error: this.toErrorMessage(fallbackError)
+          error: this.toErrorMessage(fallbackError),
         });
       }
     }
   }
 
-  /**
-   * Determines whether the circuit breaker for the given key is currently
-   * prohibiting execution.
-   *
-   * @param key - Circuit breaker identifier.
-   * @returns True when the breaker is open and within its cooldown window.
-   */
-  private isCircuitOpen(key: string): boolean {
-    const breaker = this.breakers.get(key);
-    if (!breaker) {
-      return false;
-    }
-    if (breaker.state !== 'open') {
-      return false;
-    }
-    if (!breaker.openedAt) {
-      return false;
-    }
-    const elapsed = this.now() - breaker.openedAt.getTime();
-    if (elapsed > breaker.cooldownMs) {
-      this.breakers.set(key, {
-        ...breaker,
-        state: 'half-open',
-        failureCount: 0
-      });
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Resets the circuit breaker state to closed when present.
-   *
-   * @param key - Circuit breaker identifier.
-   */
-  private resetCircuit(key: string): void {
-    if (this.breakers.has(key)) {
-      this.breakers.set(key, {
-        state: 'closed',
-        failureCount: 0,
-        threshold: CIRCUIT_THRESHOLD,
-        cooldownMs: CIRCUIT_COOLDOWN_MS
-      });
-    }
-  }
-
-  /**
-   * Increments the failure count for the circuit breaker and transitions to an
-   * open state once the threshold is exceeded.
-   *
-   * @param key - Circuit breaker identifier.
-   * @param plan - Retry plan used to source cooldown metadata, when available.
-   */
-  private tripCircuit(key: string, plan?: RetryPlan): void {
-    const existing = this.breakers.get(key);
-    const failureCount = (existing?.failureCount ?? 0) + 1;
-    const state: CircuitBreakerState = {
-      state: failureCount >= CIRCUIT_THRESHOLD ? 'open' : existing?.state ?? 'closed',
-      failureCount,
-      threshold: CIRCUIT_THRESHOLD,
-      cooldownMs: plan?.circuitBreaker?.cooldownMs ?? CIRCUIT_COOLDOWN_MS,
-      openedAt: failureCount >= CIRCUIT_THRESHOLD ? new Date(this.now()) : existing?.openedAt,
-      lastAttemptAt: new Date(this.now())
+  private handleFailure(
+    failure: RetryFailureContext,
+    options: RecoveryExecutionOptions,
+  ): RetryFailureResult {
+    const retryPlan = failure.retryPlan ?? {
+      policy: failure.envelope.policy as RetryPlan["policy"],
+      attempt: failure.attempt,
+      maxAttempts: failure.envelope.maxAttempts,
+      initialDelayMs: failure.delayMs,
+      multiplier: failure.envelope.multiplier,
+      jitter: failure.envelope.jitterStrategy === "none" ? 0 : undefined,
+      nextAttemptAt: new Date(this.clock.now() + failure.delayMs),
+      circuitBreaker: failure.circuitBreaker,
     };
-    this.breakers.set(key, state);
+
+    const recoveryPlan =
+      options.recoveryPlan ?? this.deps.registry?.get(options.faultDomain);
+
+    const voiceError = createVoicePilotError({
+      faultDomain: options.faultDomain,
+      code: options.code,
+      message: options.message,
+      remediation: options.remediation,
+      severity:
+        options.severity ?? DEFAULT_SEVERITY_FOR_DOMAIN[options.faultDomain],
+      userImpact:
+        options.userImpact ?? DEFAULT_USER_IMPACT_FOR_DOMAIN[options.faultDomain],
+      metadata: {
+        ...options.metadata,
+        attempt: failure.attempt,
+        elapsedMs: failure.elapsedMs,
+        failureBudgetMs: failure.envelope.failureBudgetMs,
+        originalError: this.serializeError(failure.error),
+      },
+      cause: failure.error instanceof Error ? failure.error : undefined,
+      retryPlan,
+      recoveryPlan,
+      telemetryContext: options.telemetryContext,
+    });
+
+    void this.deps.eventBus.publish(voiceError);
+
+    const shouldRetry =
+      options.retry?.policy === "none" || retryPlan.policy === "none"
+        ? false
+        : undefined;
+
+    return {
+      error: voiceError,
+      shouldRetry,
+      retryPlan,
+    };
   }
 
-  /**
-   * Serializes an unknown error into structured metadata safe for telemetry
-   * transport.
-   *
-   * @param error - Unknown error to serialize.
-   * @returns Plain object describing the error when possible.
-   */
+  private handleCircuitOpen(
+    options: RecoveryExecutionOptions,
+    state: CircuitBreakerState,
+  ): VoicePilotError {
+    const error = createVoicePilotError({
+      faultDomain: options.faultDomain,
+      code: `${options.code}_CIRCUIT_OPEN`,
+      message: `${options.message} (circuit breaker open)`,
+      remediation: options.remediation,
+      severity:
+        options.severity ?? DEFAULT_SEVERITY_FOR_DOMAIN[options.faultDomain],
+      userImpact:
+        options.userImpact ?? DEFAULT_USER_IMPACT_FOR_DOMAIN[options.faultDomain],
+      metadata: {
+        ...options.metadata,
+        circuitBreaker: state,
+      },
+    });
+    void this.deps.eventBus.publish(error);
+    return error;
+  }
+
+  private normalizeError(
+    error: unknown,
+    options: RecoveryExecutionOptions,
+  ): VoicePilotError {
+    if (error && typeof error === "object" && "code" in (error as any)) {
+      return error as VoicePilotError;
+    }
+    return createVoicePilotError({
+      faultDomain: options.faultDomain,
+      code: `${options.code}_UNKNOWN_FAILURE`,
+      message: `${options.message} failed for an unknown reason`,
+      remediation: options.remediation,
+      metadata: {
+        ...options.metadata,
+        originalError: this.serializeError(error),
+      },
+      severity:
+        options.severity ?? DEFAULT_SEVERITY_FOR_DOMAIN[options.faultDomain],
+      userImpact:
+        options.userImpact ?? DEFAULT_USER_IMPACT_FOR_DOMAIN[options.faultDomain],
+    });
+  }
+
   private serializeError(error: unknown): Record<string, unknown> | undefined {
     if (!error) {
       return undefined;
@@ -417,10 +334,10 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
       return {
         name: error.name,
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
       };
     }
-    if (typeof error === 'object') {
+    if (typeof error === "object") {
       try {
         return JSON.parse(JSON.stringify(error));
       } catch {
@@ -430,12 +347,6 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
     return { message: String(error) };
   }
 
-  /**
-   * Derives a human-readable error message from an unknown error value.
-   *
-   * @param error - Unknown error input.
-   * @returns String representation suitable for logging.
-   */
   private toErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message) {
       return error.message;

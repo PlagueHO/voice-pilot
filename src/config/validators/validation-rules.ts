@@ -1,4 +1,5 @@
-import { AudioConfig, AudioFeedbackConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConversationConfig, GitHubConfig, ValidationError, ValidationWarning } from '../../types/configuration';
+import { RETRY_GUARDRAILS } from '../../core/retry/retry-envelopes';
+import { AudioConfig, AudioFeedbackConfig, AzureOpenAIConfig, AzureRealtimeConfig, CommandsConfig, ConversationConfig, GitHubConfig, RetryConfig, ValidationError, ValidationWarning } from '../../types/configuration';
 import type { PrivacyPolicyConfig } from '../../types/privacy';
 
 export interface RuleContext {
@@ -10,6 +11,7 @@ export interface RuleContext {
   github: GitHubConfig;
   conversation: ConversationConfig;
   privacy: PrivacyPolicyConfig;
+  retry: RetryConfig;
 }
 export type RuleResult = { errors: ValidationError[]; warnings: ValidationWarning[] };
 export type ValidationRule = (ctx: RuleContext) => RuleResult | Promise<RuleResult>;
@@ -220,4 +222,107 @@ export const audioFeedbackRule: ValidationRule = ({ audioFeedback }) => {
   return { errors, warnings };
 };
 
-export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, privacyRetentionRule, audioFeedbackRule, audioDevicesRule, networkReachabilityRule];
+export const retryGuardrailsRule: ValidationRule = ({ retry }) => {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+  for (const [domain, override] of Object.entries(retry.overrides ?? {})) {
+    if (!override) {
+      continue;
+    }
+    if (
+      override.maxAttempts !== undefined &&
+      (override.maxAttempts < RETRY_GUARDRAILS.minAttempts ||
+        override.maxAttempts > RETRY_GUARDRAILS.maxAttempts)
+    ) {
+      errors.push(
+        err(
+          `voicepilot.retry.overrides.${domain}.maxAttempts`,
+          `maxAttempts must be between ${RETRY_GUARDRAILS.minAttempts} and ${RETRY_GUARDRAILS.maxAttempts}`,
+          "RETRY_MAX_ATTEMPTS_GUARD",
+          "Adjust maxAttempts to fall within the allowed guardrail range.",
+        ),
+      );
+    }
+    if (
+      override.initialDelayMs !== undefined &&
+      (override.initialDelayMs < RETRY_GUARDRAILS.minInitialDelayMs ||
+        override.initialDelayMs > RETRY_GUARDRAILS.maxInitialDelayMs)
+    ) {
+      errors.push(
+        err(
+          `voicepilot.retry.overrides.${domain}.initialDelayMs`,
+          `initialDelayMs must be between ${RETRY_GUARDRAILS.minInitialDelayMs} and ${RETRY_GUARDRAILS.maxInitialDelayMs}`,
+          "RETRY_INITIAL_DELAY_GUARD",
+          "Adjust the initial delay to respect retry guardrails.",
+        ),
+      );
+    }
+    if (
+      override.multiplier !== undefined &&
+      (override.multiplier < RETRY_GUARDRAILS.minMultiplier ||
+        override.multiplier > RETRY_GUARDRAILS.maxMultiplier)
+    ) {
+      errors.push(
+        err(
+          `voicepilot.retry.overrides.${domain}.multiplier`,
+          `multiplier must be between ${RETRY_GUARDRAILS.minMultiplier} and ${RETRY_GUARDRAILS.maxMultiplier}`,
+          "RETRY_MULTIPLIER_GUARD",
+          "Choose a multiplier inside the guardrail range.",
+        ),
+      );
+    }
+    if (
+      override.maxDelayMs !== undefined &&
+      (override.maxDelayMs < RETRY_GUARDRAILS.minMaxDelayMs ||
+        override.maxDelayMs > RETRY_GUARDRAILS.maxMaxDelayMs)
+    ) {
+      errors.push(
+        err(
+          `voicepilot.retry.overrides.${domain}.maxDelayMs`,
+          `maxDelayMs must be between ${RETRY_GUARDRAILS.minMaxDelayMs} and ${RETRY_GUARDRAILS.maxMaxDelayMs}`,
+          "RETRY_MAX_DELAY_GUARD",
+          "Set a maxDelayMs value within guardrails.",
+        ),
+      );
+    }
+    if (
+      override.coolDownMs !== undefined &&
+      (override.coolDownMs < RETRY_GUARDRAILS.minCoolDownMs ||
+        override.coolDownMs > RETRY_GUARDRAILS.maxCoolDownMs)
+    ) {
+      errors.push(
+        err(
+          `voicepilot.retry.overrides.${domain}.coolDownMs`,
+          `coolDownMs must be between ${RETRY_GUARDRAILS.minCoolDownMs} and ${RETRY_GUARDRAILS.maxCoolDownMs}`,
+          "RETRY_COOLDOWN_GUARD",
+          "Adjust the circuit breaker cool-down to respect guardrails.",
+        ),
+      );
+    }
+    if (
+      override.failureBudgetMs !== undefined &&
+      (override.failureBudgetMs < RETRY_GUARDRAILS.minFailureBudgetMs ||
+        override.failureBudgetMs > RETRY_GUARDRAILS.maxFailureBudgetMs)
+    ) {
+      errors.push(
+        err(
+          `voicepilot.retry.overrides.${domain}.failureBudgetMs`,
+          `failureBudgetMs must be between ${RETRY_GUARDRAILS.minFailureBudgetMs} and ${RETRY_GUARDRAILS.maxFailureBudgetMs}`,
+          "RETRY_FAILURE_BUDGET_GUARD",
+          "Ensure the retry failure budget stays within guardrails.",
+        ),
+      );
+    }
+    if (override.policy === "none" && override.maxAttempts !== undefined) {
+      warnings.push({
+        path: `voicepilot.retry.overrides.${domain}.policy`,
+        message: "Policy 'none' ignores maxAttempts overrides",
+        code: "RETRY_POLICY_NONE_WARN",
+        remediation: "Remove maxAttempts or choose an active retry policy.",
+      });
+    }
+  }
+  return { errors, warnings };
+};
+
+export const allRules: ValidationRule[] = [endpointRule, regionRule, numericRangesRule, repoFormatRule, turnDetectionRule, azureRealtimeRule, conversationPolicyRule, privacyRetentionRule, audioFeedbackRule, retryGuardrailsRule, audioDevicesRule, networkReachabilityRule];

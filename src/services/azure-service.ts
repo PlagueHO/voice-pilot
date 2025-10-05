@@ -50,8 +50,8 @@ export class AzureService {
   constructor(options: AzureServiceOptions = {}) {
     const {
       endpoint = process.env.AZURE_OPENAI_ENDPOINT ?? "AZURE_OPENAI_ENDPOINT",
-      deploymentName =
-        process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "gpt-realtime",
+      deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME ??
+        "gpt-realtime",
       apiVersion = process.env.OPENAI_API_VERSION ?? "2025-08-28",
       credential = new DefaultAzureCredential(),
       scope = "https://cognitiveservices.azure.com/.default",

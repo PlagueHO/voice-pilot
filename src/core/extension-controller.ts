@@ -3,10 +3,10 @@ import { CredentialManagerImpl } from "../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-  StateChangeEvent as ConversationStateChangeEvent,
-  TurnContext as ConversationTurnContext,
-  TurnEvent as ConversationTurnEvent,
-  CopilotResponseEvent,
+    StateChangeEvent as ConversationStateChangeEvent,
+    TurnContext as ConversationTurnContext,
+    TurnEvent as ConversationTurnEvent,
+    CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
@@ -24,13 +24,16 @@ import { SessionTimerManagerImpl } from "../session/session-timer-manager";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type {
-  RecoveryPlan,
-  VoicePilotError,
+    RecoveryPlan,
+    VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
 import { VoiceControlPanel } from "../ui/voice-control-panel";
 import { Logger } from "./logger";
+import { RetryConfigurationProviderImpl } from "./retry/retry-configuration-provider";
+import { RetryExecutorImpl } from "./retry/retry-executor";
+import { RetryMetricsLoggerSink } from "./retry/retry-metrics-sink";
 import { ServiceInitializable } from "./service-initializable";
 
 /**
@@ -58,6 +61,9 @@ export class ExtensionController implements ServiceInitializable {
   private readonly dispatchedUserTurnIds = new Set<string>();
   private readonly errorEventBus: ErrorEventBusImpl;
   private readonly recoveryRegistry: RecoveryRegistrationCenter;
+  private readonly retryMetrics: RetryMetricsLoggerSink;
+  private readonly retryConfigurationProvider: RetryConfigurationProviderImpl;
+  private readonly retryExecutor: RetryExecutorImpl;
   private readonly recoveryOrchestrator: RecoveryOrchestrator;
   private readonly statusBar: StatusBar;
   private readonly errorPresenter: ErrorPresenter;
@@ -103,10 +109,19 @@ export class ExtensionController implements ServiceInitializable {
     );
     this.errorEventBus = new ErrorEventBusImpl(this.logger);
     this.recoveryRegistry = new RecoveryRegistrationCenter();
+    this.retryMetrics = new RetryMetricsLoggerSink(this.logger);
+    this.retryConfigurationProvider = new RetryConfigurationProviderImpl(
+      this.configurationManager,
+      this.logger,
+    );
+    this.retryExecutor = new RetryExecutorImpl(this.logger);
     this.recoveryOrchestrator = new RecoveryOrchestrator({
       eventBus: this.errorEventBus,
       logger: this.logger,
       registry: this.recoveryRegistry,
+      retryProvider: this.retryConfigurationProvider,
+      retryExecutor: this.retryExecutor,
+      metrics: this.retryMetrics,
     });
     this.statusBar = new StatusBar();
     this.errorPresenter = new ErrorPresenter(this.voicePanel, this.statusBar);
@@ -327,6 +342,7 @@ export class ExtensionController implements ServiceInitializable {
       ["interruption engine", () => this.interruptionEngine.dispose()],
       ["ephemeral key service", () => this.ephemeralKeyService?.dispose()],
       ["credential manager", () => this.credentialManager?.dispose()],
+      ["recovery orchestrator", () => this.recoveryOrchestrator.dispose()],
       ["configuration manager", () => this.configurationManager.dispose()],
     ];
     for (const [name, fn] of steps) {

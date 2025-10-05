@@ -1,8 +1,5 @@
 import { Logger } from "../core/logger";
-import type {
-    AudioCodecProfileId,
-    AudioConfiguration,
-} from "../types/webrtc";
+import type { AudioCodecProfileId, AudioConfiguration } from "../types/webrtc";
 import type { AudioCodecProfile } from "./codec/audio-codec-profile";
 
 const IDENTITY_WORKLET_NAME = "voicepilot-identity-processor";

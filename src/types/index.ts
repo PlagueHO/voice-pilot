@@ -19,6 +19,7 @@ export * from "./error/voice-pilot-error";
 export * from "./presence";
 export * from "./privacy";
 export * from "./realtime-events";
+export * from "./retry";
 export * from "./session";
 export * from "./speech-to-text";
 export * from "./tts";
@@ -26,10 +27,11 @@ export * from "./webrtc";
 
 // Service integration types - only non-conflicting exports
 export type {
-  AudioPipelineIntegration,
-  EphemeralKeyIntegration,
-  ServiceEventCoordinator,
-  ServiceLifecycleCoordinator,
-  SessionIntegration,
-  WebRTCServiceDependencies,
+    AudioPipelineIntegration,
+    EphemeralKeyIntegration,
+    ServiceEventCoordinator,
+    ServiceLifecycleCoordinator,
+    SessionIntegration,
+    WebRTCServiceDependencies
 } from "./service-integration";
+

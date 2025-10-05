@@ -15,7 +15,7 @@ export interface CircuitBreakerState {
 }
 
 export interface RetryPlan {
-  policy: 'none' | 'immediate' | 'exponential' | 'custom';
+  policy: 'none' | 'immediate' | 'exponential' | 'linear' | 'hybrid' | 'custom';
   attempt: number;
   maxAttempts: number;
   initialDelayMs: number;

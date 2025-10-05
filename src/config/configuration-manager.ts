@@ -2,21 +2,22 @@ import * as vscode from "vscode";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
-  AudioConfig,
-  AudioFeedbackConfig,
-  AzureOpenAIConfig,
-  AzureRealtimeConfig,
-  CommandsConfig,
-  ConfigurationChange,
-  ConfigurationChangeHandler,
-  ConversationConfig,
-  GitHubConfig,
-  ValidationResult,
+    AudioConfig,
+    AudioFeedbackConfig,
+    AzureOpenAIConfig,
+    AzureRealtimeConfig,
+    CommandsConfig,
+    ConfigurationChange,
+    ConfigurationChangeHandler,
+    ConversationConfig,
+    GitHubConfig,
+    RetryConfig,
+    ValidationResult,
 } from "../types/configuration";
 import type { PrivacyPolicyConfig } from "../types/privacy";
 import {
-  resolveRealtimeSessionPreferences,
-  type RealtimeSessionPreferences,
+    resolveRealtimeSessionPreferences,
+    type RealtimeSessionPreferences,
 } from "./realtime-session";
 import { AudioSection } from "./sections/audio-config-section";
 import { AudioFeedbackSection } from "./sections/audio-feedback-section";
@@ -26,6 +27,7 @@ import { CommandsSection } from "./sections/commands-config-section";
 import { ConversationSection } from "./sections/conversation-config-section";
 import { GitHubSection } from "./sections/github-config-section";
 import { PrivacyPolicySection } from "./sections/privacy-policy-section";
+import { RetrySection } from "./sections/retry-config-section";
 import { ConfigurationValidator } from "./validators/configuration-validator";
 
 /**
@@ -52,6 +54,7 @@ export class ConfigurationManager implements ServiceInitializable {
   private gitHubSection: GitHubSection;
   private privacySection: PrivacyPolicySection;
   private audioFeedbackSection: AudioFeedbackSection;
+  private retrySection: RetrySection;
   private validator: ConfigurationValidator;
 
   private context!: vscode.ExtensionContext;
@@ -78,6 +81,7 @@ export class ConfigurationManager implements ServiceInitializable {
     this.conversationSection = new ConversationSection();
     this.gitHubSection = new GitHubSection();
     this.privacySection = new PrivacyPolicySection();
+    this.retrySection = new RetrySection();
     this.validator = new ConfigurationValidator(this.logger, {
       getAzureOpenAI: () => this.getAzureOpenAIConfig(),
       getAzureRealtime: () => this.getAzureRealtimeConfig(),
@@ -87,6 +91,7 @@ export class ConfigurationManager implements ServiceInitializable {
       getGitHub: () => this.getGitHubConfig(),
       getConversation: () => this.getConversationConfig(),
       getPrivacyPolicy: () => this.getPrivacyPolicyConfig(),
+      getRetry: () => this.getRetryConfig(),
     });
   }
 
@@ -170,6 +175,9 @@ export class ConfigurationManager implements ServiceInitializable {
   getPrivacyPolicyConfig(): PrivacyPolicyConfig {
     return this.cached("privacyPolicy", () => this.privacySection.read());
   }
+  getRetryConfig(): RetryConfig {
+    return this.cached("retry", () => this.retrySection.read());
+  }
 
   getDiagnostics(): ValidationResult | undefined {
     return this.lastValidation;
@@ -216,6 +224,7 @@ export class ConfigurationManager implements ServiceInitializable {
     this.getGitHubConfig();
     this.getConversationConfig();
     this.getPrivacyPolicyConfig();
+    this.getRetryConfig();
   }
 
   private async handleConfigurationChange(
@@ -333,6 +342,12 @@ export class ConfigurationManager implements ServiceInitializable {
       case "privacyPolicy":
         base.push("privacyService");
         base.push("sessionManager");
+        break;
+      case "retry":
+        base.push("recoveryOrchestrator");
+        base.push("sessionManager");
+        base.push("authService");
+        base.push("transportService");
         break;
     }
     if (critical) {
