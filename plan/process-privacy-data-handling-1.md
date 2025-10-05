@@ -2,7 +2,7 @@
 goal: Implement privacy and data handling controls per SP-027
 version: 1.0
 date_created: 2025-09-26
-last_updated: 2025-09-26
+last_updated: 2025-10-05
 owner: VoicePilot Project
 status: 'Completed'
 tags: [privacy, security, process]
@@ -10,7 +10,7 @@ tags: [privacy, security, process]
 
 # Introduction
 
-![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
+![Status: Completed on 2025-10-05](https://img.shields.io/badge/status-Completed-brightgreen)
 
 This plan delivers the end-to-end implementation of the Privacy & Data Handling Policy (SP-027), covering data classification, retention enforcement, redaction, purge workflows, UI indicators, and telemetry safeguards across the VoicePilot extension.
 
@@ -33,11 +33,11 @@ This plan delivers the end-to-end implementation of the Privacy & Data Handling 
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Create `src/types/privacy.ts` defining `DataClassification`, `PrivacyAnnotatedTranscript`, `PurgeCommand`, and helper guards per SP-027 §4. |  |  |
-| TASK-002 | Add `privacyPolicy` configuration schema to `src/config/sections/privacy-policy-section.ts` with defaults matching retention windows and redaction options; register with `ConfigurationManager`. |  |  |
-| TASK-003 | Implement `PrivacyController` service in `src/services/privacy/privacy-controller.ts` handling retention scheduler, purge orchestration, and configuration hydration; expose via dependency container. |  |  |
-| TASK-004 | Wire `PrivacyController.initialize()` into `ExtensionController` lifecycle ensuring purge-on-start before other services, referencing SP-003 for secret boundaries. |  |  |
-| TASK-005 | Create unit tests in `src/test/privacy/privacy-controller.test.ts` covering retention timers, purge outcomes, and configuration overrides. |  |  |
+| TASK-001 | Create `src/types/privacy.ts` defining `DataClassification`, `PrivacyAnnotatedTranscript`, `PurgeCommand`, and helper guards per SP-027 §4. | ✅ | 2025-10-05 |
+| TASK-002 | Add `privacyPolicy` configuration schema to `src/config/sections/privacy-policy-section.ts` with defaults matching retention windows and redaction options; register with `ConfigurationManager`. | ✅ | 2025-10-05 |
+| TASK-003 | Implement `PrivacyController` service in `src/services/privacy/privacy-controller.ts` handling retention scheduler, purge orchestration, and configuration hydration; expose via dependency container. | ✅ | 2025-10-05 |
+| TASK-004 | Wire `PrivacyController.initialize()` into `ExtensionController` lifecycle ensuring purge-on-start before other services, referencing SP-003 for secret boundaries. | ✅ | 2025-10-05 |
+| TASK-005 | Create unit tests in `src/test/privacy/privacy-controller.test.ts` covering retention timers, purge outcomes, and configuration overrides. | ✅ | 2025-10-05 |
 
 ### Implementation Phase 2
 
@@ -45,11 +45,11 @@ This plan delivers the end-to-end implementation of the Privacy & Data Handling 
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-006 | Update `src/webview/audio/transcript-aggregator.ts` to apply redaction rules before emitting events, attach classification metadata, and enforce partial transcript retention limits. |  |  |
-| TASK-007 | Modify `src/session/SessionManager.ts` to invoke `PrivacyController.issuePurge()` on session end, reconnect, and manual clear commands; ensure events propagate via Observer pattern. |  |  |
-| TASK-008 | Extend `src/copilot/chatIntegration.ts` to block or redact prompts flagged `containsSecrets`/`containsPII`, logging sanitized metadata only. |  |  |
-| TASK-009 | Introduce privacy-aware messaging channel changes in `src/ui/VoiceControlPanel.ts` and `src/ui/transcriptView.ts` so only redacted transcripts render, along with purge triggers. |  |  |
-| TASK-010 | Add integration tests in `src/test/integration/privacy-session.test.ts` simulating transcript flows, purge events, and Copilot prompt rejection paths. |  |  |
+| TASK-006 | Update `src/webview/audio/transcript-aggregator.ts` to apply redaction rules before emitting events, attach classification metadata, and enforce partial transcript retention limits. | ✅ | 2025-10-05 |
+| TASK-007 | Modify `src/session/SessionManager.ts` to invoke `PrivacyController.issuePurge()` on session end, reconnect, and manual clear commands; ensure events propagate via Observer pattern. | ✅ | 2025-10-05 |
+| TASK-008 | Extend `src/copilot/chatIntegration.ts` to block or redact prompts flagged `containsSecrets`/`containsPII`, logging sanitized metadata only. | ✅ | 2025-10-05 |
+| TASK-009 | Introduce privacy-aware messaging channel changes in `src/ui/VoiceControlPanel.ts` and `src/ui/transcriptView.ts` so only redacted transcripts render, along with purge triggers. | ✅ | 2025-10-05 |
+| TASK-010 | Add integration tests in `src/test/integration/privacy-session.test.ts` simulating transcript flows, purge events, and Copilot prompt rejection paths. | ✅ | 2025-10-05 |
 
 ### Implementation Phase 3
 
@@ -57,11 +57,11 @@ This plan delivers the end-to-end implementation of the Privacy & Data Handling 
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-011 | Implement privacy status indicator and quick actions in `VoiceControlPanel` webview (HTML/JS under `media/voice-control-panel.js`) aligned with UI.md accessibility guidance. |  |  |
-| TASK-012 | Update logging utilities in `src/core/logger.ts` to enforce anonymized fields and add structured redaction metadata (sessionId, purge status). |  |  |
-| TASK-013 | Guard telemetry emission within `src/services/telemetry/telemetry-service.ts` (create if absent) to honor `telemetryOptIn` and prevent payload content capture. |  |  |
-| TASK-014 | Document privacy controls in `docs/validation/sp-001-acceptance-validation.md` (new subsection) and add operational runbook in `docs/process/privacy-data-handling-runbook.md`. |  |  |
-| TASK-015 | Execute `npm run test:unit` and `npm run test:all`, capturing evidence that privacy suites pass within latency constraints. |  |  |
+| TASK-011 | Implement privacy status indicator and quick actions in `VoiceControlPanel` webview (HTML/JS under `media/voice-control-panel.js`) aligned with UI.md accessibility guidance. | ✅ | 2025-10-05 |
+| TASK-012 | Update logging utilities in `src/core/logger.ts` to enforce anonymized fields and add structured redaction metadata (sessionId, purge status). | ✅ | 2025-10-05 |
+| TASK-013 | Guard telemetry emission within `src/services/telemetry/telemetry-service.ts` (create if absent) to honor `telemetryOptIn` and prevent payload content capture. | ✅ | 2025-10-05 |
+| TASK-014 | Document privacy controls in `docs/validation/sp-001-acceptance-validation.md` (new subsection) and add operational runbook in `docs/process/privacy-data-handling-runbook.md`. | ✅ | 2025-10-05 |
+| TASK-015 | Execute `npm run test:unit` and `npm run test:all`, capturing evidence that privacy suites pass within latency constraints. | ✅ | 2025-10-05 |
 
 ## 3. Alternatives
 
