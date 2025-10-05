@@ -8,8 +8,16 @@ import {
 
 describe("AudioConfiguration contract", () => {
   function createConfig(sampleRate: AudioConfiguration["sampleRate"]): AudioConfiguration {
+    const codecProfileId =
+      sampleRate === 16000
+        ? "pcm16-16k-mono"
+        : sampleRate === 48000
+          ? "opus-48k-fallback"
+          : "pcm16-24k-mono";
+
     return {
       sampleRate,
+      codecProfileId,
       format: "pcm16",
       channels: 1,
       echoCancellation: true,

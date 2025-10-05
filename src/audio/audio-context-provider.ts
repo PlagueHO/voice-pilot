@@ -1,5 +1,9 @@
 import { Logger } from "../core/logger";
-import type { AudioConfiguration } from "../types/webrtc";
+import type {
+    AudioCodecProfileId,
+    AudioConfiguration,
+} from "../types/webrtc";
+import type { AudioCodecProfile } from "./codec/audio-codec-profile";
 
 const IDENTITY_WORKLET_NAME = "voicepilot-identity-processor";
 const IDENTITY_WORKLET_SOURCE = `
@@ -42,6 +46,8 @@ export class AudioContextProvider {
   private readonly loadedWorkletUrls = new Set<string>();
   private appliedSampleRate?: number;
   private appliedLatencyHint?: AudioContextLatencyCategory | number;
+  private appliedCodecProfileId?: AudioCodecProfileId;
+  private targetCodecProfile?: AudioCodecProfile;
 
   /**
    * Creates a provider with optional logging support for audio context lifecycle events.
@@ -57,8 +63,14 @@ export class AudioContextProvider {
    *
    * @param configuration - Audio configuration values including worklet URLs and context options.
    */
-  configure(configuration: AudioConfiguration): void {
+  configure(
+    configuration: AudioConfiguration,
+    codecProfile?: AudioCodecProfile,
+  ): void {
     this.configuration = configuration;
+    if (codecProfile) {
+      this.targetCodecProfile = codecProfile;
+    }
 
     if (this.context && configuration.workletModuleUrls.length > 0) {
       void this.loadExternalWorklets(
@@ -164,6 +176,8 @@ export class AudioContextProvider {
     this.loadedWorkletUrls.clear();
     this.appliedSampleRate = undefined;
     this.appliedLatencyHint = undefined;
+    this.appliedCodecProfileId = undefined;
+    this.targetCodecProfile = undefined;
   }
 
   /**
@@ -230,13 +244,17 @@ export class AudioContextProvider {
     const desiredSampleRate = this.configuration.sampleRate;
     const desiredLatencyHint =
       this.configuration.audioContextProvider.latencyHint ?? "interactive";
+    const desiredCodecProfileId = this.configuration.codecProfileId;
 
     const sampleRateMatches = this.context.sampleRate === desiredSampleRate;
     const latencyMatches =
       typeof this.appliedLatencyHint === "undefined" ||
       this.appliedLatencyHint === desiredLatencyHint;
+    const codecMatches =
+      typeof this.appliedCodecProfileId === "undefined" ||
+      this.appliedCodecProfileId === desiredCodecProfileId;
 
-    if (sampleRateMatches && latencyMatches) {
+    if (sampleRateMatches && latencyMatches && codecMatches) {
       return;
     }
 
@@ -247,6 +265,8 @@ export class AudioContextProvider {
         desiredSampleRate,
         previousLatencyHint: this.appliedLatencyHint,
         desiredLatencyHint,
+        previousCodecProfileId: this.appliedCodecProfileId,
+        desiredCodecProfileId,
       },
     );
 
@@ -294,6 +314,7 @@ export class AudioContextProvider {
     this.context = context;
     this.appliedSampleRate = context.sampleRate;
     this.appliedLatencyHint = latencyHint;
+    this.appliedCodecProfileId = this.configuration.codecProfileId;
     return context;
   }
 
@@ -391,6 +412,10 @@ export class AudioContextProvider {
       });
 
     await Promise.all(pendingLoads);
+  }
+
+  getActiveCodecProfileId(): AudioCodecProfileId | null {
+    return this.appliedCodecProfileId ?? null;
   }
 }
 

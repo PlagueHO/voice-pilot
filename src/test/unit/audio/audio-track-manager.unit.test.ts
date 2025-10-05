@@ -12,6 +12,7 @@ import {
 describe("AudioTrackManager", () => {
   const audioConfig: AudioConfiguration = {
     sampleRate: 24000,
+    codecProfileId: "pcm16-24k-mono",
     format: "pcm16",
     channels: 1,
     echoCancellation: true,
@@ -57,11 +58,11 @@ describe("AudioTrackManager", () => {
       await manager.initialize();
       manager.setAudioConfiguration(audioConfig);
 
-  const processedTrack = await manager.captureMicrophone();
-  assert.ok(processedTrack, "Processed track should be returned");
+      const processedTrack = await manager.captureMicrophone();
+      assert.ok(processedTrack, "Processed track should be returned");
 
       const rawStream = capturedStreams[0];
-  const rawTrack = rawStream?.getAudioTracks()[0];
+      const rawTrack = rawStream?.getAudioTracks()[0];
       assert.ok(rawTrack, "Capture pipeline should retain raw input track");
       assert.notStrictEqual(
         processedTrack.id,
@@ -85,8 +86,8 @@ describe("AudioTrackManager", () => {
       await manager.initialize();
       manager.setAudioConfiguration(audioConfig);
 
-  const processedTrack = await manager.captureMicrophone();
-  const rawTrack = env.capturedStreams[0]!.getAudioTracks()[0];
+      const processedTrack = await manager.captureMicrophone();
+      const rawTrack = env.capturedStreams[0]!.getAudioTracks()[0];
 
       manager.setTrackMuted(processedTrack.id, true);
       assert.strictEqual(processedTrack.enabled, false);
@@ -111,8 +112,8 @@ describe("AudioTrackManager", () => {
       await manager.initialize();
       manager.setAudioConfiguration(audioConfig);
 
-  const processedTrack = await manager.captureMicrophone();
-  const rawTrack = env.capturedStreams[0]!.getAudioTracks()[0];
+      const processedTrack = await manager.captureMicrophone();
+      const rawTrack = env.capturedStreams[0]!.getAudioTracks()[0];
 
       manager.stopTrack(processedTrack.id);
 

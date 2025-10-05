@@ -10,6 +10,7 @@ import {
 describe("AudioContextProvider", () => {
   const baseAudioConfig: AudioConfiguration = {
     sampleRate: 24000,
+    codecProfileId: "pcm16-24k-mono",
     format: "pcm16",
     channels: 1,
     echoCancellation: true,
@@ -156,7 +157,11 @@ describe("AudioContextProvider", () => {
     const firstContext = await provider.getOrCreateContext();
     const firstId = (firstContext as any).id;
 
-    provider.configure({ ...baseAudioConfig, sampleRate: 48000 });
+    provider.configure({
+      ...baseAudioConfig,
+      sampleRate: 48000,
+      codecProfileId: "opus-48k-fallback",
+    });
     await provider.ensureContextMatchesConfiguration();
 
     const secondContext = await provider.getOrCreateContext();

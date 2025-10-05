@@ -2,6 +2,11 @@ import type { AudioCaptureSampleRate } from "./audio-capture";
 import { EphemeralKeyInfo } from "./ephemeral";
 import type { RealtimeEvent } from "./realtime-events";
 
+export type AudioCodecProfileId =
+  | "pcm16-24k-mono"
+  | "pcm16-16k-mono"
+  | "opus-48k-fallback";
+
 /**
  * Contract for a realtime WebRTC transport that communicates with the Azure OpenAI Realtime API.
  *
@@ -194,6 +199,8 @@ export const MINIMUM_AUDIO_SAMPLE_RATE: AudioCaptureSampleRate = 16000;
 export interface AudioConfiguration {
   /** Negotiated capture sample rate. Must remain within {@link SUPPORTED_AUDIO_SAMPLE_RATES}. */
   sampleRate: AudioCaptureSampleRate;
+  /** Codec profile identifier aligned with SP-035 audio codec standards. */
+  codecProfileId: AudioCodecProfileId;
   format: "pcm16";
   channels: 1; // Mono audio for voice
   echoCancellation?: boolean;
@@ -244,6 +251,32 @@ export function validateAudioConfiguration(
   configuration: AudioConfiguration,
 ): ReadonlyArray<string> {
   const errors: string[] = [];
+
+  switch (configuration.codecProfileId) {
+    case "pcm16-24k-mono":
+      if (configuration.sampleRate !== 24000) {
+        errors.push(
+          "pcm16-24k-mono codec profile requires a 24 kHz sample rate.",
+        );
+      }
+      break;
+    case "pcm16-16k-mono":
+      if (configuration.sampleRate !== 16000) {
+        errors.push(
+          "pcm16-16k-mono codec profile requires a 16 kHz sample rate.",
+        );
+      }
+      break;
+    case "opus-48k-fallback":
+      if (configuration.sampleRate !== 48000) {
+        errors.push(
+          "opus-48k-fallback codec profile requires a 48 kHz sample rate.",
+        );
+      }
+      break;
+    default:
+      errors.push("Unsupported codec profile identifier supplied.");
+  }
 
   if (!SUPPORTED_AUDIO_SAMPLE_RATES.includes(configuration.sampleRate)) {
     errors.push(

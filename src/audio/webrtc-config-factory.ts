@@ -1,23 +1,23 @@
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import {
-  resolveRealtimeSessionPreferences,
-  type RealtimeSessionPreferences,
+    resolveRealtimeSessionPreferences,
+    type RealtimeSessionPreferences,
 } from "../config/realtime-session";
 import { Logger } from "../core/logger";
 import type { AudioConfig, AzureRealtimeConfig } from "../types/configuration";
 import { EphemeralKeyInfo, RealtimeSessionInfo } from "../types/ephemeral";
 import {
-  AudioConfiguration,
-  ConnectionConfiguration,
-  DataChannelConfiguration,
-  EphemeralAuthentication,
-  WebRTCConfig,
-  WebRTCEndpoint,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  WebRTCSessionConfiguration,
-  validateAudioConfiguration,
+    AudioConfiguration,
+    ConnectionConfiguration,
+    DataChannelConfiguration,
+    EphemeralAuthentication,
+    WebRTCConfig,
+    WebRTCEndpoint,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    WebRTCSessionConfiguration,
+    validateAudioConfiguration,
 } from "../types/webrtc";
 
 /**
@@ -198,6 +198,7 @@ export class WebRTCConfigFactory {
 
     return {
       sampleRate: 24000,
+      codecProfileId: "pcm16-24k-mono",
       format: "pcm16",
       channels: 1,
       echoCancellation: audioPreferences.echoCancellation,
