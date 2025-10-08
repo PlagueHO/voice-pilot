@@ -42,6 +42,7 @@ This specification defines the activation and lifecycle management requirements 
 ## 3. Requirements, Constraints & Guidelines
 
 ### Activation Requirements
+
 - **REQ-001**: Extension SHALL activate on first user interaction with VoicePilot commands
 - **REQ-002**: Extension SHALL activate when VoicePilot sidebar panel is opened
 - **REQ-003**: Extension SHALL register all commands during activation
@@ -49,23 +50,27 @@ This specification defines the activation and lifecycle management requirements 
 - **REQ-005**: Extension SHALL display activity bar icon after successful activation
 
 ### Security Requirements
+
 - **SEC-001**: Extension SHALL validate all command inputs before processing
 - **SEC-002**: Extension SHALL not expose sensitive configuration in command registration
 - **SEC-003**: Extension SHALL secure all inter-component message passing
 
 ### Lifecycle Constraints
+
 - **CON-001**: Extension activation MUST complete within 5 seconds
 - **CON-002**: Extension MUST not block VS Code startup
 - **CON-003**: Extension MUST handle activation failures gracefully
 - **CON-004**: Extension MUST properly dispose of all resources on deactivation
 
 ### Architecture Guidelines
+
 - **GUD-001**: Use dependency injection pattern for service management
 - **GUD-002**: Implement proper error handling and logging throughout lifecycle
 - **GUD-003**: Follow VS Code extension best practices for performance
 - **GUD-004**: Maintain clear separation between extension host and webview contexts
 
 ### Implementation Patterns
+
 - **PAT-001**: Initialize services in order: Configuration → Authentication → Session → UI
 - **PAT-002**: Use VS Code's built-in disposal pattern for cleanup
 - **PAT-003**: Register commands with consistent naming convention: `voicepilot.*`
@@ -74,6 +79,7 @@ This specification defines the activation and lifecycle management requirements 
 ## 4. Interfaces & Data Contracts
 
 ### Extension Manifest (package.json)
+
 ```json
 {
   "engines": {
@@ -117,6 +123,7 @@ This specification defines the activation and lifecycle management requirements 
 ```
 
 ### Extension Controller Interface
+
 ```typescript
 interface ExtensionController {
   initialize(): Promise<void>;
@@ -130,6 +137,7 @@ interface ExtensionController {
 ```
 
 ### Service Initialization Contract
+
 ```typescript
 interface ServiceInitializable {
   initialize(): Promise<void>;
@@ -139,6 +147,7 @@ interface ServiceInitializable {
 ```
 
 ### Command Registration Contract
+
 ```typescript
 interface CommandDefinition {
   id: string;
@@ -182,16 +191,19 @@ The activation sequence (Configuration → Authentication → Session → UI) en
 ## 8. Dependencies & External Integrations
 
 ### VS Code Platform Dependencies
+
 - **PLT-001**: VS Code Extension API - Version 1.60+ required for webview and language model APIs
 - **PLT-002**: Node.js Runtime - Version 16+ for modern TypeScript and async/await patterns
 
 ### Extension API Dependencies
+
 - **EXT-001**: VS Code Extension Context - Required for storage, secrets, and lifecycle management
 - **EXT-002**: VS Code Commands API - For command registration and execution
 - **EXT-003**: VS Code Webview API - For audio processing UI components
 - **EXT-004**: VS Code Activity Bar API - For sidebar integration and icon states
 
 ### Internal Service Dependencies
+
 - **SVC-001**: Configuration Manager - Settings validation and change notification
 - **SVC-002**: Ephemeral Key Service - Azure authentication token management
 - **SVC-003**: Session Manager - Audio session lifecycle coordination
@@ -199,12 +211,14 @@ The activation sequence (Configuration → Authentication → Session → UI) en
 - **SVC-005**: Logger - Structured logging with level filtering and output channel integration
 
 ### Infrastructure Dependencies
+
 - **INF-001**: TypeScript Compilation - Build-time type checking and ES module generation
 - **INF-002**: VS Code Extension Packaging - VSIX generation and marketplace distribution
 
 ## 9. Examples & Edge Cases
 
 ### Basic Activation Flow
+
 ```typescript
 // src/extension.ts
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -230,6 +244,7 @@ export async function deactivate(): Promise<void> {
 ```
 
 ### Error Handling Example
+
 ```typescript
 class ExtensionController {
   async activate(context: vscode.ExtensionContext): Promise<void> {
@@ -253,6 +268,7 @@ class ExtensionController {
 ```
 
 ### Edge Case: Activation During VS Code Shutdown
+
 ```typescript
 // Handle case where VS Code is shutting down during activation
 private activationCancellation = new vscode.CancellationTokenSource();
