@@ -5,50 +5,303 @@ on:
     branches:
       - main
     tags:
-      - v*
-    paths:
-      - infra/**
-      - src/**
-      - package.json
-      - tsconfig.json
+      - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target deployment environment
+        type: choice
+        options:
+          - testing
+          - production
+        required: true
+      azure_location:
+        description: Azure region for deployment resources
+        required: false
+      change_ticket:
+        description: Change management ticket or approval ID
+        required: true
+      retain_resources:
+        description: Retain infrastructure after validation (optional override)
+        type: boolean
+        required: false
 
 permissions:
+  contents: write
+  packages: write
   id-token: write
-  contents: read
-  checks: write
-  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  set_build_variables:
-    name: Set Build Variables
-    runs-on: ubuntu-latest
-    outputs:
-      build_version: ${{ steps.set_values.outputs.build_version }}
-      azure_location: ${{ steps.set_values.outputs.azure_location }}
-    env:
-      DEFAULT_AZURE_LOCATION: eastus2
-    steps:
-      - name: Calculate build metadata
-        id: set_values
-        run: |
-          echo "build_version=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "azure_location=${DEFAULT_AZURE_LOCATION}" >> "$GITHUB_OUTPUT"
-
-  lint_and_publish_bicep:
-    name: Lint and Publish Bicep
-    needs: set_build_variables
-    uses: ./.github/workflows/lint-and-publish-bicep.yml
-
   validate_infrastructure:
-    name: Validate Infrastructure
-    needs:
-      - set_build_variables
-      - lint_and_publish_bicep
+    name: Validate infrastructure
     uses: ./.github/workflows/validate-infrastructure.yml
-    with:
-      ENVIRONMENT: Test
-      BUILD_VERSION: ${{ needs.set_build_variables.outputs.build_version }}
-      AZURE_LOCATION: ${{ needs.set_build_variables.outputs.azure_location }}
-      AZURE_ENV_NAME: voicepilot-${{ github.run_id }}
     secrets: inherit
+    with:
+      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
+      resource_token: ${{ github.run_id }}
+      retain_resources: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' && inputs.retain_resources || false }}
+      azure_location: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' && inputs.azure_location || 'eastus2' }}
+
+  package_extension:
+    name: Package extension artefacts
+    needs:
+      - validate_infrastructure
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.validate_infrastructure.outputs.target_environment }}
+      url: ${{ needs.validate_infrastructure.outputs.endpoint_url || null }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Set deployment context
+        run: |
+          echo "TARGET_ENVIRONMENT=${{ needs.validate_infrastructure.outputs.target_environment }}" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            echo "CHANGE_TICKET=${{ inputs.change_ticket }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "CHANGE_TICKET=release-${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "CHANGE_TICKET=testing-${{ github.run_id }}" >> $GITHUB_ENV
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build VSIX package
+        run: npm run package
+
+      - name: Prepare artefact directory
+        id: artefacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artefacts previous
+          latest_vsix=$(ls -1 *.vsix | head -n 1)
+          if [ -z "$latest_vsix" ]; then
+            echo "VSIX package not found" >&2
+            exit 1
+          fi
+          mv "$latest_vsix" artefacts/current.vsix
+          shasum -a 256 artefacts/current.vsix > artefacts/current.sha256
+          if [ "${GITHUB_EVENT_NAME}" = 'push' ]; then
+            gh release download "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern '*.vsix' --dir previous || true
+          fi
+          if ls previous/*.vsix >/dev/null 2>&1; then
+            prev=$(ls -1 previous/*.vsix | head -n 1)
+            cp "$prev" artefacts/previous.vsix
+            shasum -a 256 "$prev" > artefacts/previous.sha256
+          fi
+
+      - name: Publish VSIX to Marketplace (production only)
+        if: ${{ needs.validate_infrastructure.outputs.target_environment == 'production' }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT secret not configured; skipping marketplace publish." >&2
+            exit 0
+          fi
+          npx vsce publish --packagePath artefacts/current.vsix
+
+      - name: Upload deployment artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ needs.validate_infrastructure.outputs.target_environment }}
+          path: artefacts/
+          retention-days: 14
+
+  post_deployment_verification:
+    name: Post-deployment verification
+    needs:
+      - validate_infrastructure
+      - package_extension
+    runs-on: ubuntu-latest
+    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'testing' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set verification context
+        run: |
+          echo "TARGET_ENVIRONMENT=${{ needs.validate_infrastructure.outputs.target_environment }}" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            echo "CHANGE_TICKET=${{ inputs.change_ticket }}" >> $GITHUB_ENV
+          else
+            echo "CHANGE_TICKET=release-${{ github.run_id }}" >> $GITHUB_ENV
+          fi
+          echo "TELEMETRY_WORKSPACE_ID=${{ needs.validate_infrastructure.outputs.workspace_customer_id }}" >> $GITHUB_ENV
+          echo "ENDPOINT_URL=${{ needs.validate_infrastructure.outputs.endpoint_url }}" >> $GITHUB_ENV
+
+      - name: Execute performance probes
+        run: npm run test:perf
+
+      - name: Emit telemetry to Log Analytics
+        if: ${{ needs.validate_infrastructure.outputs.workspace_customer_id != '' }}
+        env:
+          WORKSPACE_ID: ${{ needs.validate_infrastructure.outputs.workspace_customer_id }}
+          SHARED_KEY: ${{ secrets.AZURE_LOG_ANALYTICS_SHARED_KEY }}
+          ENDPOINT_URL: ${{ needs.validate_infrastructure.outputs.endpoint_url }}
+        run: |
+          if [ -z "$SHARED_KEY" ]; then
+            echo "Log Analytics shared key not configured; skipping telemetry upload." >&2
+            exit 0
+          fi
+          node - <<'NODE'
+          import crypto from 'node:crypto';
+          import https from 'node:https';
+
+          const workspaceId = process.env.WORKSPACE_ID;
+          const sharedKey = process.env.SHARED_KEY;
+
+          if (!workspaceId || !sharedKey) {
+            console.log('Telemetry workspace credentials not supplied; skipping custom telemetry upload.');
+            process.exit(0);
+          }
+
+          const body = JSON.stringify({
+            time: new Date().toISOString(),
+            pipeline: 'continuous-delivery',
+            runId: process.env.GITHUB_RUN_ID,
+            repository: process.env.GITHUB_REPOSITORY,
+            commit: process.env.GITHUB_SHA,
+            environment: process.env.TARGET_ENVIRONMENT,
+            changeTicket: process.env.CHANGE_TICKET,
+            endpointUrl: process.env.ENDPOINT_URL,
+            status: 'verification',
+          });
+
+          const contentLength = Buffer.byteLength(body, 'utf8');
+          const rfc1123date = new Date().toUTCString();
+          const stringToSign = `POST\n${contentLength}\napplication/json\nx-ms-date:${rfc1123date}\n/api/logs`;
+          const decodedKey = Buffer.from(sharedKey, 'base64');
+          const signature = crypto.createHmac('sha256', decodedKey).update(stringToSign, 'utf8').digest('base64');
+          const authorization = `SharedKey ${workspaceId}:${signature}`;
+          const options = {
+            hostname: `${workspaceId}.ods.opinsights.azure.com`,
+            path: '/api/logs?api-version=2016-04-01',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': contentLength,
+              'x-ms-date': rfc1123date,
+              'Log-Type': 'VoicePilotPipelineTelemetry',
+              Authorization: authorization,
+            },
+          };
+
+          const request = https.request(options, (response) => {
+            if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+              console.log(`Telemetry accepted with status ${response.statusCode}`);
+            } else {
+              console.error(`Telemetry rejected with status ${response.statusCode}`);
+              response.resume();
+              process.exit(1);
+            }
+          });
+
+          request.on('error', (error) => {
+            console.error('Error sending telemetry', error);
+            process.exit(1);
+          });
+
+          request.write(body);
+          request.end();
+          NODE
+
+  rollback_infrastructure:
+    name: Rollback infrastructure
+    needs:
+      - validate_infrastructure
+      - post_deployment_verification
+    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'testing' && needs.post_deployment_verification.result == 'failure' }}
+    uses: ./.github/workflows/delete-infrastructure.yml
+    secrets: inherit
+    with:
+      environment: ${{ needs.validate_infrastructure.outputs.target_environment }}
+      resource_token: ${{ github.run_id }}
+      retain_resources: false
+      azure_location: ${{ needs.validate_infrastructure.outputs.azure_location }}
+
+  rollback_application_testing:
+    name: Rollback extension package (testing)
+    needs:
+      - validate_infrastructure
+      - package_extension
+      - post_deployment_verification
+    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'testing' && needs.post_deployment_verification.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download deployment artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-${{ needs.validate_infrastructure.outputs.target_environment }}
+          path: artefacts
+
+      - name: Publish previous VSIX
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT secret not configured; skipping rollback publish." >&2
+            exit 0
+          fi
+          if [ ! -f artefacts/previous.vsix ]; then
+            echo "Previous VSIX artefact not available; rollback skipped."
+            exit 0
+          fi
+          npx vsce publish --packagePath artefacts/previous.vsix
+
+      - name: Report rollback completion
+        run: echo "Rollback routine executed for environment ${{ needs.validate_infrastructure.outputs.target_environment }}"
+
+  rollback_application_production:
+    name: Rollback extension package (production)
+    needs:
+      - validate_infrastructure
+      - package_extension
+    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'production' && needs.package_extension.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download deployment artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-production
+          path: artefacts
+
+      - name: Publish previous VSIX
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT secret not configured; skipping rollback publish." >&2
+            exit 0
+          fi
+          if [ ! -f artefacts/previous.vsix ]; then
+            echo "Previous VSIX artefact not available; rollback skipped."
+            exit 0
+          fi
+          npx vsce publish --packagePath artefacts/previous.vsix
+
+      - name: Report rollback completion
+        run: echo "Rollback routine executed for production deployment"

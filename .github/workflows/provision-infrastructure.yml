@@ -3,114 +3,113 @@ name: Provision Infrastructure
 on:
   workflow_call:
     inputs:
-      ENVIRONMENT:
-        description: "The environment to provision the application infrastructure for"
+      environment:
         required: true
         type: string
-      BUILD_VERSION:
-        description: "The build version to deploy"
+      resource_token:
         required: true
         type: string
-      AZURE_LOCATION:
-        description: "Azure region to deploy"
-        required: true
+      azure_location:
+        required: false
         type: string
-      AZURE_ENV_NAME:
-        description: "Name of the Azure environment"
-        required: true
-        type: string
-
-    outputs:
-      AZURE_RESOURCE_GROUP:
-        description: "Provisioned resource group"
-        value: ${{ jobs.provision.outputs.AZURE_RESOURCE_GROUP }}
-      AZURE_PRINCIPAL_ID:
-        description: "Deployment principal ID"
-        value: ${{ jobs.provision.outputs.AZURE_PRINCIPAL_ID }}
-      AZURE_PRINCIPAL_ID_TYPE:
-        description: "Deployment principal type"
-        value: ${{ jobs.provision.outputs.AZURE_PRINCIPAL_ID_TYPE }}
-      AZURE_AI_FOUNDRY_NAME:
-        description: "AI Foundry account name"
-        value: ${{ jobs.provision.outputs.AZURE_AI_FOUNDRY_NAME }}
-      AZURE_AI_FOUNDRY_ENDPOINT:
-        description: "AI Foundry endpoint"
-        value: ${{ jobs.provision.outputs.AZURE_AI_FOUNDRY_ENDPOINT }}
-      LOG_ANALYTICS_WORKSPACE_NAME:
-        description: "Diagnostics workspace name"
-        value: ${{ jobs.provision.outputs.LOG_ANALYTICS_WORKSPACE_NAME }}
-      LOG_ANALYTICS_RESOURCE_ID:
-        description: "Diagnostics workspace resource ID"
-        value: ${{ jobs.provision.outputs.LOG_ANALYTICS_RESOURCE_ID }}
-      LOG_ANALYTICS_WORKSPACE_ID:
-        description: "Workspace ID"
-        value: ${{ jobs.provision.outputs.LOG_ANALYTICS_WORKSPACE_ID }}
-
     secrets:
+      AZURE_CLIENT_ID:
+        required: true
       AZURE_TENANT_ID:
-        description: "Azure tenant ID"
         required: true
       AZURE_SUBSCRIPTION_ID:
-        description: "Azure subscription ID"
         required: true
-      AZURE_CLIENT_ID:
-        description: "Azure client ID"
-        required: true
+    outputs:
+      endpoint_url:
+        description: Azure AI Foundry endpoint for realtime deployments
+        value: ${{ jobs.provision.outputs.endpoint_url }}
+      workspace_id:
+        description: Resource ID for diagnostics workspace
+        value: ${{ jobs.provision.outputs.workspace_id }}
+      workspace_customer_id:
+        description: Customer ID for diagnostics workspace data collection API
+        value: ${{ jobs.provision.outputs.workspace_customer_id }}
+      resource_group_name:
+        description: Azure resource group created for this environment
+        value: ${{ jobs.provision.outputs.resource_group_name }}
+      azure_environment_name:
+        description: azd environment identifier used during provisioning
+        value: ${{ jobs.provision.outputs.azure_environment_name }}
+      azure_location:
+        description: Azure region used for deployment
+        value: ${{ jobs.provision.outputs.azure_location }}
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   provision:
-    name: Provision Infrastructure ${{ inputs.ENVIRONMENT }}
+    name: Provision infrastructure via azd up
     runs-on: ubuntu-latest
-    environment: ${{ inputs.ENVIRONMENT }}
-    env:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-      AZURE_PRINCIPAL_ID_TYPE: ServicePrincipal
-
     outputs:
-      AZURE_RESOURCE_GROUP: ${{ steps.outputs.outputs.AZURE_RESOURCE_GROUP }}
-      AZURE_PRINCIPAL_ID: ${{ steps.outputs.outputs.AZURE_PRINCIPAL_ID }}
-      AZURE_PRINCIPAL_ID_TYPE: ${{ steps.outputs.outputs.AZURE_PRINCIPAL_ID_TYPE }}
-      AZURE_AI_FOUNDRY_NAME: ${{ steps.outputs.outputs.AZURE_AI_FOUNDRY_NAME }}
-      AZURE_AI_FOUNDRY_ENDPOINT: ${{ steps.outputs.outputs.AZURE_AI_FOUNDRY_ENDPOINT }}
-      AZURE_AI_FOUNDRY_RESOURCE_ID: ${{ steps.outputs.outputs.AZURE_AI_FOUNDRY_RESOURCE_ID }}
-      LOG_ANALYTICS_WORKSPACE_NAME: ${{ steps.outputs.outputs.LOG_ANALYTICS_WORKSPACE_NAME }}
-      LOG_ANALYTICS_RESOURCE_ID: ${{ steps.outputs.outputs.LOG_ANALYTICS_RESOURCE_ID }}
-      LOG_ANALYTICS_WORKSPACE_ID: ${{ steps.outputs.outputs.LOG_ANALYTICS_WORKSPACE_ID }}
-
+      endpoint_url: ${{ steps.capture.outputs.endpoint_url }}
+      workspace_id: ${{ steps.capture.outputs.workspace_id }}
+      workspace_customer_id: ${{ steps.capture.outputs.workspace_customer_id }}
+      resource_group_name: ${{ steps.capture.outputs.resource_group_name }}
+      azure_environment_name: ${{ steps.bootstrap.outputs.azure_environment_name }}
+      azure_location: ${{ steps.bootstrap.outputs.azure_location }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Setup azd
-        uses: Azure/setup-azd@v2
-
-      - name: Authenticate with Azure
+      - name: Initialize location and environment variables
+        id: bootstrap
         run: |
-          azd auth login \
-            --client-id "$AZURE_CLIENT_ID" \
-            --federated-credential-provider github \
-            --tenant-id "$AZURE_TENANT_ID"
+          location="${{ inputs.azure_location }}"
+          if [ -z "$location" ] || [ "$location" = 'null' ]; then
+            location="eastus2"
+          fi
+          env_name="voicepilot-${{ inputs.environment }}-${{ inputs.resource_token }}"
+          echo "AZURE_LOCATION=$location" >> "$GITHUB_ENV"
+          echo "AZURE_ENV_NAME=$env_name" >> "$GITHUB_ENV"
+          echo "azure_environment_name=$env_name" >> "$GITHUB_OUTPUT"
+          echo "azure_location=$location" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure Developer CLI
+        run: |
+          curl -fsSL https://aka.ms/install-azd.sh | bash
+          echo "$HOME/.azd/bin" >> $GITHUB_PATH
+
+      - name: Configure azd authentication
+        run: |
+          azd config set alpha.oidc.enabled true
+          azd config set auth.useAzCli true
+
+      - name: Create or refresh azd environment
+        run: |
+          if azd env list --output json | jq -e --arg env "$AZURE_ENV_NAME" '.[] | select(.name == $env)' >/dev/null; then
+            azd env refresh --environment "$AZURE_ENV_NAME" || true
+          else
+            azd env new "$AZURE_ENV_NAME" --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }} --location "$AZURE_LOCATION" --no-prompt
+          fi
 
       - name: Provision infrastructure
-        run: azd provision --no-prompt
+        run: |
+          azd up --environment "$AZURE_ENV_NAME" --location "$AZURE_LOCATION" --no-prompt
 
       - name: Capture provisioning outputs
-        id: outputs
+        id: capture
         run: |
-          values=$(azd env get-values)
-          while IFS='=' read -r key value; do
-            key_trimmed=$(echo "$key" | xargs)
-            value_trimmed=$(echo "$value" | xargs)
-            case "$key_trimmed" in
-              AZURE_RESOURCE_GROUP|AZURE_PRINCIPAL_ID|AZURE_PRINCIPAL_ID_TYPE|AZURE_AI_FOUNDRY_NAME|AZURE_AI_FOUNDRY_ENDPOINT|LOG_ANALYTICS_WORKSPACE_NAME|LOG_ANALYTICS_RESOURCE_ID|LOG_ANALYTICS_WORKSPACE_ID)
-                echo "$key_trimmed=$value_trimmed" >>"$GITHUB_OUTPUT"
-                ;;
-              AZURE_AI_FOUNDRY_RESOURCE_ID)
-                echo "$key_trimmed=$value_trimmed" >>"$GITHUB_OUTPUT"
-                ;;
-            esac
-          done <<<"$values"
+          azd env get-values --environment "$AZURE_ENV_NAME" > env-values.txt
+          endpoint=$(grep '^AZURE_OPENAI_ENDPOINT=' env-values.txt | cut -d'=' -f2- || true)
+          workspace_id=$(grep '^LOG_ANALYTICS_WORKSPACE_ID=' env-values.txt | cut -d'=' -f2- || true)
+          workspace_customer_id=$(grep '^LOG_ANALYTICS_WORKSPACE_CUSTOMER_ID=' env-values.txt | cut -d'=' -f2- || true)
+          resource_group=$(grep '^AZURE_RESOURCE_GROUP=' env-values.txt | cut -d'=' -f2- || true)
+          echo "endpoint_url=${endpoint}" >> "$GITHUB_OUTPUT"
+          echo "workspace_id=${workspace_id}" >> "$GITHUB_OUTPUT"
+          echo "workspace_customer_id=${workspace_customer_id}" >> "$GITHUB_OUTPUT"
+          echo "resource_group_name=${resource_group}" >> "$GITHUB_OUTPUT"
+          echo "Captured provisioning outputs for $AZURE_ENV_NAME"

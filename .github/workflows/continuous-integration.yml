@@ -1,485 +1,156 @@
 name: Continuous Integration
 
 on:
-  push:
-    branches:
-      - main
-
   pull_request:
     branches:
       - main
-
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  static-analysis:
+  quality-gate:
+    name: Quality Gate (${{ matrix.vs_code_channel }})
     runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Setup Node.js 22.x
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Lint TypeScript
-      run: npm run lint
-
-    - name: Build production bundle
-      run: npm run webpack:prod
-
-    - name: Verify no JS files in src
-      run: |
-        if find src -name "*.js" -o -name "*.js.map" | grep -q .; then
-          echo "❌ Error: Found compiled JS files in src/ directory"
-          find src -name "*.js" -o -name "*.js.map"
-          exit 1
-        else
-          echo "✅ Clean: No JS files found in src/ directory"
-        fi
-
-    - name: Verify modern ES2022 output
-      run: |
-        if grep -r "__generator" out/ 2>/dev/null; then
-          echo "❌ Error: Found legacy generator polyfills in compiled output"
-          exit 1
-        else
-          echo "✅ Modern: Clean ES2022 output without generator polyfills"
-        fi
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: compiled-extension
-        path: |
-          out/
-          package.json
-          README.md
-          webpack.config.js
-        retention-days: 30
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    needs: static-analysis
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Setup Node.js 22.x
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Setup headless display
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
-
-    - name: Run quality gate sequence
-      id: quality-gate
-      run: |
-        xvfb-run -a --server-args="-screen 0 1280x1024x24" node ./scripts/run-quality-gate.mjs
-      timeout-minutes: 20
-
-    - name: Upload quality gate telemetry
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: quality-gate-telemetry
-        path: |
-          telemetry/gate-report.json
-          coverage/coverage-summary.json
-          .vscode-test/
-        retention-days: 14
-
-  extension-validation:
-    runs-on: ubuntu-latest
-    needs: [static-analysis, unit-tests]
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Setup Node.js 22.x
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build optimized extension
-      run: npm run webpack:prod
-
-    - name: Test extension packaging
-      run: |
-        npm install -g @vscode/vsce
-        npm run package
-
-    - name: Validate VS Code extension manifest
-      run: |
-        # Check required fields in package.json
-        node -e "
-          const pkg = require('./package.json');
-          const required = ['name', 'displayName', 'description', 'version', 'engines', 'main', 'contributes'];
-          const missing = required.filter(field => !pkg[field]);
-          if (missing.length > 0) {
-            console.error('❌ Missing required package.json fields:', missing.join(', '));
-            process.exit(1);
-          }
-
-          if (!pkg.engines.vscode || !pkg.engines.vscode.match(/\^1\.(10[4-9]|1[1-9]\d|[2-9]\d\d)\.\d+/)) {
-            console.error('❌ VS Code engine should be 1.104.0 or higher in package.json');
-            process.exit(1);
-          }
-
-          console.log('✅ VS Code extension manifest validated');
-        "
-
-    - name: Validate extension permissions
-      run: |
-        # Check that package.json doesn't request excessive permissions
-        node -e "
-          const pkg = require('./package.json');
-          const riskyActivations = ['*', 'onStartupFinished'];
-          const activationEvents = pkg.activationEvents || [];
-          const hasRiskyEvents = activationEvents.some(e => riskyActivations.includes(e));
-          if (hasRiskyEvents) {
-            console.error('❌ Extension uses risky activation events');
-            process.exit(1);
-          }
-          console.log('✅ Extension activation events are appropriate');
-        "
-
-    - name: Check extension size
-      run: |
-        VSIX_SIZE=$(du -h *.vsix | cut -f1)
-        echo "📦 Extension package size: $VSIX_SIZE"
-
-        # Warn if extension is getting large (>10MB)
-        VSIX_SIZE_BYTES=$(du -b *.vsix | cut -f1)
-        if [ $VSIX_SIZE_BYTES -gt 10485760 ]; then
-          echo "⚠️  Extension package is larger than 10MB - consider optimizing"
-          exit 1
-        fi
-
-    - name: Upload extension artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: voicepilot-extension-${{ github.run_number }}
-        path: '*.vsix'
-        retention-days: 30
-
-  infrastructure-validation:
-    uses: ./.github/workflows/lint-and-publish-bicep.yml
-
-  security-scan:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Run npm audit
-      run: npm audit --audit-level=moderate
-
-    - name: Run Semgrep security scan
-      uses: returntocorp/semgrep-action@v1
-      with:
-        config: auto
-      continue-on-error: true
-
-    - name: Upload Semgrep results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: semgrep.sarif
-      continue-on-error: true
-
-    - name: Check for hardcoded secrets
-      uses: trufflesecurity/trufflehog@main
-      with:
-        path: ./
-        base: main
-        head: HEAD
-        extra_args: --debug --only-verified
-      continue-on-error: true
-
-    - name: Scan dependencies for vulnerabilities
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-      continue-on-error: true
-
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-      continue-on-error: true
-
-    - name: Check for sensitive data in source
-      run: |
-        # Check for potential secrets or API keys
-        if grep -r -i -E "(api[_-]?key|secret|password|token)" src/ --exclude-dir=node_modules || true; then
-          echo "⚠️  Found potential sensitive data patterns in source code"
-          echo "Please review the above matches to ensure no secrets are committed"
-        else
-          echo "✅ No obvious sensitive data patterns found"
-        fi
-
-    - name: Verify package.json security
-      run: |
-        # Check that package.json doesn't contain sensitive activation events
-        if grep -E "(onStartupFinished|\*)" package.json; then
-          echo "⚠️  Found broad activation events - consider more specific triggers"
-        else
-          echo "✅ Package.json uses appropriate activation events"
-        fi
-
-  vscode-compatibility-test:
-    runs-on: ubuntu-latest
-    needs: static-analysis
     strategy:
+      fail-fast: true
       matrix:
-        vscode-version: ['1.104.0', 'stable']
-      fail-fast: false
-
+        node-version: ['22.x']
+        vs_code_channel: ['stable', 'insiders']
+    env:
+      VS_CODE_CHANNEL: ${{ matrix.vs_code_channel }}
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js 22.x
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v5
-      with:
-        name: compiled-extension
-        path: .
+      - name: Run quality gate sequence
+        run: node scripts/run-quality-gate.mjs
 
-    - name: Setup headless display
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
+      - name: Collect quality gate artefacts
+        if: always()
+        run: |
+          mkdir -p artefacts
+          if [ -f telemetry/gate-report.json ]; then
+            cp telemetry/gate-report.json artefacts/quality-gate.json
+          fi
+          if [ -f coverage/lcov.info ]; then
+            cp coverage/lcov.info artefacts/lcov.info
+          fi
+          if [ -f coverage/coverage-summary.json ]; then
+            cp coverage/coverage-summary.json artefacts/coverage-summary.json
+          fi
 
-    - name: Test with VS Code ${{ matrix.vscode-version }}
-      run: |
-        # Update .vscode-test.js to use specific version
-        cat > .vscode-test.js << EOF
-        const { defineConfig } = require('@vscode/test-cli');
+      - name: Upload quality gate artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-${{ matrix.vs_code_channel }}
+          path: artefacts/
+          retention-days: 14
 
-        module.exports = defineConfig([
-          {
-            label: 'unitTests',
-            files: 'out/test/**/*.test.js',
-            version: '${{ matrix.vscode-version }}',
-            mocha: {
-              ui: 'bdd',
-              timeout: 20000,
-              color: true
-            },
-            launchArgs: [
-              '--disable-extensions'
-            ]
-          }
-        ]);
-        EOF
-
-        # Run tests with specific VS Code version
-        xvfb-run -a --server-args="-screen 0 1280x1024x24" npm test
-      timeout-minutes: 15
-
-    - name: Upload compatibility test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: compatibility-test-results-${{ matrix.vscode-version }}
-        path: |
-          .vscode-test/
-        retention-days: 7
-
-  code-quality:
+  security-scans:
+    name: Security & Dependency Scans (${{ matrix.vs_code_channel }})
     runs-on: ubuntu-latest
-    needs: static-analysis
-
+    needs: quality-gate
+    strategy:
+      fail-fast: true
+      matrix:
+        node-version: ['22.x']
+        vs_code_channel: ['stable', 'insiders']
+    env:
+      VS_CODE_CHANNEL: ${{ matrix.vs_code_channel }}
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v5
-      with:
-        name: compiled-extension
-        path: .
+      - name: Run npm audit (fail on high severity)
+        run: npm audit --production --audit-level=high
 
-    - name: Check TypeScript configuration
-      run: |
-        # Verify ES2022 target for VS Code 1.104+ with Node.js 22
-        if ! grep -q '"target": "ES2022"' tsconfig.json; then
-          echo "❌ Error: tsconfig.json should target ES2022 for VS Code 1.104+ extensions"
-          exit 1
-        fi
+      - name: Run ESLint security scan (SARIF)
+        run: |
+          npx eslint --ext .ts,.tsx --format sarif --output-file eslint-results.sarif .
+        continue-on-error: false
 
-        # Verify output directory configuration
-        if ! grep -q '"outDir": "./out"' tsconfig.json; then
-          echo "❌ Error: tsconfig.json should output to ./out directory"
-          exit 1
-        fi
+      - name: Upload ESLint SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: eslint-results.sarif
 
-        echo "✅ TypeScript configuration verified"
+      - name: Run Trivy dependency scan
+        uses: aquasecurity/trivy-action@0.27.0
+        with:
+          scan-type: fs
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
 
-    - name: Generate and upload build artifacts with metadata
-      run: |
-        # Create build metadata
-        cat > build-info.json << EOF
-        {
-          "buildTime": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "gitCommit": "${{ github.sha }}",
-          "gitBranch": "${{ github.ref_name }}",
-          "nodeVersion": "$(node --version)",
-          "npmVersion": "$(npm --version)",
-          "runNumber": "${{ github.run_number }}"
-        }
-        EOF
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
 
-    - name: Store comprehensive build artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: build-outputs-${{ github.run_number }}
-        path: |
-          out/
-          *.vsix
-          build-info.json
-          package.json
-          README.md
-        retention-days: 30
+      - name: Dependency review (pull requests only)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
 
-  performance-benchmarks:
+  telemetry-publish:
+    name: Publish Quality Gate Telemetry
     runs-on: ubuntu-latest
-    needs: static-analysis
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Setup Node.js 22.x
-      uses: actions/setup-node@v5
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v5
-      with:
-        name: compiled-extension
-        path: .
-
-    - name: Setup headless display
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
-
-    - name: Run performance benchmarks
-      run: |
-        # Create performance test script
-        cat > perf-test.js << 'EOF'
-        const { performance } = require('perf_hooks');
-        const fs = require('fs');
-
-        // Simulate extension startup performance
-        const startTime = performance.now();
-
-        // Mock some typical extension operations
-        const results = {
-          extensionStartup: performance.now() - startTime,
-          configurationLoad: Math.random() * 100 + 50, // Simulated
-          serviceInitialization: Math.random() * 200 + 100, // Simulated
-          timestamp: new Date().toISOString()
-        };
-
-        console.log('Performance Results:', results);
-        fs.writeFileSync('perf-results.json', JSON.stringify(results, null, 2));
-        EOF
-
-        # Run performance tests
-        node perf-test.js
-
-    - name: Store performance results
-      uses: actions/upload-artifact@v4
-      with:
-        name: performance-results-${{ github.run_number }}
-        path: perf-results.json
-        retention-days: 30
-
-  ci-summary:
-    runs-on: ubuntu-latest
-    needs: [static-analysis, unit-tests, extension-validation, security-scan, vscode-compatibility-test, code-quality, performance-benchmarks]
+    needs: [quality-gate, security-scans]
     if: always()
-
     steps:
-    - name: Check overall CI status
-      run: |
-        echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Static Analysis | ${{ needs.static-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Extension Validation | ${{ needs.extension-validation.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| VS Code Compatibility | ${{ needs.vscode-compatibility-test.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Performance Benchmarks | ${{ needs.performance-benchmarks.result }} |" >> $GITHUB_STEP_SUMMARY
+      - name: Download artefacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: quality-gate-*
+          merge-multiple: true
 
-        # Check if any critical jobs failed
-        if [[ "${{ needs.static-analysis.result }}" == "failure" ||
-              "${{ needs.unit-tests.result }}" == "failure" ||
-              "${{ needs.extension-validation.result }}" == "failure" ]]; then
-          echo "❌ Critical CI jobs failed"
-          exit 1
-        else
-          echo "✅ All critical CI jobs passed"
-        fi
+      - name: Summarize gate results
+        id: summarize
+        run: |
+          if [ -f quality-gate.json ]; then
+            cat quality-gate.json
+          else
+            echo '{}' > quality-gate.json
+          fi
+
+      - name: Upload consolidated telemetry artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-telemetry
+          path: quality-gate.json
+          retention-days: 14

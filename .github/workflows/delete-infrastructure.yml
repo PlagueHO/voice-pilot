@@ -3,56 +3,83 @@ name: Delete Infrastructure
 on:
   workflow_call:
     inputs:
-      ENVIRONMENT:
-        description: "Environment to delete"
+      environment:
         required: true
         type: string
-      AZURE_ENV_NAME:
-        description: "Azure environment name"
+      resource_token:
         required: true
         type: string
-      AZURE_LOCATION:
-        description: "Azure region"
+      retain_resources:
         required: true
+        type: boolean
+      azure_location:
+        required: false
         type: string
-
     secrets:
+      AZURE_CLIENT_ID:
+        required: true
       AZURE_TENANT_ID:
-        description: "Azure tenant ID"
         required: true
       AZURE_SUBSCRIPTION_ID:
-        description: "Azure subscription ID"
         required: true
-      AZURE_CLIENT_ID:
-        description: "Azure client ID"
-        required: true
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  delete:
-    name: Delete Infrastructure ${{ inputs.ENVIRONMENT }}
+  teardown:
+    name: Teardown infrastructure via azd down
     runs-on: ubuntu-latest
-    environment: ${{ inputs.ENVIRONMENT }}
-    env:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-      AZURE_PRINCIPAL_ID_TYPE: ServicePrincipal
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Setup azd
-        uses: Azure/setup-azd@v2
-
-      - name: Authenticate with Azure
+      - name: Initialize teardown environment variables
+        id: bootstrap
         run: |
-          azd auth login \
-            --client-id "$AZURE_CLIENT_ID" \
-            --federated-credential-provider github \
-            --tenant-id "$AZURE_TENANT_ID"
+          location="${{ inputs.azure_location }}"
+          if [ -z "$location" ] || [ "$location" = 'null' ]; then
+            location="eastus2"
+          fi
+          env_name="voicepilot-${{ inputs.environment }}-${{ inputs.resource_token }}"
+          echo "AZURE_LOCATION=$location" >> "$GITHUB_ENV"
+          echo "AZURE_ENV_NAME=$env_name" >> "$GITHUB_ENV"
 
-      - name: Delete infrastructure
-        run: azd down --no-prompt --purge --force
+      - name: Skip teardown when retention requested
+        if: ${{ inputs.retain_resources }}
+        run: echo "Retaining infrastructure for environment $AZURE_ENV_NAME"
+
+      - name: Checkout repository
+        if: ${{ !inputs.retain_resources }}
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        if: ${{ !inputs.retain_resources }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure Developer CLI
+        if: ${{ !inputs.retain_resources }}
+        run: |
+          curl -fsSL https://aka.ms/install-azd.sh | bash
+          echo "$HOME/.azd/bin" >> $GITHUB_PATH
+
+      - name: Configure azd authentication
+        if: ${{ !inputs.retain_resources }}
+        run: |
+          azd config set alpha.oidc.enabled true
+          azd config set auth.useAzCli true
+
+      - name: Ensure azd environment exists
+        if: ${{ !inputs.retain_resources }}
+        run: |
+          if ! azd env list --output json | jq -e --arg env "$AZURE_ENV_NAME" '.[] | select(.name == $env)' >/dev/null; then
+            echo "Environment $AZURE_ENV_NAME not found; nothing to delete."
+            exit 0
+          fi
+
+      - name: Destroy infrastructure
+        if: ${{ !inputs.retain_resources }}
+        run: |
+          azd down --environment "$AZURE_ENV_NAME" --force --purge --no-prompt

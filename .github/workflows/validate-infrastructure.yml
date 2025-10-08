@@ -3,123 +3,67 @@ name: Validate Infrastructure
 on:
   workflow_call:
     inputs:
-      ENVIRONMENT:
-        description: "The environment to validate"
+      environment:
         required: true
         type: string
-      BUILD_VERSION:
-        description: "Build version identifier"
+      resource_token:
         required: true
         type: string
-      AZURE_LOCATION:
-        description: "Azure region used for the validation run"
+      retain_resources:
         required: true
+        type: boolean
+      azure_location:
+        required: false
         type: string
-      AZURE_ENV_NAME:
-        description: "Name of the Azure Developer CLI environment"
-        required: true
-        type: string
+    outputs:
+      endpoint_url:
+        description: Azure AI Foundry endpoint emitted by provisioning workflow
+        value: ${{ jobs.provision.outputs.endpoint_url || '' }}
+      workspace_id:
+        description: Diagnostics workspace resource ID
+        value: ${{ jobs.provision.outputs.workspace_id || '' }}
+      workspace_customer_id:
+        description: Diagnostics workspace customer ID used for Data Collector API calls
+        value: ${{ jobs.provision.outputs.workspace_customer_id || '' }}
+      resource_group_name:
+        description: Azure resource group containing VoicePilot assets
+        value: ${{ jobs.provision.outputs.resource_group_name || '' }}
+      azure_environment_name:
+        description: azd environment identifier used for provisioning
+        value: ${{ jobs.provision.outputs.azure_environment_name || '' }}
+      resource_token:
+        description: Token provided by caller to scope ephemeral resources
+        value: ${{ inputs.resource_token }}
+      target_environment:
+        description: Logical deployment environment requested by caller
+        value: ${{ inputs.environment }}
+      azure_location:
+        description: Azure region used during provisioning
+        value: ${{ jobs.provision.outputs.azure_location || '' }}
 
-    secrets:
-      AZURE_TENANT_ID:
-        description: "Azure tenant ID for federation"
-        required: true
-      AZURE_SUBSCRIPTION_ID:
-        description: "Azure subscription ID for deployments"
-        required: true
-      AZURE_CLIENT_ID:
-        description: "Azure AD application (client) ID configured for OIDC"
-        required: true
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  what_if_validation:
-    name: Bicep What-If
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.ENVIRONMENT }}
-    env:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-    steps:
-      - name: Download infrastructure artifacts
-        uses: actions/download-artifact@v5
-        with:
-          name: infrastructure_bicep
-          path: infrastructure_bicep
-
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-
-      - name: Run what-if deployment
-        uses: azure/bicep-deploy@v2
-        with:
-          type: deployment
-          operation: whatIf
-          name: ${{ inputs.AZURE_ENV_NAME }}-${{ inputs.AZURE_LOCATION }}-${{ inputs.ENVIRONMENT }}-${{ github.run_id }}
-          scope: subscription
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          location: ${{ inputs.AZURE_LOCATION }}
-          template-file: ./infrastructure_bicep/main.bicep
-          parameters-file: ./infrastructure_bicep/main.bicepparam
-
   provision:
-    name: Provision Infrastructure
-    needs: what_if_validation
+    name: Provision infrastructure snapshot
+    if: ${{ inputs.environment == 'testing' }}
     uses: ./.github/workflows/provision-infrastructure.yml
+    secrets: inherit
     with:
-      ENVIRONMENT: ${{ inputs.ENVIRONMENT }}
-      BUILD_VERSION: ${{ inputs.BUILD_VERSION }}
-      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
-    secrets:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      environment: ${{ inputs.environment }}
+      resource_token: ${{ inputs.resource_token }}
+      azure_location: ${{ inputs.azure_location }}
 
-  gpt_realtime_smoke_test:
-    name: GPT Realtime Smoke Test
+  teardown:
+    name: Teardown validation environment
     needs: provision
-    runs-on: ubuntu-latest
-    env:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_RESOURCE_GROUP: ${{ needs.provision.outputs.AZURE_RESOURCE_GROUP }}
-      AZURE_AI_FOUNDRY_NAME: ${{ needs.provision.outputs.AZURE_AI_FOUNDRY_NAME }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-
-      - name: Run GPT Realtime smoke test
-        run: |
-          chmod +x infra/scripts/gpt-realtime-smoke-test.sh
-          infra/scripts/gpt-realtime-smoke-test.sh
-
-  delete:
-    name: Delete Infrastructure
-    needs:
-      - provision
-      - gpt_realtime_smoke_test
-    if: always()
+    if: ${{ inputs.environment == 'testing' && inputs.retain_resources == false }}
     uses: ./.github/workflows/delete-infrastructure.yml
+    secrets: inherit
     with:
-      ENVIRONMENT: ${{ inputs.ENVIRONMENT }}
-      AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-    secrets:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      environment: ${{ inputs.environment }}
+      resource_token: ${{ inputs.resource_token }}
+      retain_resources: ${{ inputs.retain_resources }}
+      azure_location: ${{ inputs.azure_location }}
