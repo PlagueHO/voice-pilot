@@ -12,15 +12,16 @@ The VoicePilot project now includes a comprehensive CI/CD pipeline with enhanced
 - **Runs**: ESLint, TypeScript compilation, code cleanliness checks
 - **Blocks Pipeline**: Yes (critical job)
 
-### 2. Unit Tests
+### 2. Quality Gate Sequence
 
-- **Purpose**: Extension functionality testing
-- **Runs**: All tests in `src/test/` with headless VS Code
-- **Features**:
-  - Proper headless display setup (xvfb)
-  - Test result artifacts
-  - PR comment on failures
-- **Blocks Pipeline**: Yes (critical job)
+- **Purpose**: Enforces the layered lint → unit → integration → performance flow defined in `sp-039-spec-process-testing-strategy.md`
+- **Runs**: VS Code task `Quality Gate Sequence` via `scripts/run-quality-gate.mjs`, covering `Lint Extension`, `Test Unit`, `Test Extension`, `Test All`, `Test Coverage`, and `Test Performance`
+- **Runtime Guard**: Aborts if cumulative runtime exceeds **15 minutes** (CON-001)
+- **Outputs**:
+  - `telemetry/gate-report.json` — sanitized task telemetry matching the spec schema
+  - `coverage/coverage-summary.json` — NYC report enforcing ≥90% statements / ≥85% branches
+  - `.vscode-test/` — raw extension host logs for debugging
+- **Blocks Pipeline**: Yes (critical quality gate)
 
 ### 3. Extension Validation
 
@@ -70,6 +71,7 @@ The VoicePilot project now includes a comprehensive CI/CD pipeline with enhanced
 npm run test:headless     # Run tests with xvfb (Linux)
 npm run test:coverage     # Run tests with coverage reporting
 npm run test:perf         # Run performance benchmarks
+npm run quality:gate      # Execute lint/test/perf gate sequence with telemetry
 
 # Security
 npm run security:audit    # Run npm audit
@@ -81,9 +83,9 @@ npm run package:check     # Validate extension packaging
 
 ## Artifacts Generated
 
-### Test Results
+### Test & Telemetry Artefacts
 
-- **test-results**: Test execution logs and VS Code artifacts
+- **quality-gate-telemetry**: `telemetry/gate-report.json`, NYC coverage summary, and `.vscode-test/` logs
 - **compatibility-test-results-{version}**: Version-specific test results
 - **performance-results-{run}**: Performance benchmark data
 
@@ -115,8 +117,9 @@ npm run package:check     # Validate extension packaging
 ### Pull Requests
 
 - All jobs run in parallel where possible
-- Critical jobs (static-analysis, unit-tests, extension-validation) must pass
-- Failed tests trigger automated PR comments
+- Critical jobs (static-analysis, quality gate, extension-validation) must pass
+- Quality gate telemetry is uploaded for inspection when the gate succeeds or fails
+- Azure-dependent suites tagged `[requiresAzure]` skip automatically when credentials are unavailable, with reasons recorded in telemetry
 - Security and compatibility jobs provide information but don't block
 
 ### Main Branch

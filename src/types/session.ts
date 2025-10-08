@@ -2,42 +2,57 @@ import * as vscode from "vscode";
 import { ServiceInitializable } from "../core/service-initializable";
 import { AuthenticationError, EphemeralKeyInfo } from "./ephemeral";
 
-// Session Manager Interface
+/**
+ * Contract implemented by services that manage realtime Copilot sessions.
+ */
 export interface SessionManager extends ServiceInitializable {
-  // Primary session operations
+  /** Initializes a new session using the optional configuration override. */
   startSession(config?: SessionConfig): Promise<SessionInfo>;
+  /** Gracefully terminates the specified session or the active session. */
   endSession(sessionId?: string): Promise<void>;
+  /** Renews credentials and timers for the given session. */
   renewSession(sessionId: string): Promise<RenewalResult>;
 
-  // Session state queries
+  /** Retrieves metadata describing the requested session. */
   getSessionInfo(sessionId: string): SessionInfo | undefined;
+  /** Returns the session currently in focus, if any. */
   getCurrentSession(): SessionInfo | undefined;
+  /** Lists all sessions known to the manager. */
   getAllSessions(): SessionInfo[];
+  /** Indicates whether the specified or active session is running. */
   isSessionActive(sessionId?: string): boolean;
 
-  // Session configuration
+  /** Applies configuration overrides to an existing session. */
   updateSessionConfig(
     sessionId: string,
     config: Partial<SessionConfig>,
   ): Promise<void>;
+  /** Fetches the effective configuration for the given session. */
   getSessionConfig(sessionId: string): SessionConfig | undefined;
 
-  // Event handling
+  /** Registers a handler that fires when sessions start. */
   onSessionStarted(handler: SessionEventHandler): vscode.Disposable;
+  /** Registers a handler that fires when sessions end. */
   onSessionEnded(handler: SessionEventHandler): vscode.Disposable;
+  /** Registers a handler that fires when session renewals complete. */
   onSessionRenewed(handler: SessionRenewalHandler): vscode.Disposable;
+  /** Registers a handler for surfaced session errors. */
   onSessionError(handler: SessionErrorHandler): vscode.Disposable;
+  /** Registers a handler for session state transitions. */
   onSessionStateChanged(handler: SessionStateHandler): vscode.Disposable;
 
-  // Diagnostic operations
+  /** Provides a snapshot of diagnostics for the targeted session. */
   getSessionDiagnostics(sessionId: string): SessionDiagnostics;
+  /** Executes health checks and returns aggregated results. */
   testSessionHealth(sessionId: string): Promise<SessionHealthResult>;
 
-  // Activity management
+  /** Resets inactivity timers associated with the specified session. */
   resetInactivityTimer(sessionId: string): Promise<void>;
 }
 
-// Core Session Types
+/**
+ * Metadata describing the state and configuration of an active session.
+ */
 export interface SessionInfo {
   sessionId: string;
   state: SessionState;
@@ -49,6 +64,9 @@ export interface SessionInfo {
   connectionInfo: ConnectionInfo;
 }
 
+/**
+ * Configuration knobs that govern session renewals and heartbeats.
+ */
 export interface SessionConfig {
   renewalMarginSeconds: number; // Default: 10
   inactivityTimeoutMinutes: number; // Default: 5
@@ -59,6 +77,9 @@ export interface SessionConfig {
   enableInactivityTimeout: boolean; // Default: true
 }
 
+/**
+ * Statistical counters accumulated over the lifetime of a session.
+ */
 export interface SessionStatistics {
   renewalCount: number;
   failedRenewalCount: number;
@@ -68,6 +89,9 @@ export interface SessionStatistics {
   averageRenewalLatencyMs: number;
 }
 
+/**
+ * Connection-level status and metadata for the current session transport.
+ */
 export interface ConnectionInfo {
   webrtcState: "disconnected" | "connecting" | "connected" | "failed";
   lastConnectedAt?: Date;
@@ -75,6 +99,9 @@ export interface ConnectionInfo {
   ephemeralKeyInfo?: EphemeralKeyInfo;
 }
 
+/**
+ * Outcome returned after attempting to renew an existing session.
+ */
 export interface RenewalResult {
   success: boolean;
   sessionId: string;
@@ -83,6 +110,9 @@ export interface RenewalResult {
   error?: SessionError;
 }
 
+/**
+ * Diagnostic snapshot used to troubleshoot session lifecycle issues.
+ */
 export interface SessionDiagnostics {
   sessionId: string;
   state: SessionState;
@@ -94,6 +124,9 @@ export interface SessionDiagnostics {
   nextScheduledEvent?: TimerEventInfo;
 }
 
+/**
+ * Result returned by the health probe that validates session viability.
+ */
 export interface SessionHealthResult {
   isHealthy: boolean;
   checks: HealthCheck[];
@@ -101,6 +134,9 @@ export interface SessionHealthResult {
   recommendations: string[];
 }
 
+/**
+ * Individual check result included in health probe output.
+ */
 export interface HealthCheck {
   name: string;
   status: "pass" | "fail" | "warn";
@@ -108,6 +144,9 @@ export interface HealthCheck {
   details?: any;
 }
 
+/**
+ * Enumeration describing high-level session lifecycle states.
+ */
 export enum SessionState {
   Idle = "idle",
   Starting = "starting",
@@ -118,6 +157,9 @@ export enum SessionState {
   Failed = "failed",
 }
 
+/**
+ * Error payload surfaced when session operations fail.
+ */
 export interface SessionError {
   code: string;
   message: string;
@@ -127,24 +169,27 @@ export interface SessionError {
   context?: any;
 }
 
-// Event Handler Interfaces
+/** Handler invoked when sessions start or end. */
 export interface SessionEventHandler {
   (event: SessionEvent): Promise<void>;
 }
 
+/** Handler invoked when session renewal events occur. */
 export interface SessionRenewalHandler {
   (event: SessionRenewalEvent): Promise<void>;
 }
 
+/** Handler invoked when session errors surface. */
 export interface SessionErrorHandler {
   (event: SessionErrorEvent): Promise<void>;
 }
 
+/** Handler invoked when session state transitions occur. */
 export interface SessionStateHandler {
   (event: SessionStateEvent): Promise<void>;
 }
 
-// Event Types
+/** Event emitted when sessions start or end. */
 export interface SessionEvent {
   type: "started" | "ended";
   sessionId: string;
@@ -152,6 +197,7 @@ export interface SessionEvent {
   sessionInfo: SessionInfo;
 }
 
+/** Event describing the lifecycle of session renewal operations. */
 export interface SessionRenewalEvent {
   type: "renewal-started" | "renewal-completed" | "renewal-failed";
   sessionId: string;
@@ -161,6 +207,7 @@ export interface SessionRenewalEvent {
   diagnostics?: SessionDiagnostics;
 }
 
+/** Event describing errors that occur during session management. */
 export interface SessionErrorEvent {
   type:
     | "authentication-error"
@@ -173,6 +220,7 @@ export interface SessionErrorEvent {
   retryAttempt?: number;
 }
 
+/** Event emitted when a session transitions between lifecycle states. */
 export interface SessionStateEvent {
   type: "state-changed";
   sessionId: string;
@@ -183,7 +231,7 @@ export interface SessionStateEvent {
   diagnostics?: SessionDiagnostics;
 }
 
-// Timer Integration Interfaces
+/** Metadata describing timers that drive session lifecycle activities. */
 export interface TimerEventInfo {
   type: "renewal" | "timeout" | "heartbeat";
   sessionId: string;
@@ -191,7 +239,7 @@ export interface TimerEventInfo {
   timeRemainingMs: number;
 }
 
-// Re-exported from SessionTimerManager for integration
+/** Aggregated view of timers orchestrated by the session timer manager. */
 export interface SessionTimerStatus {
   sessionId: string;
   renewalTimer?: TimerEventStatus;
@@ -199,6 +247,7 @@ export interface SessionTimerStatus {
   heartbeatTimer?: TimerEventStatus & { intervalMs: number };
 }
 
+/** Detailed information for a single timer tracking session actions. */
 export interface TimerEventStatus {
   isActive: boolean;
   scheduledAt: Date;
@@ -208,7 +257,7 @@ export interface TimerEventStatus {
   nextExecutionAt?: Date;
 }
 
-// Service Dependencies Integration
+/** Dependency contract for integrating the session layer with ephemeral keys. */
 export interface EphemeralKeyIntegration {
   keyService: any; // EphemeralKeyService - avoiding circular dependency
   onKeyRenewed: (result: any) => Promise<void>; // EphemeralKeyResult
@@ -216,7 +265,7 @@ export interface EphemeralKeyIntegration {
   onAuthenticationError: (error: AuthenticationError) => Promise<void>;
 }
 
-// Integration with WebRTC Audio Transport (SP-006 dependency)
+/** Integration points for the WebRTC transport layer used by sessions. */
 export interface WebRTCIntegration {
   onConnectionStateChanged: (state: RTCPeerConnectionState) => Promise<void>;
   onAudioActivityDetected: () => Promise<void>;

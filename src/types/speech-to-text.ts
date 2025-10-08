@@ -1,8 +1,14 @@
 import { Disposable } from "vscode";
 import type { TurnDetectionConfig } from "./configuration";
 
+/**
+ * Speech roles that can be attributed to a transcript segment.
+ */
 export type SpeakerRole = "user" | "assistant" | "system";
 
+/**
+ * Defines a textual redaction rule applied to transcript slices.
+ */
 export interface RedactionRule {
   id: string;
   pattern: RegExp | string;
@@ -10,6 +16,9 @@ export interface RedactionRule {
   explanation?: string;
 }
 
+/**
+ * Result describing a single redaction that was applied to content.
+ */
 export interface RedactionMatch {
   ruleId: string;
   originalText: string;
@@ -18,22 +27,34 @@ export interface RedactionMatch {
   endIndex: number;
 }
 
+/**
+ * Aggregated output of the redaction engine for a given utterance.
+ */
 export interface RedactionResult {
   content: string;
   matches: RedactionMatch[];
 }
 
+/**
+ * Voice activity detection signal originating from the realtime service.
+ */
 export interface ServerVadSignal {
   state: "start" | "stop";
   offset_ms: number;
 }
 
+/**
+ * Client-side voice activity detection signal derived from local audio.
+ */
 export interface ClientVadSignal {
   state: "start" | "stop";
   confidence: number;
   offset_ms: number;
 }
 
+/**
+ * Supplemental metadata captured alongside each utterance in a transcript.
+ */
 export interface UtteranceMetadata {
   startOffsetMs: number;
   endOffsetMs?: number;
@@ -44,8 +65,14 @@ export interface UtteranceMetadata {
   chunkCount: number;
 }
 
+/**
+ * Indicates progress for an utterance as it moves through recognition stages.
+ */
 export type UtteranceStatus = "pending" | "partial" | "final" | "archived";
 
+/**
+ * Snapshot of a single utterance produced during transcription.
+ */
 export interface UtteranceSnapshot {
   utteranceId: string;
   sessionId: string;
@@ -58,11 +85,17 @@ export interface UtteranceSnapshot {
   metadata: UtteranceMetadata;
 }
 
+/**
+ * Transcript-friendly structure that augments an utterance with ordering data.
+ */
 export interface TranscriptEntry extends UtteranceSnapshot {
   final: boolean;
   sequence: number;
 }
 
+/**
+ * Options contract accepted when starting a speech-to-text session.
+ */
 export interface TranscriptionOptions {
   profanityFilter?: "none" | "medium" | "high";
   redactionRules?: RedactionRule[];
@@ -77,12 +110,18 @@ export interface TranscriptionOptions {
   turnDetectionCreateResponse?: boolean;
 }
 
+/**
+ * Minimal session descriptor shared across speech-to-text entry points.
+ */
 export interface SessionInfoLike {
   sessionId: string;
   correlationId?: string;
   userId?: string;
 }
 
+/**
+ * High-level service contract implemented by the speech-to-text subsystem.
+ */
 export interface SpeechToTextService {
   startTranscription(
     session: SessionInfoLike,
@@ -101,28 +140,48 @@ export interface SpeechToTextService {
   onError(handler: TranscriptionErrorHandler): Disposable;
 }
 
+/**
+ * Reasons why transcription can be temporarily paused.
+ */
 export type PauseReason =
   | "credential-renewal"
   | "network-loss"
   | "user-requested"
   | "system-overload";
 
+/**
+ * Callback invoked when transcript content changes.
+ */
 export type TranscriptEventHandler = (
   event: TranscriptEvent,
 ) => void | Promise<void>;
+
+/**
+ * Callback invoked when transcription status transitions.
+ */
 export type TranscriptionStatusHandler = (
   event: TranscriptionStatusEvent,
 ) => void | Promise<void>;
+
+/**
+ * Callback invoked when the service reports an error condition.
+ */
 export type TranscriptionErrorHandler = (
   event: TranscriptionErrorEvent,
 ) => void | Promise<void>;
 
+/**
+ * Union of transcript-related events emitted by the service.
+ */
 export type TranscriptEvent =
   | TranscriptDeltaEvent
   | TranscriptFinalEvent
   | TranscriptRedoEvent
   | TranscriptClearedEvent;
 
+/**
+ * Event representing incremental transcript updates.
+ */
 export interface TranscriptDeltaEvent {
   type: "transcript-delta";
   sessionId: string;
@@ -135,6 +194,9 @@ export interface TranscriptDeltaEvent {
   metadata: UtteranceMetadata;
 }
 
+/**
+ * Event emitted when a transcript entry reaches its final state.
+ */
 export interface TranscriptFinalEvent {
   type: "transcript-final";
   sessionId: string;
@@ -145,6 +207,9 @@ export interface TranscriptFinalEvent {
   metadata: UtteranceMetadata;
 }
 
+/**
+ * Event emitted when an earlier transcript entry is replaced with new content.
+ */
 export interface TranscriptRedoEvent {
   type: "transcript-redo";
   sessionId: string;
@@ -155,6 +220,9 @@ export interface TranscriptRedoEvent {
   timestamp: string;
 }
 
+/**
+ * Event emitted when the transcript history for a session is purged.
+ */
 export interface TranscriptClearedEvent {
   type: "transcript-cleared";
   sessionId: string;
@@ -162,6 +230,9 @@ export interface TranscriptClearedEvent {
   reason: "user-requested" | "privacy-policy" | "session-end";
 }
 
+/**
+ * Status notification describing the current state of transcription.
+ */
 export interface TranscriptionStatusEvent {
   type: "transcription-status";
   sessionId: string;
@@ -178,6 +249,9 @@ export interface TranscriptionStatusEvent {
   correlationId?: string;
 }
 
+/**
+ * Error codes raised by the speech-to-text subsystem.
+ */
 export enum TranscriptionErrorCode {
   TransportDisconnected = "TRANSPORT_DISCONNECTED",
   AuthenticationFailed = "AUTHENTICATION_FAILED",
@@ -189,6 +263,9 @@ export enum TranscriptionErrorCode {
   Unknown = "UNKNOWN",
 }
 
+/**
+ * Structured error payload emitted to subscribers.
+ */
 export interface TranscriptionErrorEvent {
   type: "transcription-error";
   sessionId: string;
@@ -201,11 +278,17 @@ export interface TranscriptionErrorEvent {
   correlationId?: string;
 }
 
+/**
+ * Free-form annotation container attached to Azure realtime transcripts.
+ */
 export interface AzureAnnotation {
   type: string;
   [key: string]: unknown;
 }
 
+/**
+ * Message contract mirroring the Azure realtime transcription protocol.
+ */
 export interface AzureRealtimeTranscriptMessage {
   type:
     | "response.output_audio_transcript.delta"

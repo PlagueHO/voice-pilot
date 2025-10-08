@@ -39,7 +39,33 @@
     "webpack:dev": "webpack --mode development --watch",
     "webpack:prod": "webpack --mode production",
     "package": "npm run webpack:prod && vsce package",
-    "package:check": "vsce package --no-dependencies && echo 'Package created successfully'"
+    "package:check": "vsce package --no-dependencies && echo 'Package created successfully'",
+    "quality:gate": "node ./scripts/run-quality-gate.mjs"
+  },
+  "nyc": {
+    "extends": "@istanbuljs/nyc-config-typescript",
+    "all": true,
+    "include": [
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "src/test/**",
+      "out/**",
+      "**/*.d.ts"
+    ],
+    "reporter": [
+      "lcov",
+      "json-summary",
+      "text-summary"
+    ],
+    "report-dir": "coverage",
+    "temp-dir": "coverage/.nyc_output",
+    "check-coverage": true,
+    "per-file": false,
+    "statements": 90,
+    "branches": 85,
+    "functions": 90,
+    "lines": 90
   },
   "contributes": {
     "commands": [

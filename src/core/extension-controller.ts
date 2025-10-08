@@ -3,10 +3,10 @@ import { CredentialManagerImpl } from "../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-    StateChangeEvent as ConversationStateChangeEvent,
-    TurnContext as ConversationTurnContext,
-    TurnEvent as ConversationTurnEvent,
-    CopilotResponseEvent,
+  StateChangeEvent as ConversationStateChangeEvent,
+  TurnContext as ConversationTurnContext,
+  TurnEvent as ConversationTurnEvent,
+  CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
@@ -21,11 +21,15 @@ import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text
 import { InterruptionEngineImpl } from "../session/interruption-engine";
 import { SessionManagerImpl } from "../session/session-manager";
 import { SessionTimerManagerImpl } from "../session/session-timer-manager";
+import {
+  lifecycleTelemetry,
+  type LifecyclePhase,
+} from "../telemetry/lifecycle-telemetry";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type {
-    RecoveryPlan,
-    VoicePilotError,
+  RecoveryPlan,
+  VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
@@ -136,6 +140,8 @@ export class ExtensionController implements ServiceInitializable {
    * configuration → authentication → session → UI. If initialization fails,
    * previously started services are disposed and the error is rethrown so the
    * extension host can surface a fatal activation failure.
+  *
+  * @returns A promise that resolves once every dependent service is ready for use.
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -164,6 +170,7 @@ export class ExtensionController implements ServiceInitializable {
         () => this.configurationManager.dispose(),
         initialized,
         "configurationManager",
+        "config.initialized",
       );
 
       await this.safeInit(
@@ -216,6 +223,7 @@ export class ExtensionController implements ServiceInitializable {
         () => this.ephemeralKeyService.dispose(),
         initialized,
         "ephemeralKeyService",
+        "auth.initialized",
       );
 
       this.registerRecoveryPlans();
@@ -271,6 +279,7 @@ export class ExtensionController implements ServiceInitializable {
       );
 
       this.registerConversationIntegration();
+      lifecycleTelemetry.record("session.initialized");
 
       await this.safeInit(
         "audio feedback service",
@@ -286,6 +295,7 @@ export class ExtensionController implements ServiceInitializable {
         () => this.voicePanel.dispose(),
         initialized,
         "voicePanel",
+        "ui.initialized",
       );
 
       this.registerCommands();
@@ -310,14 +320,20 @@ export class ExtensionController implements ServiceInitializable {
     disposeFn: () => void,
     list: Array<{ name: string; dispose: () => void }>,
     name: string,
+    lifecycleEvent?: LifecyclePhase,
   ) {
     this.logger.info(`Initializing ${label}`);
     await initFn();
+    if (lifecycleEvent) {
+      lifecycleTelemetry.record(lifecycleEvent);
+    }
     list.push({ name, dispose: disposeFn });
   }
 
   /**
    * Indicates whether {@link initialize} has completed successfully.
+   *
+   * @returns `true` when the controller has been initialized, otherwise `false`.
    */
   isInitialized(): boolean {
     return this.initialized;
@@ -327,6 +343,10 @@ export class ExtensionController implements ServiceInitializable {
    * Disposes all managed services and clears registered VS Code disposables.
    * The shutdown order is the reverse of initialization to honour service
    * dependencies.
+   *
+   * @remarks
+   * Disposal is idempotent; repeated calls tear down any remaining services without
+   * throwing when dependencies are already cleaned up.
    */
   dispose(): void {
     const steps: Array<[string, () => void]> = [
@@ -349,6 +369,22 @@ export class ExtensionController implements ServiceInitializable {
       this.logger.info(`Disposing ${name}`);
       try {
         fn();
+        switch (name) {
+          case "voice panel":
+            lifecycleTelemetry.record("ui.disposed");
+            break;
+          case "session manager":
+            lifecycleTelemetry.record("session.disposed");
+            break;
+          case "ephemeral key service":
+            lifecycleTelemetry.record("auth.disposed");
+            break;
+          case "configuration manager":
+            lifecycleTelemetry.record("config.disposed");
+            break;
+          default:
+            break;
+        }
       } catch (err: any) {
         this.logger.error(`Error disposing ${name}: ${err?.message || err}`);
       }
@@ -404,42 +440,56 @@ export class ExtensionController implements ServiceInitializable {
   /**
    * Provides access to the active configuration manager for downstream
    * components that require validated settings.
+   *
+   * @returns The shared {@link ConfigurationManager} instance.
    */
   getConfigurationManager(): ConfigurationManager {
     return this.configurationManager;
   }
   /**
    * Returns the credential manager handling Azure identity storage and token flows.
+   *
+   * @returns The active {@link CredentialManagerImpl} singleton.
    */
   getCredentialManager(): CredentialManagerImpl {
     return this.credentialManager;
   }
   /**
    * Supplies the session manager responsible for realtime conversation orchestration.
+   *
+   * @returns The initialized {@link SessionManagerImpl} coordinating voice sessions.
    */
   getSessionManager(): SessionManagerImpl {
     return this.sessionManager;
   }
   /**
    * Retrieves the ephemeral key service used for Azure OpenAI session authentication.
+   *
+   * @returns The {@link EphemeralKeyServiceImpl} bound to the current session.
    */
   getEphemeralKeyService(): EphemeralKeyServiceImpl {
     return this.ephemeralKeyService;
   }
   /**
    * Exposes the voice control panel for UI integrations that need to trigger renders.
+   *
+   * @returns The extension's {@link VoiceControlPanel} instance.
    */
   getVoiceControlPanel(): VoiceControlPanel {
     return this.voicePanel;
   }
   /**
    * Returns the interruption engine handling barge-in policies and fallbacks.
+   *
+   * @returns The configured {@link InterruptionEngineImpl}.
    */
   getInterruptionEngine(): InterruptionEngineImpl {
     return this.interruptionEngine;
   }
   /**
    * Provides the privacy controller responsible for transcript sanitisation and purges.
+   *
+   * @returns The {@link PrivacyController} tied to the extension lifecycle.
    */
   getPrivacyController(): PrivacyController {
     return this.privacyController;

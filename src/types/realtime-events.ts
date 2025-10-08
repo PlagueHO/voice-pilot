@@ -1,15 +1,23 @@
 /**
- * Azure OpenAI Realtime API event type definitions
- * Based on the official Realtime API specification for WebRTC integration
+ * Azure OpenAI Realtime API event type definitions.
+ *
+ * @remarks
+ * Shapes mirror the official Realtime API specification for WebRTC
+ * integrations and are grouped by functional area for easier discrimination.
  */
 
-// Base event interface
+/**
+ * Base event interface shared by all realtime messages.
+ */
 export interface RealtimeEvent {
   type: string;
   event_id?: string;
   [key: string]: any;
 }
 
+/**
+ * Delta payload used by text and transcript streaming events.
+ */
 export type RealtimeDeltaPayload =
   | string
   | {
@@ -19,7 +27,9 @@ export type RealtimeDeltaPayload =
       [key: string]: unknown;
     };
 
-// Session management events
+/**
+ * Outgoing request used to update session configuration.
+ */
 export interface SessionUpdateEvent extends RealtimeEvent {
   type: "session.update";
   session: {
@@ -63,6 +73,9 @@ export interface SessionUpdateEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when the realtime service creates a new session.
+ */
 export interface SessionCreatedEvent extends RealtimeEvent {
   type: "session.created";
   session: {
@@ -83,6 +96,9 @@ export interface SessionCreatedEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when existing session properties are updated.
+ */
 export interface SessionUpdatedEvent extends RealtimeEvent {
   type: "session.updated";
   session: {
@@ -103,39 +119,58 @@ export interface SessionUpdatedEvent extends RealtimeEvent {
   };
 }
 
-// Audio buffer events
+/**
+ * Event used to append base64-encoded audio to the input buffer.
+ */
 export interface InputAudioBufferAppendEvent extends RealtimeEvent {
   type: "input_audio_buffer.append";
   audio: string; // Base64 encoded audio data
 }
 
+/**
+ * Event finalizing the current input audio buffer frame.
+ */
 export interface InputAudioBufferCommitEvent extends RealtimeEvent {
   type: "input_audio_buffer.commit";
 }
 
+/**
+ * Event clearing staged audio from the input buffer.
+ */
 export interface InputAudioBufferClearEvent extends RealtimeEvent {
   type: "input_audio_buffer.clear";
 }
 
+/**
+ * Notification that server-side VAD detected speech start in the buffer.
+ */
 export interface InputAudioBufferSpeechStartedEvent extends RealtimeEvent {
   type: "input_audio_buffer.speech_started";
   audio_start_ms: number;
   item_id: string;
 }
 
+/**
+ * Notification that the server detected end of speech in the buffer.
+ */
 export interface InputAudioBufferSpeechStoppedEvent extends RealtimeEvent {
   type: "input_audio_buffer.speech_stopped";
   audio_end_ms: number;
   item_id: string;
 }
 
+/**
+ * Event emitted when an in-flight response is interrupted.
+ */
 export interface ResponseInterruptedEvent extends RealtimeEvent {
   type: "response.interrupted";
   response_id?: string;
   reason?: string;
 }
 
-// Conversation events
+/**
+ * Command to create a new conversation item in the realtime session.
+ */
 export interface ConversationItemCreateEvent extends RealtimeEvent {
   type: "conversation.item.create";
   previous_item_id?: string;
@@ -157,6 +192,9 @@ export interface ConversationItemCreateEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted once a conversation item is persisted by the service.
+ */
 export interface ConversationItemCreatedEvent extends RealtimeEvent {
   type: "conversation.item.created";
   previous_item_id?: string;
@@ -174,16 +212,25 @@ export interface ConversationItemCreatedEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Command to delete a conversation item by identifier.
+ */
 export interface ConversationItemDeleteEvent extends RealtimeEvent {
   type: "conversation.item.delete";
   item_id: string;
 }
 
+/**
+ * Event indicating that a conversation item was removed.
+ */
 export interface ConversationItemDeletedEvent extends RealtimeEvent {
   type: "conversation.item.deleted";
   item_id: string;
 }
 
+/**
+ * Command to truncate audio content at a specific index for an item.
+ */
 export interface ConversationItemTruncateEvent extends RealtimeEvent {
   type: "conversation.item.truncate";
   item_id: string;
@@ -191,6 +238,9 @@ export interface ConversationItemTruncateEvent extends RealtimeEvent {
   audio_end_ms: number;
 }
 
+/**
+ * Event confirming a conversation item was truncated server-side.
+ */
 export interface ConversationItemTruncatedEvent extends RealtimeEvent {
   type: "conversation.item.truncated";
   item_id: string;
@@ -198,7 +248,9 @@ export interface ConversationItemTruncatedEvent extends RealtimeEvent {
   audio_end_ms: number;
 }
 
-// Response events
+/**
+ * Command instructing the service to begin generating a response.
+ */
 export interface ResponseCreateEvent extends RealtimeEvent {
   type: "response.create";
   response?: {
@@ -218,6 +270,9 @@ export interface ResponseCreateEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when the service acknowledges response creation.
+ */
 export interface ResponseCreatedEvent extends RealtimeEvent {
   type: "response.created";
   response: {
@@ -230,6 +285,9 @@ export interface ResponseCreatedEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when response generation has finished.
+ */
 export interface ResponseDoneEvent extends RealtimeEvent {
   type: "response.done";
   response: {
@@ -255,6 +313,9 @@ export interface ResponseDoneEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when an output item is appended to the response payload.
+ */
 export interface ResponseOutputItemAddedEvent extends RealtimeEvent {
   type: "response.output_item.added";
   response_id: string;
@@ -272,6 +333,9 @@ export interface ResponseOutputItemAddedEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when an output item completes generation.
+ */
 export interface ResponseOutputItemDoneEvent extends RealtimeEvent {
   type: "response.output_item.done";
   response_id: string;
@@ -289,7 +353,9 @@ export interface ResponseOutputItemDoneEvent extends RealtimeEvent {
   };
 }
 
-// Content delta events
+/**
+ * Event emitted when a content part is added to a response item.
+ */
 export interface ResponseContentPartAddedEvent extends RealtimeEvent {
   type: "response.content_part.added";
   response_id: string;
@@ -304,6 +370,9 @@ export interface ResponseContentPartAddedEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Event emitted when a content part finishes streaming.
+ */
 export interface ResponseContentPartDoneEvent extends RealtimeEvent {
   type: "response.content_part.done";
   response_id: string;
@@ -318,6 +387,9 @@ export interface ResponseContentPartDoneEvent extends RealtimeEvent {
   };
 }
 
+/**
+ * Delta carrying incremental text output for a response.
+ */
 export interface ResponseTextDeltaEvent extends RealtimeEvent {
   type: "response.text.delta";
   response_id: string;
@@ -327,6 +399,9 @@ export interface ResponseTextDeltaEvent extends RealtimeEvent {
   delta: RealtimeDeltaPayload;
 }
 
+/**
+ * Event emitted when text output for a response item is finalized.
+ */
 export interface ResponseTextDoneEvent extends RealtimeEvent {
   type: "response.text.done";
   response_id: string;
@@ -336,6 +411,9 @@ export interface ResponseTextDoneEvent extends RealtimeEvent {
   text: string;
 }
 
+/**
+ * Delta carrying incremental audio transcript output.
+ */
 export interface ResponseAudioTranscriptDeltaEvent extends RealtimeEvent {
   type: "response.audio_transcript.delta";
   response_id: string;
@@ -345,6 +423,9 @@ export interface ResponseAudioTranscriptDeltaEvent extends RealtimeEvent {
   delta: RealtimeDeltaPayload;
 }
 
+/**
+ * Event emitted when audio transcript output completes.
+ */
 export interface ResponseAudioTranscriptDoneEvent extends RealtimeEvent {
   type: "response.audio_transcript.done";
   response_id: string;
@@ -354,6 +435,9 @@ export interface ResponseAudioTranscriptDoneEvent extends RealtimeEvent {
   transcript: string;
 }
 
+/**
+ * Delta carrying incremental output text in the response object graph.
+ */
 export interface ResponseOutputTextDeltaEvent extends RealtimeEvent {
   type: "response.output_text.delta";
   response_id: string;
@@ -363,6 +447,9 @@ export interface ResponseOutputTextDeltaEvent extends RealtimeEvent {
   delta: RealtimeDeltaPayload;
 }
 
+/**
+ * Event emitted when output text generation completes.
+ */
 export interface ResponseOutputTextDoneEvent extends RealtimeEvent {
   type: "response.output_text.done";
   response_id: string;
@@ -372,6 +459,9 @@ export interface ResponseOutputTextDoneEvent extends RealtimeEvent {
   text?: string;
 }
 
+/**
+ * Delta carrying incremental audio transcription from response output.
+ */
 export interface ResponseOutputAudioTranscriptDeltaEvent extends RealtimeEvent {
   type:
     | "response.output_audio_transcript.delta"
@@ -383,6 +473,9 @@ export interface ResponseOutputAudioTranscriptDeltaEvent extends RealtimeEvent {
   delta: RealtimeDeltaPayload;
 }
 
+/**
+ * Event emitted when response audio transcription is complete.
+ */
 export interface ResponseOutputAudioTranscriptDoneEvent extends RealtimeEvent {
   type:
     | "response.output_audio_transcript.done"
@@ -394,6 +487,9 @@ export interface ResponseOutputAudioTranscriptDoneEvent extends RealtimeEvent {
   transcript?: string;
 }
 
+/**
+ * Delta carrying base64 audio chunks emitted by the response pipeline.
+ */
 export interface ResponseAudioDeltaEvent extends RealtimeEvent {
   type: "response.audio.delta";
   response_id: string;
@@ -403,6 +499,9 @@ export interface ResponseAudioDeltaEvent extends RealtimeEvent {
   delta: string; // Base64 encoded audio data
 }
 
+/**
+ * Event emitted when audio output for a response item finishes streaming.
+ */
 export interface ResponseAudioDoneEvent extends RealtimeEvent {
   type: "response.audio.done";
   response_id: string;
@@ -411,7 +510,9 @@ export interface ResponseAudioDoneEvent extends RealtimeEvent {
   content_index: number;
 }
 
-// Function call events
+/**
+ * Delta event carrying incremental function call argument content.
+ */
 export interface ResponseFunctionCallArgumentsDeltaEvent extends RealtimeEvent {
   type: "response.function_call_arguments.delta";
   response_id: string;
@@ -421,6 +522,9 @@ export interface ResponseFunctionCallArgumentsDeltaEvent extends RealtimeEvent {
   delta: string;
 }
 
+/**
+ * Event emitted when function call arguments are finalized.
+ */
 export interface ResponseFunctionCallArgumentsDoneEvent extends RealtimeEvent {
   type: "response.function_call_arguments.done";
   response_id: string;
@@ -430,7 +534,9 @@ export interface ResponseFunctionCallArgumentsDoneEvent extends RealtimeEvent {
   arguments: string;
 }
 
-// Rate limit events
+/**
+ * Event emitted when rate limiting metadata is updated.
+ */
 export interface RateLimitsUpdatedEvent extends RealtimeEvent {
   type: "rate_limits.updated";
   rate_limits: Array<{
@@ -441,7 +547,9 @@ export interface RateLimitsUpdatedEvent extends RealtimeEvent {
   }>;
 }
 
-// Error events
+/**
+ * Event emitted when the realtime service reports an error condition.
+ */
 export interface ErrorEvent extends RealtimeEvent {
   type: "error";
   error: {
@@ -453,7 +561,9 @@ export interface ErrorEvent extends RealtimeEvent {
   };
 }
 
-// Union type for all possible events
+/**
+ * Union encompassing every supported realtime event type.
+ */
 export type AnyRealtimeEvent =
   | SessionUpdateEvent
   | SessionCreatedEvent
@@ -492,13 +602,18 @@ export type AnyRealtimeEvent =
   | RateLimitsUpdatedEvent
   | ErrorEvent;
 
-// Event type discrimination helpers
+/**
+ * Determines if an event relates to session management.
+ */
 export function isSessionEvent(
   event: RealtimeEvent,
 ): event is SessionUpdateEvent | SessionCreatedEvent | SessionUpdatedEvent {
   return event.type.startsWith("session.");
 }
 
+/**
+ * Determines if an event is part of the input audio buffer workflow.
+ */
 export function isAudioBufferEvent(
   event: RealtimeEvent,
 ): event is
@@ -510,6 +625,9 @@ export function isAudioBufferEvent(
   return event.type.startsWith("input_audio_buffer.");
 }
 
+/**
+ * Determines if an event affects the conversation item graph.
+ */
 export function isConversationEvent(
   event: RealtimeEvent,
 ): event is
@@ -522,6 +640,9 @@ export function isConversationEvent(
   return event.type.startsWith("conversation.");
 }
 
+/**
+ * Determines if an event relates to response lifecycle management.
+ */
 export function isResponseEvent(
   event: RealtimeEvent,
 ): event is
@@ -533,6 +654,9 @@ export function isResponseEvent(
   return event.type.startsWith("response.") && !event.type.includes(".");
 }
 
+/**
+ * Determines if an event relates to content streaming (text or audio).
+ */
 export function isContentEvent(
   event: RealtimeEvent,
 ): event is
@@ -551,6 +675,9 @@ export function isContentEvent(
   );
 }
 
+/**
+ * Determines if an event is an error notification.
+ */
 export function isErrorEvent(event: RealtimeEvent): event is ErrorEvent {
   return event.type === "error";
 }

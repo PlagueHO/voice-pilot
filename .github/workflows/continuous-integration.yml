@@ -81,48 +81,27 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v5
-      with:
-        name: compiled-extension
-        path: .
-
     - name: Setup headless display
       run: |
         sudo apt-get update
         sudo apt-get install -y xvfb
 
-    - name: Run extension tests with headless VS Code
-      id: tests
+    - name: Run quality gate sequence
+      id: quality-gate
       run: |
-        # Set up test results directory
-        mkdir -p test-results
+        xvfb-run -a --server-args="-screen 0 1280x1024x24" node ./scripts/run-quality-gate.mjs
+      timeout-minutes: 20
 
-        # Run tests with virtual framebuffer and capture results
-        xvfb-run -a --server-args="-screen 0 1280x1024x24" npm test
-      timeout-minutes: 10
-
-    - name: Upload test results
+    - name: Upload quality gate telemetry
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results
+        name: quality-gate-telemetry
         path: |
-          test-results/
+          telemetry/gate-report.json
+          coverage/coverage-summary.json
           .vscode-test/
-        retention-days: 7
-
-    - name: Comment test results on PR
-      if: github.event_name == 'pull_request' && steps.tests.outcome == 'failure'
-      uses: actions/github-script@v8
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '⚠️ Extension tests failed in CI. Please check the test results artifact for details.'
-          })
+        retention-days: 14
 
   extension-validation:
     runs-on: ubuntu-latest

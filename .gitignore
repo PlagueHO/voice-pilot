@@ -71,6 +71,9 @@ coverage/
 *.lcov
 .nyc_output/
 
+# Telemetry artefacts
+telemetry/
+
 # IDEs and editors
 .idea/
 .vscode/settings.json

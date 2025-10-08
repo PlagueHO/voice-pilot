@@ -1,12 +1,26 @@
 import type { VoicePilotFaultDomain } from "./error/error-taxonomy";
 
-export type RetryPolicy = "none" | "immediate" | "exponential" | "linear" | "hybrid";
+/**
+ * Supported retry policy shapes available to service orchestrators.
+ */
+export type RetryPolicy =
+  | "none"
+  | "immediate"
+  | "exponential"
+  | "linear"
+  | "hybrid";
 
+/**
+ * Strategies for injecting jitter into retry delays to reduce thundering herds.
+ */
 export type RetryJitterStrategy =
   | "none"
   | "deterministic-full"
   | "deterministic-equal";
 
+/**
+ * Canonical retry envelope describing backoff behavior for a fault domain.
+ */
 export interface RetryEnvelope {
   domain: VoicePilotFaultDomain;
   policy: RetryPolicy;
@@ -19,10 +33,18 @@ export interface RetryEnvelope {
   failureBudgetMs: number;
 }
 
-export type RetryDomainOverride = Partial<Omit<RetryEnvelope, "domain" | "failureBudgetMs">> & {
+/**
+ * Overrides applied to the default retry envelope for a specific fault domain.
+ */
+export type RetryDomainOverride = Partial<
+  Omit<RetryEnvelope, "domain" | "failureBudgetMs">
+> & {
   failureBudgetMs?: number;
 };
 
+/**
+ * Aggregate retry configuration keyed by VoicePilot fault domains.
+ */
 export interface RetryConfig {
   overrides: Partial<Record<VoicePilotFaultDomain, RetryDomainOverride>>;
 }

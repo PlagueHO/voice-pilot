@@ -111,6 +111,19 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - Implement local conversation storage, resume support, and history management UI
 - Optimize latency for conversational flow
 
+## Testing & Quality Gates
+
+- Run `npm run quality:gate` to execute the VS Code `Quality Gate Sequence` (Lint → Test Unit → Test Extension → Test All → Test Coverage → Test Performance).
+- The gate fails if cumulative runtime exceeds **15 minutes** and persists sanitized telemetry to `telemetry/gate-report.json` alongside NYC coverage summaries.
+- Coverage thresholds are enforced at ≥90% statements, ≥90% lines, ≥90% functions, and ≥85% branches for activation and disposal paths.
+- The GitHub Actions workflow uploads the `quality-gate-telemetry` artifact so PR reviewers can inspect task durations, coverage, and extension host logs.
+
+### Azure-dependent suites
+
+- Integration tests that rely on live Azure resources are tagged with `[requiresAzure]` and skip automatically when credentials are absent.
+- To opt-in locally, provide `voicepilot.azureOpenAI.apiKey` via the extension secret store (`VoicePilot: Configure Azure Credentials`) or set `AZURE_OPENAI_API_KEY` before running the quality gate.
+- Regression suites validate failure handling and cleanup using fixtures under `src/test/fixtures/activation-failure`, with outputs sanitized via `src/test/utils/sanitizers.ts`.
+
 ## Reference Projects & APIs
 
 - [Copilot Chat Extension](https://github.com/microsoft/vscode-copilot-chat)

@@ -7,11 +7,9 @@ import {
 } from "./webrtc";
 
 /**
- * Service integration interfaces for WebRTC transport layer
- * Defines how WebRTC transport integrates with existing extension services
+ * Integration contract for bridging the WebRTC transport layer with the
+ * ephemeral key management service.
  */
-
-// Integration with EphemeralKeyService (SP-004)
 export interface EphemeralKeyIntegration {
   keyService: EphemeralKeyService;
   onKeyRenewal: (newKey: EphemeralKeyInfo) => Promise<void>;
@@ -19,7 +17,9 @@ export interface EphemeralKeyIntegration {
   onAuthenticationError: (error: WebRTCError) => Promise<void>;
 }
 
-// Integration with SessionManager (SP-005)
+/**
+ * Integration contract describing how WebRTC interacts with session management.
+ */
 export interface SessionIntegration {
   sessionManager: SessionManager;
   onSessionStateChanged: (state: WebRTCConnectionState) => Promise<void>;
@@ -27,7 +27,9 @@ export interface SessionIntegration {
   onConnectionFailure: (error: WebRTCError) => Promise<void>;
 }
 
-// Integration with Audio Pipeline (SP-007 future dependency)
+/**
+ * Integration contract bridging WebRTC media events with the audio pipeline.
+ */
 export interface AudioPipelineIntegration {
   onAudioInputRequired: () => Promise<MediaStreamTrack>;
   onAudioOutputReceived: (stream: MediaStream) => Promise<void>;
@@ -35,7 +37,9 @@ export interface AudioPipelineIntegration {
   onCodecProfileChanged?: (profile: AudioCodecProfile) => Promise<void> | void;
 }
 
-// Service interfaces (simplified for integration purposes)
+/**
+ * Simplified interface describing the ephemeral key service dependency.
+ */
 export interface EphemeralKeyService {
   initialize(): Promise<void>;
   dispose(): void;
@@ -56,6 +60,9 @@ export interface EphemeralKeyService {
   };
 }
 
+/**
+ * Simplified contract for a session manager available to WebRTC integrations.
+ */
 export interface SessionManager {
   initialize(): Promise<void>;
   dispose(): void;
@@ -68,6 +75,9 @@ export interface SessionManager {
   };
 }
 
+/**
+ * Minimal configuration service contract required by the WebRTC layer.
+ */
 export interface ConfigurationManager {
   initialize(): Promise<void>;
   dispose(): void;
@@ -76,6 +86,9 @@ export interface ConfigurationManager {
   onConfigurationChanged(handler: () => Promise<void>): { dispose: () => void };
 }
 
+/**
+ * Logger abstraction used when the WebRTC service needs to emit telemetry.
+ */
 export interface Logger {
   info(message: string, data?: any): void;
   error(message: string, data?: any): void;
@@ -83,7 +96,9 @@ export interface Logger {
   debug(message: string, data?: any): void;
 }
 
-// Service coordination interfaces
+/**
+ * Aggregated dependencies required by the WebRTC service coordinator.
+ */
 export interface ServiceCoordinator {
   ephemeralKeyService: EphemeralKeyService;
   sessionManager: SessionManager;
@@ -91,6 +106,9 @@ export interface ServiceCoordinator {
   logger: Logger;
 }
 
+/**
+ * Optional dependency bundle consumed when instantiating the WebRTC service.
+ */
 export interface WebRTCServiceDependencies {
   ephemeralKeyService: EphemeralKeyService;
   sessionManager?: SessionManager;
@@ -98,14 +116,18 @@ export interface WebRTCServiceDependencies {
   logger?: Logger;
 }
 
-// Event coordination interfaces
+/**
+ * Interface for coordinating errors and state changes across services.
+ */
 export interface ServiceEventCoordinator {
   onServiceError(service: string, error: Error): Promise<void>;
   onServiceStateChanged(service: string, state: string): Promise<void>;
   onServiceRecovery(service: string): Promise<void>;
 }
 
-// Lifecycle coordination interfaces
+/**
+ * Interface used to orchestrate service initialization and lifecycle control.
+ */
 export interface ServiceLifecycleCoordinator {
   initializeServices(): Promise<void>;
   disposeServices(): void;

@@ -1,138 +1,196 @@
 {
 	"version": "2.0.0",
 	"tasks": [
-		// Build and Development Tasks
-
-
-        // Bicep tasks
-		{
-			"label": "Build Bicep",
-			"icon": {
-				"id": "azure"
-			},
-			"type": "shell",
-			"command": "pwsh",
-			"args": [
-				"-NoProfile",
-				"-Command",
-				"bicep build .\\infra\\main.bicep; Get-ChildItem -Path .\\infra -Filter 'main.bicep' -Recurse | ForEach-Object { if ($_.FullName -ne (Resolve-Path '.\\infra\\main.bicep').Path) { bicep build $_.FullName } }"
-			],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"presentation": { "reveal": "always" },
-			"problemMatcher": []
-		},
-		// TypeScript compile (one-shot)
-		{
-			"label": "Compile Extension",
-			"type": "npm",
-			"script": "compile",
-			"icon": { "id": "gear" },
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"problemMatcher": ["$tsc"]
-		},
-		// TypeScript watch mode
-		{
-			"label": "Watch Extension",
-			"type": "npm",
-			"script": "watch",
-			"icon": { "id": "watch" },
-			"isBackground": true,
-			"problemMatcher": [
-				{
-					"owner": "typescript",
-					"fileLocation": ["relative", "${workspaceFolder}"],
-					"pattern": "$tsc"
-				}
-			]
-		},
-		// Run tests (pretest runs compile+lint)
-		{
-			"label": "Test Extension",
-			"type": "npm",
-			"script": "test",
-			"icon": { "id": "beaker" },
-			"group": "test",
-			"problemMatcher": []
-		},
-		// Fast unit tests (Node-only, vscode API stubbed)
-		{
-			"label": "Test Unit",
-			"type": "npm",
-			"script": "test:unit",
-			"icon": { "id": "beaker" },
-			"group": "test",
-			"problemMatcher": []
-		},
-		// Run unit then integration tests sequentially
-		{
-			"label": "Test All",
-			"type": "npm",
-			"script": "test:all",
-			"icon": { "id": "beaker" },
-			"group": "test",
-			"problemMatcher": []
-		},
-		// Headless integration tests (xvfb)
-		{
-			"label": "Test Headless",
-			"type": "npm",
-			"script": "test:headless",
-			"icon": { "id": "beaker" },
-			"group": "test",
-			"problemMatcher": []
-		},
-		// Coverage over integration path (can be adapted to unit-only later)
-		{
-			"label": "Test Coverage",
-			"type": "npm",
-			"script": "test:coverage",
-			"icon": { "id": "graph" },
-			"group": "test",
-			"problemMatcher": []
-		},
-		// Performance / timing probe
-		{
-			"label": "Test Performance",
-			"type": "npm",
-			"script": "test:perf",
-			"icon": { "id": "pulse" },
-			"group": "test",
-			"problemMatcher": []
-		},
-		// ESLint
-		{
-			"label": "Lint Extension",
-			"type": "npm",
-			"script": "lint",
-			"icon": { "id": "check" },
-			"problemMatcher": ["$eslint-stylish"]
-		},
-		// Prettier formatting
-		{
-			"label": "Format TypeScript",
-			"type": "shell",
-			"command": "npx",
-			"args": [
-				"prettier",
-				"--write",
-				"src/**/*.ts"
-			],
-			"icon": { "id": "wand" },
-			"problemMatcher": []
-		},
-		// Package VSIX using vsce
-		{
-			"label": "Package Extension",
-			"type": "npm",
-			"script": "package",
-			"icon": { "id": "package" },
-			"problemMatcher": []
-		}
-	]
+    {
+      "label": "Build Bicep",
+      "icon": {
+        "id": "azure"
+      },
+      "type": "shell",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "bicep build .\\infra\\main.bicep; Get-ChildItem -Path .\\infra -Filter 'main.bicep' -Recurse | ForEach-Object { if ($_.FullName -ne (Resolve-Path '.\\infra\\main.bicep').Path) { bicep build $_.FullName } }"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compile Extension",
+      "type": "npm",
+      "script": "compile",
+      "icon": {
+        "id": "gear"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$tsc"
+      ]
+    },
+    {
+      "label": "Watch Extension",
+      "type": "npm",
+      "script": "watch",
+      "icon": {
+        "id": "watch"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "owner": "typescript",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": "$tsc"
+        }
+      ]
+    },
+    {
+      "label": "Test Extension",
+      "type": "npm",
+      "script": "test",
+      "icon": {
+        "id": "beaker"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Unit",
+      "type": "npm",
+      "script": "test:unit",
+      "icon": {
+        "id": "beaker"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test All",
+      "type": "npm",
+      "script": "test:all",
+      "icon": {
+        "id": "beaker"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Headless",
+      "type": "npm",
+      "script": "test:headless",
+      "icon": {
+        "id": "beaker"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Coverage",
+      "type": "npm",
+      "script": "test:coverage",
+      "icon": {
+        "id": "graph"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Performance",
+      "type": "npm",
+      "script": "test:perf",
+      "icon": {
+        "id": "pulse"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint Extension",
+      "type": "npm",
+      "script": "lint",
+      "icon": {
+        "id": "check"
+      },
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": [
+        "$eslint-stylish"
+      ]
+    },
+    {
+      "label": "Format TypeScript",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "prettier",
+        "--write",
+        "src/**/*.ts"
+      ],
+      "icon": {
+        "id": "wand"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Package Extension",
+      "type": "npm",
+      "script": "package",
+      "icon": {
+        "id": "package"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Quality Gate Sequence",
+      "icon": {
+        "id": "shield"
+      },
+      "type": "shell",
+      "command": "echo",
+      "args": [
+        "VoicePilot quality gate complete"
+      ],
+      "dependsOn": [
+        "Lint Extension",
+        "Test Unit",
+        "Test Extension",
+        "Test All",
+        "Test Coverage",
+        "Test Performance"
+      ],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ]
 }

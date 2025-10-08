@@ -1,4 +1,9 @@
 import * as vscode from "vscode";
+import {
+  GateTaskTelemetryRecord,
+  GateTelemetryEmitter,
+  GateTelemetryEmitterOptions,
+} from "../telemetry/gate-telemetry";
 
 /**
  * Supported log levels ordered from highest severity (`error`) to most verbose (`debug`).
@@ -19,6 +24,10 @@ interface LogEvent {
  * Thin wrapper around a VS Code {@link vscode.OutputChannel} that provides
  * structured logging, level-based filtering, and JSON serialization of
  * metadata objects.
+ *
+ * @remarks
+ * Logger instances share output channels by name. Most consumers should rely on the
+ * default "VoicePilot" channel to keep telemetry and diagnostics consolidated.
  */
 export class Logger {
   private static readonly channelRegistry = new Map<
@@ -26,6 +35,7 @@ export class Logger {
     { channel: vscode.OutputChannel; refCount: number; isFallback: boolean }
   >();
   private static fallbackChannel: vscode.OutputChannel | undefined;
+  private static readonly logObservers = new Set<(entry: LogEvent) => void>();
 
   private readonly channelName: string;
   private readonly channel: vscode.OutputChannel;
@@ -39,6 +49,11 @@ export class Logger {
   private disposed = false;
   private readonly useConsoleFallback: boolean;
 
+  /**
+   * Creates a logger that writes to a shared VS Code output channel.
+   *
+   * @param name - The output channel name. Loggers with matching names share the same channel instance.
+   */
   constructor(name = "VoicePilot") {
     this.channelName = name;
     const registryEntry = Logger.channelRegistry.get(name);
@@ -60,8 +75,22 @@ export class Logger {
   }
 
   /**
+   * Subscribes to structured log events emitted by any {@link Logger} instance.
+   * The returned {@link vscode.Disposable} removes the observer when disposed.
+   */
+  static onDidLog(listener: (entry: LogEvent) => void): vscode.Disposable {
+    Logger.logObservers.add(listener);
+    return {
+      dispose: () => {
+        Logger.logObservers.delete(listener);
+      },
+    };
+  }
+
+  /**
    * Updates the minimum log level that will be emitted to the output channel.
-   * Messages below the configured level are silently ignored.
+   *
+   * @param level - The lowest {@link LogLevel} that should be written. Messages below this level are suppressed.
    */
   setLevel(level: LogLevel) {
     this.currentLevel = level;
@@ -69,18 +98,27 @@ export class Logger {
 
   /**
    * Logs an error level message to the channel.
+   *
+   * @param message - A human-readable description of the failure.
+   * @param data - Optional structured context to serialize alongside the message.
    */
   error(message: string, data?: unknown) {
     this.log("error", message, data);
   }
   /**
    * Logs a warning level message to the channel.
+   *
+   * @param message - Diagnostic details about the potential issue.
+   * @param data - Optional structured context to serialize alongside the message.
    */
   warn(message: string, data?: unknown) {
     this.log("warn", message, data);
   }
   /**
    * Logs an informational message to the channel.
+   *
+   * @param message - A description of a notable state change or action.
+   * @param data - Optional structured context to serialize alongside the message.
    */
   info(message: string, data?: unknown) {
     this.log("info", message, data);
@@ -88,9 +126,49 @@ export class Logger {
   /**
    * Logs a debug level message to the channel. Only emitted when the
    * current level is `debug`.
+   *
+   * @param message - Verbose diagnostic details useful during development.
+   * @param data - Optional structured context to serialize alongside the message.
    */
   debug(message: string, data?: unknown) {
     this.log("debug", message, data);
+  }
+
+  /**
+   * Persists a quality gate task outcome and logs the result. Gate reports are stored under the telemetry
+   * directory so CI pipelines can publish them as build artefacts.
+   *
+   * @param result - Telemetry describing a single gate task execution.
+   * @param options - Optional emission overrides such as output directory.
+   * @remarks
+   * The emitter sanitizes payloads before writing to disk. Integration tests can assert on the
+   * generated artefacts via the shared telemetry directory.
+   * @example
+   * ```ts
+   * await logger.recordGateTaskOutcome({
+   *   task: "npm: Lint Extension",
+   *   status: "pass",
+   *   durationMs: 3200,
+   *   coverage: undefined,
+   *   timestamp: new Date().toISOString(),
+   * });
+   * ```
+   */
+  async recordGateTaskOutcome(
+    result: GateTaskTelemetryRecord,
+    options: GateTelemetryEmitterOptions = {},
+  ): Promise<void> {
+    const emitter = new GateTelemetryEmitter({ ...options, logger: this });
+    await emitter.record(result);
+    const payload = {
+      durationMs: result.durationMs,
+      coverage: result.coverage,
+    };
+    if (result.status === "fail") {
+      this.error(`Gate task failed: ${result.task}`, payload);
+    } else {
+      this.info(`Gate task passed: ${result.task}`, payload);
+    }
   }
 
   /**
@@ -124,6 +202,7 @@ export class Logger {
     if (this.useConsoleFallback) {
       this.writeToConsole(level, formatted);
     }
+    Logger.emitLogEvent(event);
   }
 
   /**
@@ -230,6 +309,22 @@ export class Logger {
       default:
         console.debug ? console.debug(message) : console.log(message);
         break;
+    }
+  }
+
+  private static emitLogEvent(event: LogEvent): void {
+    if (Logger.logObservers.size === 0) {
+      return;
+    }
+    for (const listener of Array.from(Logger.logObservers)) {
+      try {
+        listener(event);
+      } catch (error) {
+        console.warn(
+          "Logger observer threw an error and will be ignored",
+          error,
+        );
+      }
     }
   }
 }

@@ -8,6 +8,7 @@ import {
 } from './helpers/ensure-copilot';
 import { PrivacyController } from './services/privacy/privacy-controller';
 import { SessionManagerImpl } from './session/session-manager';
+import { lifecycleTelemetry } from './telemetry/lifecycle-telemetry';
 import { VoiceControlPanel } from './ui/voice-control-panel';
 
 let controller: ExtensionController | undefined;
@@ -26,6 +27,7 @@ let controller: ExtensionController | undefined;
  */
 export async function activate(context: vscode.ExtensionContext) {
   const start = performance.now();
+  lifecycleTelemetry.reset();
   const logger = new Logger();
   context.subscriptions.push(logger);
   const configurationManager = new ConfigurationManager(context, logger);
@@ -61,11 +63,14 @@ export async function activate(context: vscode.ExtensionContext) {
     if (duration > 5000) {
       logger.warn('Activation exceeded 5s constraint', { duration });
     }
-  } catch (err: any) {
-    logger.error('VoicePilot activation failed', { error: err?.message ?? err });
-    vscode.window.showErrorMessage(`VoicePilot activation failed: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error('VoicePilot activation failed', { error: error.message });
+    lifecycleTelemetry.record('activation.failed');
+    vscode.window.showErrorMessage(`VoicePilot activation failed: ${error.message}`);
     controller?.dispose();
     controller = undefined;
+    throw error;
   }
 }
 

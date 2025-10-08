@@ -1,5 +1,8 @@
 import { SessionDiagnostics } from "./session";
 
+/**
+ * Presence states surfaced by VoicePilot to UI surfaces.
+ */
 export type VoicePilotPresenceState =
   | "idle"
   | "listening"
@@ -11,13 +14,22 @@ export type VoicePilotPresenceState =
   | "offline"
   | "interrupted";
 
+/**
+ * Canonical presence states used for descriptor lookup (excludes transient states).
+ */
 export type CanonicalPresenceState = Exclude<
   VoicePilotPresenceState,
   "interrupted"
 >;
 
+/**
+ * Severity levels attached to presence descriptors.
+ */
 export type PresenceSeverity = "info" | "warn" | "error";
 
+/**
+ * Supplemental details associated with a presence update.
+ */
 export interface PresenceDetails {
   conversationTurnId?: string;
   retry: boolean;
@@ -29,6 +41,9 @@ export interface PresenceDetails {
   diagnostics?: SessionDiagnostics;
 }
 
+/**
+ * Notification emitted when the presence state changes.
+ */
 export interface PresenceUpdate {
   state: VoicePilotPresenceState;
   sessionId?: string;
@@ -39,6 +54,9 @@ export interface PresenceUpdate {
   details: PresenceDetails;
 }
 
+/**
+ * Descriptor used to drive UI and accessibility elements for each state.
+ */
 export interface PresenceStateDescriptor {
   state: CanonicalPresenceState;
   sidebarLabel: string;
@@ -148,14 +166,23 @@ const BASE_DESCRIPTORS: Record<
   },
 };
 
+/**
+ * Time window used to coalesce rapid presence updates.
+ */
 export const PRESENCE_BATCH_WINDOW_MS = 50;
 
+/**
+ * Normalizes the presence state by mapping transient states to canonical ones.
+ */
 export function normalizePresenceState(
   state: VoicePilotPresenceState,
 ): CanonicalPresenceState {
   return state === "interrupted" ? "listening" : state;
 }
 
+/**
+ * Resolves the descriptor for a given presence state.
+ */
 export function resolvePresenceDescriptor(
   state: VoicePilotPresenceState,
 ): PresenceStateDescriptor {
@@ -163,6 +190,9 @@ export function resolvePresenceDescriptor(
   return BASE_DESCRIPTORS[canonical];
 }
 
+/**
+ * Compares two presence updates to determine if they represent the same state.
+ */
 export function isPresenceStateEqual(
   a: PresenceUpdate | undefined,
   b: PresenceUpdate | undefined,
