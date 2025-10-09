@@ -99,12 +99,16 @@ export function createExtensionContextStub({
   const storageUri = vscode.Uri.parse(`${uri}/storage`);
   const globalStorageUri = vscode.Uri.parse(`${uri}/global`);
   const logUri = vscode.Uri.parse(`${uri}/logs`);
+  const defaultExtensionMode = ((vscode as unknown as {
+    ExtensionMode?: { Test?: vscode.ExtensionMode };
+  }).ExtensionMode?.Test ?? 3) as vscode.ExtensionMode;
+  const extensionMode = overrides.extensionMode ?? defaultExtensionMode;
 
   const base = {
     subscriptions,
     extensionUri: vscode.Uri.parse(uri),
     extensionPath: storageBasePath,
-    extensionMode: vscode.ExtensionMode.Test,
+    extensionMode,
     storageUri,
     storagePath: `${storageBasePath}/storage`,
     globalStorageUri,
