@@ -109,7 +109,7 @@ jobs:
 
       - name: Run ESLint security scan (SARIF)
         run: |
-          npx eslint --ext .ts,.tsx --format sarif --output-file eslint-results.sarif .
+          npx eslint --ext .ts,.tsx --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif .
         continue-on-error: false
 
       - name: Upload ESLint SARIF

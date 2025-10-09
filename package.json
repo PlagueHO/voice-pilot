@@ -29,7 +29,7 @@
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
     "test:headless": "xvfb-run -a npm test",
-  "test:coverage": "nyc mocha --ui bdd --require ts-node/register --require src/test/unit-test-setup.ts \"src/test/unit/**/*.ts\" --timeout 3000",
+    "test:coverage": "nyc mocha --ui bdd --require ts-node/register --require src/test/unit-test-setup.ts \"src/test/unit/**/*.ts\" --timeout 3000",
     "test:perf": "node -e \"console.log(JSON.stringify({timestamp: new Date().toISOString(), testDuration: Math.random() * 1000 + 500}))\"",
     "test:unit": "npm run compile && mocha --ui bdd --require ./out/test/unit-test-setup.js \"out/test/unit/**/*.js\" --timeout 3000",
     "test:all": "npm run test:unit && npm test",
@@ -437,6 +437,8 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@istanbuljs/nyc-config-typescript": "^1.0.1",
+    "@microsoft/eslint-formatter-sarif": "^3.1.0",
     "@types/glob": "^9.0.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "22.x",
@@ -452,9 +454,8 @@
     "glob": "^11.0.3",
     "mocha": "^10.7.3",
     "nyc": "^17.1.0",
-    "@istanbuljs/nyc-config-typescript": "^1.0.1",
-    "ts-node": "^10.9.2",
     "ts-loader": "^9.5.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.6.0",
     "webpack": "^5.90.0",
     "webpack-cli": "^5.1.0"

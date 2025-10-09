@@ -71,7 +71,7 @@ This job runs in parallel with the Quality Gate matrix, ensuring infrastructure 
 
 1. Re-checkout and reinstall dependencies to guarantee isolation from the Quality Gate workspace.
 2. Run `npm audit --production --audit-level=high`, failing on high (or higher) severity vulnerabilities.
-3. Generate an ESLint SARIF report with `npx eslint --ext .ts,.tsx --format sarif --output-file eslint-results.sarif .` and upload it to the Security tab via `github/codeql-action/upload-sarif@v3`.
+3. Generate an ESLint SARIF report with `npx eslint --ext .ts,.tsx --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif .` and upload it to the Security tab via `github/codeql-action/upload-sarif@v3`.
 4. Scan the repository with Trivy (`aquasecurity/trivy-action@0.27.0`) targeting file system dependencies. The action is configured to fail for HIGH or CRITICAL issues and produces `trivy-results.sarif` for upload.
 5. Invoke the dependency review action on pull requests to flag newly introduced vulnerabilities before merge.
 
