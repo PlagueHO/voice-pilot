@@ -1,171 +1,114 @@
-# Enhanced CI/CD Pipeline Documentation
+---
+post_title: VoicePilot Continuous Integration Pipeline
+author1: VoicePilot Team
+post_slug: voicepilot-continuous-integration-pipeline
+microsoft_alias: voicepilot
+featured_image: https://raw.githubusercontent.com/PlagueHO/voice-pilot/main/resources/icon.svg
+categories:
+  - ci
+tags:
+  - github-actions
+  - quality-gate
+  - security
+ai_note: Created with assistance from AI pair programming tools.
+summary: Documentation for the VoicePilot GitHub Actions workflow defined in .github/workflows/continuous-integration.yml.
+post_date: 2025-10-09
+---
 
+<!-- markdownlint-disable-next-line MD041 -->
 ## Overview
 
-The VoicePilot project now includes a comprehensive CI/CD pipeline with enhanced testing, security scanning, and quality assurance capabilities.
+The VoicePilot repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. The pipeline currently fans out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.x. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
 
-## Pipeline Jobs
+## Workflow Triggers and Permissions
 
-### 1. Static Analysis
+- **Triggers**: Pull requests targeting `main`, pushes to `feature/**`, `bugfix/**`, and `hotfix/**`, and manual `workflow_dispatch` invocations.
+- **Permissions**: Minimal scopes (`contents: read`, `security-events: write`, `id-token: write`) are granted at the workflow level so that downstream SARIF uploads and federated identity scenarios succeed without escalating privileges.
 
-- **Purpose**: Code quality and compilation validation
-- **Runs**: ESLint, TypeScript compilation, code cleanliness checks
-- **Blocks Pipeline**: Yes (critical job)
+## Matrix Configuration
 
-### 2. Quality Gate Sequence
+Each job runs twice—once per VS Code channel—using the following environment contract:
 
-- **Purpose**: Enforces the layered lint → unit → integration → performance flow defined in `sp-039-spec-process-testing-strategy.md`
-- **Runs**: VS Code task `Quality Gate Sequence` via `scripts/run-quality-gate.mjs`, covering `Lint Extension`, `Test Unit`, `Test Extension`, `Test All`, `Test Coverage`, and `Test Performance`
-- **Runtime Guard**: Aborts if cumulative runtime exceeds **15 minutes** (CON-001)
-- **Outputs**:
-  - `telemetry/gate-report.json` — sanitized task telemetry matching the spec schema
-  - `coverage/coverage-summary.json` — NYC report enforcing ≥90% statements / ≥85% branches
-  - `.vscode-test/` — raw extension host logs for debugging
-- **Blocks Pipeline**: Yes (critical quality gate)
+- `matrix.node-version`: `22.x`
+- `matrix.vs_code_channel`: `stable`, `insiders`
+- `VS_CODE_CHANNEL`: propagated to tasks and scanners for channel-aware behavior
+- `NODE_OPTIONS`: defaulted to `--max-old-space-size=4096`, but temporarily cleared while the quality gate executes to avoid xvfb memory contention
 
-### 3. Extension Validation
+## Job Breakdown
 
-- **Purpose**: VS Code extension packaging and manifest validation
-- **Runs**: Extension packaging, manifest checks, size validation
-- **Blocks Pipeline**: Yes (critical job)
+### Quality Gate (needs: none)
 
-### 4. Security Scan
+**Purpose**: Build, lint, test, and generate telemetry for the extension via the `scripts/run-quality-gate.mjs` harness.
 
-- **Purpose**: Comprehensive security analysis
-- **Tools**:
-  - npm audit (dependency vulnerabilities)
-  - Semgrep (code security patterns)
-  - TruffleHog (secret detection)
-  - Trivy (dependency scanning)
-- **Blocks Pipeline**: No (informational)
+**Key steps**:
 
-### 5. VS Code Compatibility Test
+1. Check out the repository (`actions/checkout@v4`).
+2. Provision Node.js (`actions/setup-node@v4`) with npm caching enabled.
+3. Install dependencies using `npm ci` to keep lockfile parity.
+4. Execute the Quality Gate under a virtual display using `xvfb-run --auto-servernum`. The script orchestrates the `Quality Gate Sequence` VS Code task, chaining linting, unit tests, integration tests, coverage, and performance suites.
+5. Collect artifacts (`telemetry/gate-report.json`, coverage reports) into an `artefacts/` folder.
+6. Upload artifacts per VS Code channel via `actions/upload-artifact@v4` for later analysis.
 
-- **Purpose**: Multi-version compatibility testing
-- **Versions Tested**: 1.104.0, 1.105.0, stable
-- **Features**: Matrix testing with isolated environments
-- **Blocks Pipeline**: No (compatibility validation)
+The job is marked critical; a failure blocks the rest of the pipeline for the affected matrix entry.
 
-### 6. Code Quality
+### Lint & Publish Bicep (needs: none)
 
-- **Purpose**: Advanced code quality metrics
-- **Runs**: TypeScript config validation, build metadata generation
-- **Blocks Pipeline**: No (quality metrics)
+**Purpose**: Reuse the shared Bicep linting workflow so infrastructure templates stay valid alongside application builds.
 
-### 7. Performance Benchmarks
+**Key steps**:
 
-- **Purpose**: Performance regression detection
-- **Features**: Startup time measurement, benchmark artifacts
-- **Blocks Pipeline**: No (performance tracking)
+1. Invoke the reusable workflow `lint-and-publish-bicep.yml` with inherited secrets so any federated credentials remain available.
+2. Use the Azure CLI (`az bicep`) to lint `infra/main.bicep` for style and syntax issues.
+3. Upload the compiled infrastructure assets from `infra/` as the `infrastructure_bicep` artifact via `actions/upload-artifact@v4`.
 
-### 8. CI Summary
+This job runs in parallel with the Quality Gate matrix, ensuring infrastructure checks complete even if application tests queue.
 
-- **Purpose**: Overall pipeline status reporting
-- **Features**: Job status matrix, critical failure detection
-- **Runs**: Always (after all jobs complete)
+### Security & Dependency Scans (needs: Quality Gate)
 
-## New NPM Scripts
+**Purpose**: Audit dependencies and surface security regressions while the built assets are still fresh.
 
-```bash
-# Enhanced testing
-npm run test:headless     # Run tests with xvfb (Linux)
-npm run test:coverage     # Run tests with coverage reporting
-npm run test:perf         # Run performance benchmarks
-npm run quality:gate      # Execute lint/test/perf gate sequence with telemetry
+**Key steps**:
 
-# Security
-npm run security:audit    # Run npm audit
-npm run security:check    # Comprehensive security check
+1. Re-checkout and reinstall dependencies to guarantee isolation from the Quality Gate workspace.
+2. Run `npm audit --production --audit-level=high`, failing on high (or higher) severity vulnerabilities.
+3. Generate an ESLint SARIF report with `npx eslint --ext .ts,.tsx --format sarif --output-file eslint-results.sarif .` and upload it to the Security tab via `github/codeql-action/upload-sarif@v3`.
+4. Scan the repository with Trivy (`aquasecurity/trivy-action@0.27.0`) targeting file system dependencies. The action is configured to fail for HIGH or CRITICAL issues and produces `trivy-results.sarif` for upload.
+5. Invoke the dependency review action on pull requests to flag newly introduced vulnerabilities before merge.
 
-# Packaging
-npm run package:check     # Validate extension packaging
-```
+Because this job `needs` the Quality Gate, security scanning never runs against unverified builds.
 
-## Artifacts Generated
+### Publish Quality Gate Telemetry (needs: Quality Gate, Security & Dependency Scans)
 
-### Test & Telemetry Artefacts
+**Purpose**: Consolidate test telemetry for downstream dashboards regardless of earlier failures.
 
-- **quality-gate-telemetry**: `telemetry/gate-report.json`, NYC coverage summary, and `.vscode-test/` logs
-- **compatibility-test-results-{version}**: Version-specific test results
-- **performance-results-{run}**: Performance benchmark data
+**Key steps**:
 
-### Build Outputs
+1. Download every `quality-gate-*` artifact bundle generated by the matrix runs and merge them locally.
+2. Print the raw `quality-gate.json` payload for visibility (defaulting to `{}` if missing).
+3. Upload the consolidated telemetry as `quality-gate-telemetry` for retention (14 days) via `actions/upload-artifact@v4`.
 
-- **compiled-extension**: TypeScript compiled output
-- **build-outputs-{run}**: Complete build artifacts with metadata
-- **voicepilot-extension-{run}**: Packaged VSIX file
+This job is guarded with `if: always()` so that telemetry is still published when preceding jobs fail.
 
-### Security Reports
+## Produced Artifacts
 
-- **Semgrep SARIF**: Code security analysis results
-- **Trivy SARIF**: Dependency vulnerability reports
+- `quality-gate-${vs_code_channel}`: Contains `quality-gate.json`, `coverage/lcov.info`, and `coverage/coverage-summary.json` for each channel.
+- `quality-gate-telemetry`: Aggregated telemetry emitted after both channels complete.
+- SARIF uploads: ESLint (`eslint-results.sarif`) and Trivy (`trivy-results.sarif`) files delivered directly to the GitHub Security tab rather than stored as downloadable artifacts.
+- `infrastructure_bicep`: Bicep source and compiled templates published by the reusable lint workflow.
 
-## Configuration Files
+## Reproducing the Quality Gate Locally
 
-### Test Configuration
-
-- `.vscode-test.js`: VS Code test runner configuration
-- `.nycrc.json`: Code coverage configuration
-
-### Quality Configuration
-
-- `eslint.config.js`: Modern ESLint v9 configuration
-- `tsconfig.json`: TypeScript compilation settings
-
-## Pipeline Behavior
-
-### Pull Requests
-
-- All jobs run in parallel where possible
-- Critical jobs (static-analysis, quality gate, extension-validation) must pass
-- Quality gate telemetry is uploaded for inspection when the gate succeeds or fails
-- Azure-dependent suites tagged `[requiresAzure]` skip automatically when credentials are unavailable, with reasons recorded in telemetry
-- Security and compatibility jobs provide information but don't block
-
-### Main Branch
-
-- Full pipeline execution
-- All artifacts are stored
-- Performance benchmarks are tracked
-- Build metadata is generated
-
-## Local Development
-
-### Running Enhanced Tests Locally
+Developers can mirror the CI checks on Linux or macOS machines with the following steps:
 
 ```bash
-# Install additional dependencies
-npm install
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run security checks
-npm run security:check
-
-# Test packaging
-npm run package:check
+npm ci
+VS_CODE_CHANNEL=stable node scripts/run-quality-gate.mjs
 ```
 
-### Debugging CI Issues
+Use `VS_CODE_CHANNEL=insiders` to emulate the insiders branch run. When debugging headless display issues, prepend `xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24'` to match the CI launch command.
 
-1. Check job logs in GitHub Actions
-2. Download test result artifacts
-3. Review security scan outputs
-4. Check VS Code compatibility matrices
+## Maintenance Notes
 
-## Benefits
-
-1. **Reliability**: Proper headless testing eliminates false failures
-2. **Security**: Comprehensive scanning catches vulnerabilities early
-3. **Compatibility**: Multi-version testing ensures broad VS Code support
-4. **Performance**: Automated benchmarking prevents regressions
-5. **Quality**: Enhanced validation catches issues before release
-6. **Visibility**: Detailed reporting and artifacts for debugging
-
-## Future Enhancements
-
-- Code coverage trending and reporting
-- Performance regression alerts
-- Automated dependency updates
-- Integration with VS Code Marketplace publishing
+- Update this document whenever `continuous-integration.yml` adds or removes jobs, matrix entries, or scanning tools.
+- If new artifacts are emitted, ensure both the collection script and this doc list them so that incident responders know where to look.
+- The workflow uses `actions/upload-artifact@v4` with a 14-day retention window; adjust the retention window in lockstep with compliance requirements.

@@ -74,6 +74,11 @@ jobs:
           path: artefacts/
           retention-days: 14
 
+  bicep-lint-publish:
+    name: Lint & Publish Bicep
+    uses: ./.github/workflows/lint-and-publish-bicep.yml
+    secrets: inherit
+
   security-scans:
     name: Security & Dependency Scans (${{ matrix.vs_code_channel }})
     runs-on: ubuntu-latest
