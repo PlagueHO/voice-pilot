@@ -56,9 +56,13 @@ export class GateTelemetryEmitter {
 
   constructor(options: GateTelemetryEmitterOptions = {}) {
     this.logger = options.logger;
-    const baseUri = options.baseUri ?? GateTelemetryEmitter.resolveDefaultBaseUri();
+    const baseUri =
+      options.baseUri ?? GateTelemetryEmitter.resolveDefaultBaseUri();
     this.directoryUri = vscode.Uri.joinPath(baseUri, TELEMETRY_DIRECTORY_NAME);
-    this.reportUri = vscode.Uri.joinPath(this.directoryUri, TELEMETRY_FILE_NAME);
+    this.reportUri = vscode.Uri.joinPath(
+      this.directoryUri,
+      TELEMETRY_FILE_NAME,
+    );
     this.maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
   }
 
@@ -149,7 +153,9 @@ export class GateTelemetryEmitter {
     coverage: GateCoverageSnapshot,
   ): GateCoverageSnapshot {
     const normalize = (value?: number) =>
-      Number.isFinite(value) ? Math.max(0, Math.round(value as number)) : undefined;
+      Number.isFinite(value)
+        ? Math.max(0, Math.round(value as number))
+        : undefined;
     const sanitized: GateCoverageSnapshot = {};
     if (coverage.statements !== undefined) {
       sanitized.statements = normalize(coverage.statements);

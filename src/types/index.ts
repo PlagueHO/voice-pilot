@@ -27,11 +27,10 @@ export * from "./webrtc";
 
 // Service integration types - only non-conflicting exports
 export type {
-    AudioPipelineIntegration,
-    EphemeralKeyIntegration,
-    ServiceEventCoordinator,
-    ServiceLifecycleCoordinator,
-    SessionIntegration,
-    WebRTCServiceDependencies
+  AudioPipelineIntegration,
+  EphemeralKeyIntegration,
+  ServiceEventCoordinator,
+  ServiceLifecycleCoordinator,
+  SessionIntegration,
+  WebRTCServiceDependencies,
 } from "./service-integration";
-

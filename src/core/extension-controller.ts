@@ -140,8 +140,8 @@ export class ExtensionController implements ServiceInitializable {
    * configuration → authentication → session → UI. If initialization fails,
    * previously started services are disposed and the error is rethrown so the
    * extension host can surface a fatal activation failure.
-  *
-  * @returns A promise that resolves once every dependent service is ready for use.
+   *
+   * @returns A promise that resolves once every dependent service is ready for use.
    */
   async initialize(): Promise<void> {
     if (this.initialized) {

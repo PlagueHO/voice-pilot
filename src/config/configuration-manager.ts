@@ -2,22 +2,22 @@ import * as vscode from "vscode";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
-    AudioConfig,
-    AudioFeedbackConfig,
-    AzureOpenAIConfig,
-    AzureRealtimeConfig,
-    CommandsConfig,
-    ConfigurationChange,
-    ConfigurationChangeHandler,
-    ConversationConfig,
-    GitHubConfig,
-    RetryConfig,
-    ValidationResult,
+  AudioConfig,
+  AudioFeedbackConfig,
+  AzureOpenAIConfig,
+  AzureRealtimeConfig,
+  CommandsConfig,
+  ConfigurationChange,
+  ConfigurationChangeHandler,
+  ConversationConfig,
+  GitHubConfig,
+  RetryConfig,
+  ValidationResult,
 } from "../types/configuration";
 import type { PrivacyPolicyConfig } from "../types/privacy";
 import {
-    resolveRealtimeSessionPreferences,
-    type RealtimeSessionPreferences,
+  resolveRealtimeSessionPreferences,
+  type RealtimeSessionPreferences,
 } from "./realtime-session";
 import { AudioSection } from "./sections/audio-config-section";
 import { AudioFeedbackSection } from "./sections/audio-feedback-section";
