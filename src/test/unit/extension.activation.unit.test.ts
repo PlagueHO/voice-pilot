@@ -7,6 +7,7 @@ import * as copilot from '../../helpers/ensure-copilot';
 import { lifecycleTelemetry } from '../../telemetry/lifecycle-telemetry';
 import * as statusBarModule from '../../ui/status-bar';
 import { VoiceControlPanel } from '../../ui/voice-control-panel';
+import { createExtensionContextStub } from '../utils/extension-context';
 
 function createStubRegistry() {
   const restorers: Array<() => void> = [];
@@ -85,7 +86,7 @@ describe('Unit: extension activation lifecycle', () => {
     const nowValues = [0, 1500];
   registry.stub(performance as any, 'now', () => nowValues.shift() ?? 1500);
 
-    const context = new (vscode as any).ExtensionContext();
+  const context = createExtensionContextStub();
     await activate(context);
 
     assert.strictEqual(resetCalled, true, 'telemetry.reset should be invoked');
@@ -125,7 +126,7 @@ describe('Unit: extension activation lifecycle', () => {
     const nowValues = [0, 6005];
     registry.stub(performance as any, 'now', () => nowValues.shift() ?? 6005);
 
-    const context = new (vscode as any).ExtensionContext();
+  const context = createExtensionContextStub();
     await activate(context);
 
     const warning = warns.find((entry) => entry.message === 'Activation exceeded 5s constraint');
@@ -158,7 +159,7 @@ describe('Unit: extension activation lifecycle', () => {
     const nowValues = [0, 1200];
     registry.stub(performance as any, 'now', () => nowValues.shift() ?? 1200);
 
-    const context = new (vscode as any).ExtensionContext();
+  const context = createExtensionContextStub();
     await activate(context);
 
     assert.strictEqual(ensureCalls, 1, 'ensure install should be attempted when Copilot is unavailable');
@@ -199,7 +200,7 @@ describe('Unit: extension activation lifecycle', () => {
     const nowValues = [0, 800];
     registry.stub(performance as any, 'now', () => nowValues.shift() ?? 800);
 
-    const context = new (vscode as any).ExtensionContext();
+  const context = createExtensionContextStub();
     await assert.rejects(activate(context), /controller init failed/);
 
     assert.strictEqual(disposeCalls, 1, 'controller.dispose should be invoked after failure');
