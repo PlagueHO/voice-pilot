@@ -46,7 +46,11 @@ jobs:
         run: npm ci
 
       - name: Run quality gate sequence
-        run: node scripts/run-quality-gate.mjs
+        env:
+          NODE_OPTIONS: ""
+        run: >-
+          xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24'
+          node scripts/run-quality-gate.mjs
 
       - name: Collect quality gate artefacts
         if: always()
