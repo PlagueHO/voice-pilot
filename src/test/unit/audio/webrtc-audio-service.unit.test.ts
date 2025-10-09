@@ -98,10 +98,14 @@ class EphemeralKeyServiceStub {
 }
 
 class ConfigurationManagerStub {
-  constructor(private initialized = true) {}
+  private initializedFlag: boolean;
+
+  constructor(initialized = true) {
+    this.initializedFlag = initialized;
+  }
 
   isInitialized(): boolean {
-    return this.initialized;
+    return this.initializedFlag;
   }
 }
 

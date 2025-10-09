@@ -193,7 +193,11 @@ function createConfigManagerStub({
 }
 
 class EphemeralKeyServiceStub {
-  constructor(private session: RealtimeSessionInfo) {}
+  private session: RealtimeSessionInfo;
+
+  constructor(session: RealtimeSessionInfo) {
+    this.session = session;
+  }
 
   setSession(session: RealtimeSessionInfo): void {
     this.session = session;

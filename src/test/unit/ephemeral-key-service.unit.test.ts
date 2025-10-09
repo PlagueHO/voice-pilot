@@ -17,11 +17,19 @@ class MockCredMgr {
 }
 
 class MockConfigMgr {
+  private readonly cfg: AzureOpenAIConfig;
+  private readonly realtime: AzureRealtimeConfig;
+  private readonly audio: AudioConfig;
+
   constructor(
-    private readonly cfg: AzureOpenAIConfig,
-    private readonly realtime: AzureRealtimeConfig,
-    private readonly audio: AudioConfig,
-  ) {}
+    cfg: AzureOpenAIConfig,
+    realtime: AzureRealtimeConfig,
+    audio: AudioConfig,
+  ) {
+    this.cfg = cfg;
+    this.realtime = realtime;
+    this.audio = audio;
+  }
   isInitialized() { return true; }
   getAzureOpenAIConfig() { return this.cfg; }
   getAzureRealtimeConfig() { return this.realtime; }

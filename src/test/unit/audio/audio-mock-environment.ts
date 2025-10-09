@@ -13,14 +13,16 @@ export class MockMediaStreamTrack {
   public enabled = true;
   public muted = false;
   public readyState: MediaStreamTrackState = "live";
+  public readonly label: string;
   private readonly listeners: Map<string, Set<() => void>> = new Map();
   private readonly sampleRate: number;
   private readonly channelCount: number;
 
   constructor(
-    public readonly label: string,
+    label: string,
     options: { sampleRate?: number; channelCount?: number } = {},
   ) {
+    this.label = label;
     this.id = `mock-track-${++trackIdCounter}`;
     this.sampleRate = options.sampleRate ?? 24000;
     this.channelCount = options.channelCount ?? 1;
@@ -64,8 +66,11 @@ export class MockMediaStreamTrack {
 
 export class MockMediaStream {
   public readonly id = `mock-stream-${++streamIdCounter}`;
+  private readonly tracks: MockMediaStreamTrack[];
 
-  constructor(private readonly tracks: MockMediaStreamTrack[]) {}
+  constructor(tracks: MockMediaStreamTrack[]) {
+    this.tracks = tracks;
+  }
 
   getTracks(): MediaStreamTrack[] {
     return [...this.tracks] as unknown as MediaStreamTrack[];
@@ -78,11 +83,13 @@ export class MockMediaStream {
 
 export class MockMediaStreamAudioSourceNode {
   public readonly connections: any[] = [];
+  public readonly context: MockAudioContext;
 
   constructor(
-    public readonly context: MockAudioContext,
+    context: MockAudioContext,
     options: { mediaStream: MockMediaStream },
   ) {
+    this.context = context;
     assert.ok(options.mediaStream, "Source node requires a media stream");
   }
 
@@ -98,8 +105,11 @@ export class MockMediaStreamAudioSourceNode {
 export class MockGainNode {
   public readonly connections: any[] = [];
   public readonly gain = { value: 1 };
+  public readonly context: MockAudioContext;
 
-  constructor(public readonly context: MockAudioContext) {}
+  constructor(context: MockAudioContext) {
+    this.context = context;
+  }
 
   connect(target: any): void {
     this.connections.push(target);
@@ -116,8 +126,11 @@ export class MockAnalyserNode {
   public smoothingTimeConstant = 0.8;
   public minDecibels = -90;
   public maxDecibels = -10;
+  public readonly context: MockAudioContext;
 
-  constructor(public readonly context: MockAudioContext) {}
+  constructor(context: MockAudioContext) {
+    this.context = context;
+  }
 
   connect(target: any): void {
     this.connections.push(target);
@@ -140,16 +153,19 @@ export class MockAudioWorkletNode {
     },
   };
   public portClosed = false;
+  public readonly context: MockAudioContext;
+  public readonly name: string;
+  public readonly options?: AudioWorkletNodeOptions;
 
   constructor(
-    public readonly context: MockAudioContext,
-    public readonly name: string,
+    context: MockAudioContext,
+    name: string,
     options?: AudioWorkletNodeOptions,
   ) {
+    this.context = context;
+    this.name = name;
     this.options = options;
   }
-
-  public readonly options?: AudioWorkletNodeOptions;
 
   connect(target: any): void {
     this.connections.push(target);
@@ -163,8 +179,10 @@ export class MockAudioWorkletNode {
 export class MockMediaStreamAudioDestinationNode {
   public readonly stream: MockMediaStream;
   public readonly connections: any[] = [];
+  public readonly context: MockAudioContext;
 
-  constructor(public readonly context: MockAudioContext) {
+  constructor(context: MockAudioContext) {
+    this.context = context;
     const processedTrack = new MockMediaStreamTrack("processed-track");
     this.stream = new MockMediaStream([processedTrack]);
   }
@@ -181,6 +199,7 @@ export class MockMediaStreamAudioDestinationNode {
 export class MockAudioContext {
   public readonly id = ++contextIdCounter;
   public state: AudioContextState = "suspended";
+  public readonly options: AudioContextOptions;
   public readonly audioWorklet = {
     addModule: async (url: string) => {
       this.loadedModules.push(url);
@@ -191,7 +210,8 @@ export class MockAudioContext {
 
   private readonly listeners: ListenerMap = {};
 
-  constructor(public readonly options: AudioContextOptions) {
+  constructor(options: AudioContextOptions) {
+    this.options = options;
     createdContexts.push(this);
     this.sampleRate = options.sampleRate ?? 24000;
   }
@@ -371,7 +391,7 @@ export function installMockAudioEnvironment(): AudioMockEnvironment {
       createdContexts.length = 0;
       workletModules.length = 0;
       lastUserMediaStream = undefined;
-  capturedStreams.length = 0;
+      capturedStreams.length = 0;
       contextIdCounter = 0;
       streamIdCounter = 0;
       trackIdCounter = 0;

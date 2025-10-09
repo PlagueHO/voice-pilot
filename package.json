@@ -29,7 +29,7 @@
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
     "test:headless": "xvfb-run -a npm test",
-    "test:coverage": "nyc mocha --ui bdd --require ts-node/register --require src/test/unit-test-setup.ts \"src/test/unit/**/*.ts\" --timeout 3000",
+  "test:coverage": "nyc mocha --ui bdd --require ts-node/register --require src/test/unit-test-setup.ts \"src/test/unit/**/*.ts\" --timeout 3000",
     "test:perf": "node -e \"console.log(JSON.stringify({timestamp: new Date().toISOString(), testDuration: Math.random() * 1000 + 500}))\"",
     "test:unit": "npm run compile && mocha --ui bdd --require ./out/test/unit-test-setup.js \"out/test/unit/**/*.js\" --timeout 3000",
     "test:all": "npm run test:unit && npm test",

@@ -47,8 +47,11 @@ class StubTransport implements WebRTCTransport {
   public recreateCalls = 0;
   public fallbackActive = false;
   public dataChannelState: RTCDataChannelState | "unavailable" = "unavailable";
+  private readonly restartSequence: boolean[];
 
-  constructor(private readonly restartSequence: boolean[]) {}
+  constructor(restartSequence: boolean[]) {
+    this.restartSequence = restartSequence;
+  }
 
   async establishConnection(_config: WebRTCConfig): Promise<ConnectionResult> {
     return {

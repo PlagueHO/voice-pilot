@@ -43,8 +43,11 @@ class IntegrationStubTransport implements WebRTCTransport {
   public restartIceCalls = 0;
   public fallbackActive = false;
   public queuedMessages = 0;
+  private readonly restartPlan: boolean[];
 
-  constructor(private readonly restartPlan: boolean[]) {}
+  constructor(restartPlan: boolean[]) {
+    this.restartPlan = restartPlan;
+  }
 
   async establishConnection(_config: WebRTCConfig): Promise<ConnectionResult> {
     return {
