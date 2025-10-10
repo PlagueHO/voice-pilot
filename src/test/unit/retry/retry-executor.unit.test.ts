@@ -1,20 +1,20 @@
-import * as assert from "assert";
-import { Logger } from "../../../core/logger";
-import { RetryExecutorImpl } from "../../../core/retry/retry-executor";
+import { Logger } from '../../../core/logger';
+import { RetryExecutorImpl } from '../../../core/retry/retry-executor';
 import type {
-    RetryClock,
-    RetryExecutionContext,
-    RetryMetricsSink,
-    RetryOutcome,
-} from "../../../core/retry/retry-types";
-import { createVoicePilotError } from "../../../helpers/error/envelope";
+  RetryClock,
+  RetryExecutionContext,
+  RetryMetricsSink,
+  RetryOutcome,
+} from '../../../core/retry/retry-types';
+import { createVoicePilotError } from '../../../helpers/error/envelope';
 import type {
-    VoicePilotFaultDomain,
-    VoicePilotSeverity,
-} from "../../../types/error/error-taxonomy";
-import type { CircuitBreakerState } from "../../../types/error/voice-pilot-error";
-import type { RetryEnvelope } from "../../../types/retry";
-import { afterEach, beforeEach, describe, it } from "../../mocha-globals";
+  VoicePilotFaultDomain,
+  VoicePilotSeverity,
+} from '../../../types/error/error-taxonomy';
+import type { CircuitBreakerState } from '../../../types/error/voice-pilot-error';
+import type { RetryEnvelope } from '../../../types/retry';
+import { expect } from '../../helpers/chai-setup';
+import { afterEach, beforeEach, suite, test } from '../../mocha-globals';
 
 class FakeClock implements RetryClock {
   nowMs = 0;
@@ -84,19 +84,19 @@ const calculateExpectedDelay = (
 
   let baseDelay = 0;
   switch (envelope.policy) {
-    case "none":
+    case 'none':
       baseDelay = 0;
       break;
-    case "immediate":
+    case 'immediate':
       baseDelay = 0;
       break;
-    case "linear":
+    case 'linear':
       baseDelay = Math.min(
         envelope.initialDelayMs + (attempt - 1) * envelope.multiplier,
         envelope.maxDelayMs,
       );
       break;
-    case "hybrid":
+    case 'hybrid':
       if (attempt === 1) {
         baseDelay = 0;
       } else if (attempt === 2) {
@@ -108,7 +108,7 @@ const calculateExpectedDelay = (
         );
       }
       break;
-    case "exponential":
+    case 'exponential':
     default:
       baseDelay = Math.min(
         envelope.initialDelayMs * Math.pow(envelope.multiplier, attempt - 1),
@@ -119,10 +119,10 @@ const calculateExpectedDelay = (
 
   let jitterMs = 0;
   switch (envelope.jitterStrategy) {
-    case "deterministic-full":
+    case 'deterministic-full':
       jitterMs = baseDelay * jitterSeed(correlationId, attempt);
       break;
-    case "deterministic-equal":
+    case 'deterministic-equal':
       jitterMs = baseDelay * 0.5 * (jitterSeed(correlationId, attempt) * 2 - 1);
       break;
     default:
@@ -131,7 +131,7 @@ const calculateExpectedDelay = (
   }
 
   let delayMs = Math.max(0, baseDelay + jitterMs);
-  if (envelope.policy === "none" || envelope.policy === "immediate") {
+  if (envelope.policy === 'none' || envelope.policy === 'immediate') {
     delayMs = 0;
     jitterMs = 0;
   }
@@ -146,26 +146,26 @@ const calculateExpectedDelay = (
 const createEnvelope = (
   overrides: Partial<RetryEnvelope> = {},
 ): RetryEnvelope => ({
-  domain: overrides.domain ?? "auth",
-  policy: overrides.policy ?? "exponential",
+  domain: overrides.domain ?? 'auth',
+  policy: overrides.policy ?? 'exponential',
   initialDelayMs: overrides.initialDelayMs ?? 200,
   multiplier: overrides.multiplier ?? 2,
   maxDelayMs: overrides.maxDelayMs ?? 5_000,
   maxAttempts: overrides.maxAttempts ?? 4,
-  jitterStrategy: overrides.jitterStrategy ?? "deterministic-full",
+  jitterStrategy: overrides.jitterStrategy ?? 'deterministic-full',
   coolDownMs: overrides.coolDownMs ?? 45_000,
   failureBudgetMs: overrides.failureBudgetMs ?? 120_000,
 });
 
-describe("RetryExecutorImpl", () => {
+suite('Unit: RetryExecutorImpl', () => {
   let logger: Logger;
   let executor: RetryExecutorImpl;
   let clock: FakeClock;
   let metrics: RecordingMetrics;
 
   beforeEach(() => {
-    logger = new Logger("RetryExecutorTest");
-    logger.setLevel("debug");
+    logger = new Logger('RetryExecutorTest');
+    logger.setLevel('debug');
     executor = new RetryExecutorImpl(logger);
     clock = new FakeClock();
     metrics = new RecordingMetrics();
@@ -176,30 +176,30 @@ describe("RetryExecutorImpl", () => {
     logger.dispose();
   });
 
-  it("retries with deterministic jitter and succeeds", async () => {
-  const envelope = createEnvelope({ domain: "transport", maxAttempts: 5 });
-    const correlationId = "retry-correlation-001";
+  test('retries with deterministic jitter and succeeds', async () => {
+    const envelope = createEnvelope({ domain: 'transport', maxAttempts: 5 });
+    const correlationId = 'retry-correlation-001';
     const scheduledDelays: number[] = [];
     const outcomes: RetryOutcome[] = [];
 
     let invocation = 0;
     const context: RetryExecutionContext = {
       correlationId,
-      operation: "transport.connect",
+      operation: 'transport.connect',
       envelope,
       clock,
       logger,
       metrics,
-      severity: "error",
+      severity: 'error',
       onRetryScheduled: (plan) => {
         scheduledDelays.push(plan.initialDelayMs);
       },
       onFailure: async (failure) => {
         const error = createVoicePilotError({
           faultDomain: envelope.domain,
-          code: "TEST_RETRY_FAILURE",
-          message: "Injected retry failure",
-          remediation: "retry",
+          code: 'TEST_RETRY_FAILURE',
+          message: 'Injected retry failure',
+          remediation: 'retry',
           metadata: { attempt: failure.attempt },
         });
         return {
@@ -217,60 +217,58 @@ describe("RetryExecutorImpl", () => {
       invocation += 1;
       if (invocation < 3) {
         clock.advance(5);
-        throw new Error("network glitch");
+        throw new Error('network glitch');
       }
       clock.advance(2);
-      return "ok";
+      return 'ok';
     }, context);
 
-    assert.strictEqual(result, "ok");
-    assert.strictEqual(invocation, 3);
-    assert.strictEqual(scheduledDelays.length, 2, "expected retries to schedule two backoffs");
+    expect(result).to.equal('ok');
+    expect(invocation).to.equal(3);
+    expect(scheduledDelays.length, 'expected retries to schedule two backoffs').to.equal(2);
 
     let elapsed = 0;
     for (let attempt = 1; attempt <= scheduledDelays.length; attempt += 1) {
       const expected = calculateExpectedDelay(envelope, attempt, correlationId, elapsed);
       const actual = scheduledDelays[attempt - 1];
       elapsed += actual;
-      assert.ok(
-        Math.abs(actual - expected) < 1e-6,
-        `deterministic jitter mismatch for attempt ${attempt}: expected ${expected}, got ${actual}`,
-      );
+      expect(Math.abs(actual - expected), `deterministic jitter mismatch for attempt ${attempt}: expected ${expected}, got ${actual}`)
+        .to.be.lessThan(1e-6);
     }
 
-    assert.strictEqual(metrics.attempts.length, 2);
-  assert.strictEqual(metrics.outcomes.length, 1);
-  const lastOutcome = metrics.outcomes[0].outcome;
-  assert.ok(lastOutcome.success, "final outcome should be recorded as success");
-    assert.strictEqual(clock.waits.length, 2);
-    assert.ok(outcomes.some((o) => o.success));
+    expect(metrics.attempts).to.have.lengthOf(2);
+    expect(metrics.outcomes).to.have.lengthOf(1);
+    const lastOutcome = metrics.outcomes[0].outcome;
+    expect(lastOutcome.success, 'final outcome should be recorded as success').to.equal(true);
+    expect(clock.waits).to.have.lengthOf(2);
+    expect(outcomes.some((o) => o.success)).to.equal(true);
   });
 
-  it("opens circuit after repeated failures and surfaces circuit error", async () => {
+  test('opens circuit after repeated failures and surfaces circuit error', async () => {
     const envelope = createEnvelope({
-      domain: "auth",
+      domain: 'auth',
       maxAttempts: 4,
       coolDownMs: 60_000,
-      jitterStrategy: "none",
+      jitterStrategy: 'none',
     });
-    const correlationId = "retry-circuit-001";
+    const correlationId = 'retry-circuit-001';
     const circuitStates: CircuitBreakerState[] = [];
 
     const context: RetryExecutionContext = {
       correlationId,
-      operation: "auth.token",
+      operation: 'auth.token',
       envelope,
       clock,
       logger,
       metrics,
-      severity: "error",
+      severity: 'error',
       onRetryScheduled: () => {},
       onFailure: async (failure) => {
         const error = createVoicePilotError({
           faultDomain: envelope.domain,
-          code: "AUTH_RETRY_FAILED",
-          message: "Auth failed",
-          remediation: "retry",
+          code: 'AUTH_RETRY_FAILED',
+          message: 'Auth failed',
+          remediation: 'retry',
           metadata: { attempt: failure.attempt },
         });
         return {
@@ -283,35 +281,35 @@ describe("RetryExecutorImpl", () => {
         circuitStates.push(state);
         return createVoicePilotError({
           faultDomain: envelope.domain,
-          code: "AUTH_CIRCUIT_OPEN",
-          message: "Circuit breaker open",
-          remediation: "wait",
+          code: 'AUTH_CIRCUIT_OPEN',
+          message: 'Circuit breaker open',
+          remediation: 'wait',
           metadata: { state },
         });
       },
     };
 
-    await assert.rejects(
-      executor.execute(async () => {
+    try {
+      await executor.execute(async () => {
         clock.advance(1);
-        throw new Error("auth failure");
-      }, context),
-      (error: any) => {
-        assert.strictEqual(error.code, "AUTH_CIRCUIT_OPEN");
-        return true;
-      },
-    );
+        throw new Error('auth failure');
+      }, context);
+      expect.fail('Expected circuit breaker error');
+    } catch (error) {
+      const circuitError = error as { code?: string };
+      expect(circuitError.code).to.equal('AUTH_CIRCUIT_OPEN');
+    }
 
-  assert.strictEqual(circuitStates.length, 1, "circuit open callback should fire once");
-    assert.strictEqual(circuitStates[0].state, "open");
-  assert.strictEqual(metrics.attempts.length, 2);
-  assert.strictEqual(metrics.outcomes.length, 1);
-  const outcome = metrics.outcomes[0].outcome;
-  assert.strictEqual(outcome.success, false);
-  assert.ok(outcome.circuitBreakerOpened);
-  assert.strictEqual(clock.waits.length, 2);
+    expect(circuitStates.length, 'circuit open callback should fire once').to.equal(1);
+    expect(circuitStates[0].state).to.equal('open');
+    expect(metrics.attempts).to.have.lengthOf(2);
+    expect(metrics.outcomes).to.have.lengthOf(1);
+    const outcome = metrics.outcomes[0].outcome;
+    expect(outcome.success).to.equal(false);
+    expect(outcome.circuitBreakerOpened).to.equal(true);
+    expect(clock.waits).to.have.lengthOf(2);
     const breaker = executor.getCircuitBreakerState(envelope.domain);
-    assert.ok(breaker);
-    assert.strictEqual(breaker?.state, "open");
+    expect(breaker).to.exist;
+    expect(breaker?.state).to.equal('open');
   });
 });
