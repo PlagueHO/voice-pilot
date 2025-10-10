@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import {
   AzureTurnDetectionCoordinator,
   type HybridFallbackAdapter,
@@ -6,6 +5,8 @@ import {
 } from "../../../audio/turn-detection-coordinator";
 import type { Logger } from "../../../core/logger";
 import type { TurnDetectionConfig } from "../../../types/configuration";
+import { expect } from "../../helpers/chai-setup";
+import { suite, test } from "../../mocha-globals";
 
 interface LogEntry {
   level: "debug" | "info" | "warn" | "error";
@@ -73,30 +74,25 @@ function createConfig(overrides: Partial<TurnDetectionConfig> = {}): TurnDetecti
   };
 }
 
-describe("AzureTurnDetectionCoordinator", () => {
-  it("enforces initialization guard before public operations", async () => {
+suite("Unit: AzureTurnDetectionCoordinator", () => {
+  test("enforces initialization guard before public operations", async () => {
     const { logger } = createTestLogger();
     const coordinator = new AzureTurnDetectionCoordinator(undefined, logger);
 
-    await assert.rejects(
-      coordinator.configure(createConfig()),
-      /must be initialized/,
-      "configure should require initialization",
-    );
+    await expect(coordinator.configure(createConfig())).to.be.rejectedWith(/must be initialized/);
 
-    assert.throws(
-      () => coordinator.handleServerEvent({ type: "speech-start", timestamp: 0 }),
+    expect(() => coordinator.handleServerEvent({ type: "speech-start", timestamp: 0 })).to.throw(
       /must be initialized/,
       "handleServerEvent should require initialization",
     );
 
     await coordinator.initialize();
-    assert.strictEqual(coordinator.isInitialized(), true);
+    expect(coordinator.isInitialized()).to.be.true;
 
     coordinator.dispose();
   });
 
-  it("emits normalized configuration updates and mode change events", async () => {
+  test("emits normalized configuration updates and mode change events", async () => {
     const { logger } = createTestLogger();
     const coordinator = new AzureTurnDetectionCoordinator(undefined, logger);
     await coordinator.initialize();
@@ -123,10 +119,10 @@ describe("AzureTurnDetectionCoordinator", () => {
 
     await coordinator.configure(newConfig);
 
-    assert.strictEqual(configEvents.length, 1, "config-updated should fire once");
+    expect(configEvents.length, "config-updated should fire once").to.equal(1);
     const eventConfig = configEvents[0]?.config;
-    assert.ok(eventConfig, "config payload should be present");
-    assert.deepStrictEqual(eventConfig, {
+    expect(eventConfig, "config payload should be present").to.exist;
+    expect(eventConfig).to.deep.equal({
       type: "semantic_vad",
       threshold: 1,
       prefixPaddingMs: 149,
@@ -136,17 +132,17 @@ describe("AzureTurnDetectionCoordinator", () => {
       eagerness: "high",
     });
 
-    assert.strictEqual(modeEvents.length, 1, "mode-changed should fire when type changes");
-    assert.strictEqual(modeEvents[0]?.previousMode, "server_vad");
-    assert.strictEqual(modeEvents[0]?.state.mode, "semantic_vad");
-    assert.strictEqual(modeEvents[0]?.state.pendingResponse, false);
+    expect(modeEvents.length, "mode-changed should fire when type changes").to.equal(1);
+    expect(modeEvents[0]?.previousMode).to.equal("server_vad");
+    expect(modeEvents[0]?.state.mode).to.equal("semantic_vad");
+    expect(modeEvents[0]?.state.pendingResponse).to.be.false;
 
     configDisposable.dispose();
     modeDisposable.dispose();
     coordinator.dispose();
   });
 
-  it("processes realtime events, manages fallback adapter, and updates diagnostics", async () => {
+  test("processes realtime events, manages fallback adapter, and updates diagnostics", async () => {
     const { logger } = createTestLogger();
     const coordinator = new AzureTurnDetectionCoordinator(undefined, logger);
     await coordinator.initialize();
@@ -172,17 +168,17 @@ describe("AzureTurnDetectionCoordinator", () => {
 
     coordinator.handleServerEvent({ type: "speech-start", timestamp: 1000, latencyMs: 45 });
     let state = coordinator.getState();
-    assert.strictEqual(state.lastSpeechStart, 1000);
-    assert.strictEqual(state.pendingResponse, false);
-    assert.strictEqual(state.diagnostics.avgStartLatencyMs, 45);
-    assert.strictEqual(startEvents.length, 1);
+    expect(state.lastSpeechStart).to.equal(1000);
+    expect(state.pendingResponse).to.be.false;
+    expect(state.diagnostics.avgStartLatencyMs).to.equal(45);
+    expect(startEvents.length).to.equal(1);
 
     coordinator.handleServerEvent({ type: "degraded", timestamp: 1200 });
     state = coordinator.getState();
-    assert.strictEqual(state.diagnostics.missedEvents, 1);
-    assert.strictEqual(state.diagnostics.fallbackActive, true);
-    assert.strictEqual(adapter.enableCount, 1);
-    assert.strictEqual(fallbackEvents.at(-1)?.metadata?.reason, "server_degraded");
+    expect(state.diagnostics.missedEvents).to.equal(1);
+    expect(state.diagnostics.fallbackActive).to.be.true;
+    expect(adapter.enableCount).to.equal(1);
+    expect(fallbackEvents.at(-1)?.metadata?.reason).to.equal("server_degraded");
 
     const originalNow = Date.now;
     Date.now = () => 2000;
@@ -193,11 +189,11 @@ describe("AzureTurnDetectionCoordinator", () => {
     }
 
     state = coordinator.getState();
-    assert.strictEqual(state.diagnostics.fallbackActive, false);
-    assert.strictEqual(adapter.disableCount, 1);
-    assert.strictEqual(stopEvents.length, 1);
-    assert.ok(Math.abs(state.diagnostics.avgStopLatencyMs - 500) < 0.001);
-    assert.strictEqual(fallbackEvents.at(-1)?.metadata?.reason, "server_response_interrupted");
+    expect(state.diagnostics.fallbackActive).to.be.false;
+    expect(adapter.disableCount).to.equal(1);
+    expect(stopEvents.length).to.equal(1);
+    expect(Math.abs(state.diagnostics.avgStopLatencyMs - 500)).to.be.below(0.001);
+    expect(fallbackEvents.at(-1)?.metadata?.reason).to.equal("server_response_interrupted");
 
     coordinator.handleServerEvent({
       type: "speech-stop",
@@ -207,29 +203,29 @@ describe("AzureTurnDetectionCoordinator", () => {
     });
 
     state = coordinator.getState();
-    assert.strictEqual(state.lastSpeechStop, 2600);
-    assert.strictEqual(state.pendingResponse, true);
-    assert.ok(Math.abs(state.diagnostics.avgStopLatencyMs - 280) < 0.001);
-    assert.strictEqual(stopEvents.length, 2);
+    expect(state.lastSpeechStop).to.equal(2600);
+    expect(state.pendingResponse).to.be.true;
+    expect(Math.abs(state.diagnostics.avgStopLatencyMs - 280)).to.be.below(0.001);
+    expect(stopEvents.length).to.equal(2);
 
     coordinator.handleServerEvent({ type: "degraded", timestamp: 3100 });
     state = coordinator.getState();
-    assert.strictEqual(state.diagnostics.fallbackActive, true);
-    assert.strictEqual(state.diagnostics.missedEvents, 2);
-    assert.strictEqual(adapter.enableCount, 2);
+    expect(state.diagnostics.fallbackActive).to.be.true;
+    expect(state.diagnostics.missedEvents).to.equal(2);
+    expect(adapter.enableCount).to.equal(2);
 
     await coordinator.requestModeChange("none");
     state = coordinator.getState();
-    assert.strictEqual(state.mode, "none");
-    assert.strictEqual(state.diagnostics.fallbackActive, false);
-    assert.strictEqual(adapter.disableCount, 2);
-    assert.strictEqual(fallbackEvents.at(-1)?.metadata?.reason, "mode_switch_manual");
+    expect(state.mode).to.equal("none");
+    expect(state.diagnostics.fallbackActive).to.be.false;
+    expect(adapter.disableCount).to.equal(2);
+    expect(fallbackEvents.at(-1)?.metadata?.reason).to.equal("mode_switch_manual");
 
     disposables.forEach((d) => d.dispose());
     coordinator.dispose();
   });
 
-  it("warns when fallback engages without a registered adapter", async () => {
+  test("warns when fallback engages without a registered adapter", async () => {
     const { logger, entries } = createTestLogger();
     const coordinator = new AzureTurnDetectionCoordinator(undefined, logger);
     await coordinator.initialize();
@@ -237,17 +233,17 @@ describe("AzureTurnDetectionCoordinator", () => {
     coordinator.handleServerEvent({ type: "degraded", timestamp: 500 });
 
     const state = coordinator.getState();
-    assert.strictEqual(state.diagnostics.fallbackActive, true);
-    assert.strictEqual(state.diagnostics.missedEvents, 1);
-    assert.ok(
+    expect(state.diagnostics.fallbackActive).to.be.true;
+    expect(state.diagnostics.missedEvents).to.equal(1);
+    expect(
       entries.some((entry) => entry.level === "warn" && entry.message === "Fallback active without adapter"),
       "warn should be logged when fallback adapter is missing",
-    );
+    ).to.be.true;
 
     coordinator.dispose();
   });
 
-  it("disables previous adapter and enables the new one when fallback is active", async () => {
+  test("disables previous adapter and enables the new one when fallback is active", async () => {
     const { logger } = createTestLogger();
     const coordinator = new AzureTurnDetectionCoordinator(undefined, logger);
     await coordinator.initialize();
@@ -255,17 +251,20 @@ describe("AzureTurnDetectionCoordinator", () => {
     const firstAdapter = new MockFallbackAdapter();
     coordinator.registerFallbackAdapter(firstAdapter);
 
-    coordinator.handleServerEvent({ type: "degraded", timestamp: 900 });
-    assert.strictEqual(firstAdapter.enableCount, 1);
+  coordinator.handleServerEvent({ type: "degraded", timestamp: 900 });
+  expect(firstAdapter.enableCount).to.equal(1);
 
     const secondAdapter = new MockFallbackAdapter();
     coordinator.registerFallbackAdapter(secondAdapter);
 
-    assert.strictEqual(firstAdapter.disableCount, 1, "previous adapter should be disabled when replacing");
-    assert.strictEqual(secondAdapter.enableCount, 1, "new adapter should be enabled when fallback active");
+    expect(firstAdapter.disableCount, "previous adapter should be disabled when replacing").to.equal(1);
+    expect(secondAdapter.enableCount, "new adapter should be enabled when fallback active").to.equal(1);
 
     coordinator.registerFallbackAdapter(undefined);
-    assert.strictEqual(secondAdapter.disableCount, 1, "second adapter should be disabled when removed during fallback");
+    expect(
+      secondAdapter.disableCount,
+      "second adapter should be disabled when removed during fallback",
+    ).to.equal(1);
 
     coordinator.dispose();
   });

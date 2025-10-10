@@ -1,5 +1,3 @@
-
-import * as assert from "assert";
 import { sharedAudioContextProvider } from "../../../audio/audio-context-provider";
 import { WebRTCAudioService } from "../../../audio/webrtc-audio-service";
 import { Logger } from "../../../core/logger";
@@ -20,6 +18,8 @@ import {
     type ConnectionStatistics,
     type WebRTCConfig,
 } from "../../../types/webrtc";
+import { expect } from "../../helpers/chai-setup";
+import { afterEach, beforeEach, suite, test } from "../../mocha-globals";
 
 type EventHandler = (event: { data: any }) => void | Promise<void>;
 
@@ -658,7 +658,7 @@ function stubSharedAudioContext(): ProviderStub {
   return stub;
 }
 
-describe("WebRTCAudioService realtime orchestration", () => {
+suite("Unit: WebRTCAudioService realtime orchestration", () => {
   let harness: ReturnType<typeof createHarness>;
 
   beforeEach(() => {
@@ -670,32 +670,30 @@ describe("WebRTCAudioService realtime orchestration", () => {
     harness.logger.dispose();
   });
 
-  it("sends session update, conversation item, and response create in order", async () => {
+  test("sends session update, conversation item, and response create in order", async () => {
     await harness.service.sendTextMessage("Hello there");
 
-    assert.deepStrictEqual(
-      harness.transport.messages.map((event) => event.type),
-      ["session.update", "conversation.item.create", "response.create"],
-    );
+    expect(harness.transport.messages.map((event) => event.type)).to.deep.equal([
+      "session.update",
+      "conversation.item.create",
+      "response.create",
+    ]);
 
     const sessionUpdate = harness.transport
       .messages[0] as SessionUpdateEvent;
-    assert.deepStrictEqual(sessionUpdate.session.modalities, ["audio", "text"]);
-    assert.deepStrictEqual(sessionUpdate.session.output_modalities, ["audio", "text"]);
+    expect(sessionUpdate.session.modalities).to.deep.equal(["audio", "text"]);
+    expect(sessionUpdate.session.output_modalities).to.deep.equal(["audio", "text"]);
 
     const responseCreate = harness.transport
       .messages[2] as ResponseCreateEvent;
-    assert.deepStrictEqual(responseCreate.response?.modalities, ["audio", "text"]);
-    assert.deepStrictEqual(responseCreate.response?.output_modalities, ["audio", "text"]);
+    expect(responseCreate.response?.modalities).to.deep.equal(["audio", "text"]);
+    expect(responseCreate.response?.output_modalities).to.deep.equal(["audio", "text"]);
   });
 
-  it("prevents duplicate response.create dispatch while a response is pending", async () => {
+  test("prevents duplicate response.create dispatch while a response is pending", async () => {
     await harness.service.sendTextMessage("First turn");
 
-    await assert.rejects(
-      () => harness.service.sendTextMessage("Second turn"),
-      /already pending/,
-    );
+    await expect(harness.service.sendTextMessage("Second turn")).to.be.rejectedWith(/already pending/);
 
     await (harness.service as any).handleDataChannelMessage({
       type: "response.created",
@@ -719,10 +717,10 @@ describe("WebRTCAudioService realtime orchestration", () => {
 
     harness.transport.messages.length = 0;
     await harness.service.sendTextMessage("Second turn");
-    assert.strictEqual(harness.transport.messages[0].type, "session.update");
+    expect(harness.transport.messages[0].type).to.equal("session.update");
   });
 
-  it("pushes updated voice and instructions through session.update", async () => {
+  test("pushes updated voice and instructions through session.update", async () => {
     await harness.service.updateSessionPreferences({
       voice: "phoebe",
       instructions: "Keep answers brief",
@@ -734,22 +732,16 @@ describe("WebRTCAudioService realtime orchestration", () => {
 
     const sessionUpdate = harness.transport
       .messages[0] as SessionUpdateEvent;
-    assert.strictEqual(sessionUpdate.session.voice, "phoebe");
-    assert.strictEqual(
-      sessionUpdate.session.instructions,
-      "Keep answers brief",
-    );
+    expect(sessionUpdate.session.voice).to.equal("phoebe");
+    expect(sessionUpdate.session.instructions).to.equal("Keep answers brief");
 
     const responseCreate = harness.transport
       .messages[2] as ResponseCreateEvent;
-    assert.strictEqual(responseCreate.response?.voice, "phoebe");
-    assert.strictEqual(
-      responseCreate.response?.instructions,
-      "Keep answers brief",
-    );
+    expect(responseCreate.response?.voice).to.equal("phoebe");
+    expect(responseCreate.response?.instructions).to.equal("Keep answers brief");
   });
 
-  it("invokes transcript callback for completion events", async () => {
+  test("invokes transcript callback for completion events", async () => {
     const transcripts: string[] = [];
     (harness.service as any).onTranscriptReceived((text: string) => {
       transcripts.push(text);
@@ -761,11 +753,11 @@ describe("WebRTCAudioService realtime orchestration", () => {
       text: "All set",
     });
 
-    assert.deepStrictEqual(transcripts, ["All set"]);
-    assert.strictEqual(harness.sessionManager.events.length, 1);
+    expect(transcripts).to.deep.equal(["All set"]);
+    expect(harness.sessionManager.events.length).to.equal(1);
   });
 
-  it("tracks credential metadata snapshots", async () => {
+  test("tracks credential metadata snapshots", async () => {
     const snapshots: EphemeralKeyInfo[] = [];
     harness.service.onCredentialStatusUpdated(async (info) => {
       snapshots.push(info);
@@ -788,14 +780,14 @@ describe("WebRTCAudioService realtime orchestration", () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     const status = harness.service.getCredentialStatus();
-    assert.ok(status);
-    assert.strictEqual(status?.sessionId, "session-credential");
-    assert.ok(status!.secondsRemaining <= 60);
-    assert.strictEqual(snapshots.length, 1);
+    expect(status).to.exist;
+    expect(status?.sessionId).to.equal("session-credential");
+    expect(status!.secondsRemaining <= 60).to.be.true;
+    expect(snapshots.length).to.equal(1);
   });
 });
 
-describe("WebRTCAudioService lifecycle management", () => {
+suite("Unit: WebRTCAudioService lifecycle management", () => {
   let providerStub: ProviderStub;
   let harness: ReturnType<typeof createHarness>;
 
@@ -810,23 +802,22 @@ describe("WebRTCAudioService lifecycle management", () => {
     providerStub.restore();
   });
 
-  it("initializes transport and audio manager when dependencies are ready", async () => {
+  test("initializes transport and audio manager when dependencies are ready", async () => {
     await harness.service.initialize();
 
-    assert.ok(harness.service.isInitialized());
-    assert.strictEqual(harness.transport.initializeCalls, 1);
-    assert.strictEqual(harness.audioManager.initializeCalls, 1);
+    expect(harness.service.isInitialized()).to.be.true;
+    expect(harness.transport.initializeCalls).to.equal(1);
+    expect(harness.audioManager.initializeCalls).to.equal(1);
   });
 
-  it("throws when required services are not initialized", async () => {
+  test("throws when required services are not initialized", async () => {
     harness.ephemeral.initialized = false;
-    await assert.rejects(
-      () => harness.service.initialize(),
+    await expect(harness.service.initialize()).to.be.rejectedWith(
       /EphemeralKeyService must be initialized/,
     );
   });
 
-  it("starts a session using pipeline track and routes remote audio to integration", async () => {
+  test("starts a session using pipeline track and routes remote audio to integration", async () => {
     await harness.service.initialize();
 
     const pipeline = new AudioPipelineStub({ track: createTrack("pipeline") });
@@ -842,28 +833,25 @@ describe("WebRTCAudioService lifecycle management", () => {
 
     await harness.service.startSession();
 
-    assert.strictEqual(harness.transport.establishCalls.length, 1);
-    assert.strictEqual(harness.audioManager.captureCalls, 0);
-    assert.strictEqual(harness.transport.addTrackCalls.length, 1);
+  expect(harness.transport.establishCalls.length).to.equal(1);
+  expect(harness.audioManager.captureCalls).to.equal(0);
+  expect(harness.transport.addTrackCalls.length).to.equal(1);
     const addOptions = harness.transport.addTrackCalls[0].options as any;
-    assert.strictEqual(addOptions?.metadata?.source, "audio-pipeline");
-    assert.strictEqual(pipeline.inputRequests.length, 1);
-    assert.deepStrictEqual(states, ["active"]);
-    assert.strictEqual(pipeline.outputStreams[0], harness.transport.remoteStream);
-    assert.strictEqual(providerStub.resumeCalls, 1);
+  expect(addOptions?.metadata?.source).to.equal("audio-pipeline");
+  expect(pipeline.inputRequests.length).to.equal(1);
+  expect(states).to.deep.equal(["active"]);
+  expect(pipeline.outputStreams[0]).to.equal(harness.transport.remoteStream);
+  expect(providerStub.resumeCalls).to.equal(1);
 
     harness.transport.emit("connectionQualityChanged", {
       currentQuality: ConnectionQuality.Poor,
     });
 
-    assert.strictEqual(harness.audioManager.lastQuality, ConnectionQuality.Poor);
-    assert.strictEqual(
-      pipeline.qualityUpdates.at(-1),
-      ConnectionQuality.Poor,
-    );
+    expect(harness.audioManager.lastQuality).to.equal(ConnectionQuality.Poor);
+    expect(pipeline.qualityUpdates.at(-1)).to.equal(ConnectionQuality.Poor);
   });
 
-  it("falls back to audio capture when pipeline input fails and stops cleanly", async () => {
+  test("falls back to audio capture when pipeline input fails and stops cleanly", async () => {
     await harness.service.initialize();
 
     const pipeline = new AudioPipelineStub({ failInput: true });
@@ -872,18 +860,18 @@ describe("WebRTCAudioService lifecycle management", () => {
 
     await harness.service.startSession();
 
-    assert.strictEqual(harness.audioManager.captureCalls, 1);
-    assert.strictEqual(harness.audioManager.addToTransportCalls.length, 1);
+  expect(harness.audioManager.captureCalls).to.equal(1);
+  expect(harness.audioManager.addToTransportCalls.length).to.equal(1);
 
     await harness.service.stopSession();
 
-    assert.strictEqual(harness.transport.closeCalls, 1);
-    assert.strictEqual(harness.audioManager.stopTrackCalls.length, 1);
-    assert.strictEqual(harness.service.getSessionStatus().isActive, false);
-    assert.strictEqual(providerStub.suspendCalls, 1);
+    expect(harness.transport.closeCalls).to.equal(1);
+    expect(harness.audioManager.stopTrackCalls.length).to.equal(1);
+    expect(harness.service.getSessionStatus().isActive).to.be.false;
+    expect(providerStub.suspendCalls).to.equal(1);
   });
 
-  it("handles transport errors via config factory and error handler", async () => {
+  test("handles transport errors via config factory and error handler", async () => {
     await harness.service.initialize();
 
     const error = new WebRTCErrorImpl({
@@ -895,15 +883,14 @@ describe("WebRTCAudioService lifecycle management", () => {
 
     await (harness.service as any).handleTransportError(error);
 
-    assert.strictEqual(harness.configFactory.createCalls.length, 1);
-    assert.strictEqual(harness.errorHandler.handleErrorCalls.length, 1);
-    assert.strictEqual(
-      harness.errorHandler.handleErrorCalls[0].error.code,
+    expect(harness.configFactory.createCalls.length).to.equal(1);
+    expect(harness.errorHandler.handleErrorCalls.length).to.equal(1);
+    expect(harness.errorHandler.handleErrorCalls[0].error.code).to.equal(
       WebRTCErrorCode.NetworkTimeout,
     );
   });
 
-  it("renews ephemeral key when authentication error is surfaced", async () => {
+  test("renews ephemeral key when authentication error is surfaced", async () => {
     await harness.service.initialize();
 
     (harness.service as any).isSessionActive = true;
@@ -918,12 +905,12 @@ describe("WebRTCAudioService lifecycle management", () => {
 
     await harness.errorHandler.triggerAuthenticationError(error);
 
-    assert.strictEqual(harness.ephemeral.renewCalls, 1);
-    assert.strictEqual(harness.configFactory.createCalls.length >= 1, true);
-    assert.strictEqual(harness.transport.establishCalls.length >= 1, true);
+    expect(harness.ephemeral.renewCalls).to.equal(1);
+    expect(harness.configFactory.createCalls.length >= 1).to.be.true;
+    expect(harness.transport.establishCalls.length >= 1).to.be.true;
   });
 
-  it("emits telemetry events to registered observers", async () => {
+  test("emits telemetry events to registered observers", async () => {
     await harness.service.initialize();
 
     const events: any[] = [];
@@ -950,7 +937,7 @@ describe("WebRTCAudioService lifecycle management", () => {
       negotiation: { durationMs: 50, timeoutMs: 5000, timedOut: false },
     });
 
-    assert.deepStrictEqual(events.map((event) => event.type), [
+    expect(events.map((event) => event.type)).to.deep.equal([
       "reconnectAttempt",
       "fallbackStateChanged",
       "connectionDiagnostics",

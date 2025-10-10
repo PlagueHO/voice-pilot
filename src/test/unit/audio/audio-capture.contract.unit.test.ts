@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import { AudioCapture } from "../../../audio/audio-capture";
 import { AudioContextProvider } from "../../../audio/audio-context-provider";
 import type { WebAudioProcessingChain } from "../../../audio/audio-processing-chain";
@@ -11,6 +10,8 @@ import {
     AudioProcessingGraph,
 } from "../../../types/audio-capture";
 import { AudioErrorCode, AudioErrorSeverity } from "../../../types/audio-errors";
+import { expect } from "../../helpers/chai-setup";
+import { afterEach, suite, test } from "../../mocha-globals";
 import {
     installMockAudioEnvironment,
     MockAudioContext,
@@ -100,7 +101,7 @@ function createTestHarness(): TestHarness {
   };
 }
 
-describe("AudioCapture contract upgrades", () => {
+suite("Unit: AudioCapture contract upgrades", () => {
   let env = installMockAudioEnvironment();
 
   afterEach(() => {
@@ -108,17 +109,14 @@ describe("AudioCapture contract upgrades", () => {
     env = installMockAudioEnvironment();
   });
 
-  it("exposes the shared AudioContext instance via getAudioContext", () => {
+  test("exposes the shared AudioContext instance via getAudioContext", () => {
     const { capture, mockContext } = createTestHarness();
 
-    assert.strictEqual(
-      capture.getAudioContext(),
-      mockContext,
-      "getAudioContext should surface the provider context",
-    );
+    expect(capture.getAudioContext(), "getAudioContext should surface the provider context")
+      .to.equal(mockContext);
   });
 
-  it("setAudioProcessing replaces the processing configuration and notifies the chain", async () => {
+  test("setAudioProcessing replaces the processing configuration and notifies the chain", async () => {
     const { capture, updateCalls } = createTestHarness();
 
     const newConfig: AudioProcessingConfig = {
@@ -131,19 +129,14 @@ describe("AudioCapture contract upgrades", () => {
 
     await capture.setAudioProcessing(newConfig);
 
-    assert.deepStrictEqual(
-      updateCalls[0],
+    expect(updateCalls[0], "Processing chain should receive the full configuration").to.deep.equal(
       newConfig,
-      "Processing chain should receive the full configuration",
     );
-    assert.deepStrictEqual(
-      (capture as any).processingConfig,
-      newConfig,
-      "Internal processing state should mirror the provided configuration",
-    );
+    expect((capture as any).processingConfig, "Internal processing state should mirror the provided configuration")
+      .to.deep.equal(newConfig);
   });
 
-  it("updateProcessingConfig merges partial overrides before delegating", async () => {
+  test("updateProcessingConfig merges partial overrides before delegating", async () => {
     const { capture, updateCalls } = createTestHarness();
     const baselineConfig = { ...(capture as any).processingConfig } as AudioProcessingConfig;
 
@@ -151,19 +144,12 @@ describe("AudioCapture contract upgrades", () => {
 
     const merged = { ...baselineConfig, noiseSuppressionLevel: "low" };
 
-    assert.deepStrictEqual(
-      updateCalls[0],
-      merged,
-      "Partial updates should expand to the merged configuration",
-    );
-    assert.deepStrictEqual(
-      (capture as any).processingConfig,
-      merged,
-      "Internal state should reflect merged processing values",
-    );
+    expect(updateCalls[0], "Partial updates should expand to the merged configuration").to.deep.equal(merged);
+    expect((capture as any).processingConfig, "Internal state should reflect merged processing values")
+      .to.deep.equal(merged);
   });
 
-  it("marks buffer underrun errors as recoverable with retry guidance", () => {
+  test("marks buffer underrun errors as recoverable with retry guidance", () => {
     const { capture } = createTestHarness();
 
     const processingError = (capture as any).createProcessingError(
@@ -172,19 +158,12 @@ describe("AudioCapture contract upgrades", () => {
       true,
     );
 
-    assert.strictEqual(
-      processingError.recovery?.recommendedAction,
-      "retry",
-      "Buffer underrun should recommend retry action",
-    );
-    assert.strictEqual(
-      processingError.recovery?.recoverable,
-      true,
-      "Buffer underrun should be flagged as recoverable",
-    );
+    expect(processingError.recovery?.recommendedAction, "Buffer underrun should recommend retry action")
+      .to.equal("retry");
+    expect(processingError.recovery?.recoverable, "Buffer underrun should be flagged as recoverable").to.be.true;
   });
 
-  it("maps permission failures to fatal severity with prompt guidance", () => {
+  test("maps permission failures to fatal severity with prompt guidance", () => {
     const { capture } = createTestHarness();
 
     const permissionError = (capture as any).mapGetUserMediaError(
@@ -192,18 +171,17 @@ describe("AudioCapture contract upgrades", () => {
       "mock-device",
     );
 
-    assert.strictEqual(permissionError.code, "PERMISSION_DENIED");
-    assert.strictEqual(permissionError.severity, AudioErrorSeverity.Fatal);
-    assert.strictEqual(permissionError.recovery?.recoverable, false);
-    assert.strictEqual(permissionError.recovery?.recommendedAction, "prompt");
-    assert.strictEqual(
-      permissionError.context?.sampleRate,
+    expect(permissionError.code).to.equal("PERMISSION_DENIED");
+    expect(permissionError.severity).to.equal(AudioErrorSeverity.Fatal);
+    expect(permissionError.recovery?.recoverable).to.be.false;
+    expect(permissionError.recovery?.recommendedAction).to.equal("prompt");
+    expect(permissionError.context?.sampleRate).to.equal(
       (capture as any).captureConfig.sampleRate,
     );
-    assert.strictEqual(permissionError.context?.permissionsStatus, "unknown");
+    expect(permissionError.context?.permissionsStatus).to.equal("unknown");
   });
 
-  it("classifies unavailable devices as recoverable with retry guidance", () => {
+  test("classifies unavailable devices as recoverable with retry guidance", () => {
     const { capture } = createTestHarness();
 
     const unavailableError = (capture as any).mapGetUserMediaError(
@@ -211,14 +189,14 @@ describe("AudioCapture contract upgrades", () => {
       "mock-device",
     );
 
-    assert.strictEqual(unavailableError.code, "DEVICE_UNAVAILABLE");
-    assert.strictEqual(unavailableError.severity, AudioErrorSeverity.Warning);
-    assert.strictEqual(unavailableError.recovery?.recoverable, true);
-    assert.strictEqual(unavailableError.recovery?.recommendedAction, "retry");
-  assert.strictEqual(unavailableError.recovery?.retryAfterMs, 1000);
+    expect(unavailableError.code).to.equal("DEVICE_UNAVAILABLE");
+    expect(unavailableError.severity).to.equal(AudioErrorSeverity.Warning);
+    expect(unavailableError.recovery?.recoverable).to.be.true;
+    expect(unavailableError.recovery?.recommendedAction).to.equal("retry");
+    expect(unavailableError.recovery?.retryAfterMs).to.equal(1000);
   });
 
-  it("negotiates supported sample rate from device settings", async () => {
+  test("negotiates supported sample rate from device settings", async () => {
     const logger = new Logger("AudioCaptureSampleRateTest");
     logger.setLevel("error");
     const provider = new AudioContextProvider(logger);
@@ -261,36 +239,19 @@ describe("AudioCapture contract upgrades", () => {
       await capture.initialize();
       await capture.startCapture();
 
-      assert.strictEqual(
-        permissionGrantedEvents.length,
-        1,
-        "permissionGranted event should fire once",
-      );
-      assert.strictEqual(
-        permissionGrantedEvents[0].data?.sampleRate,
-        48000,
-        "Event should advertise negotiated supported sample rate",
-      );
-      assert.strictEqual(
-        permissionGrantedEvents[0].data?.channelCount,
-        2,
-        "Event should include negotiated channel count",
-      );
-      assert.ok(
+      expect(permissionGrantedEvents.length, "permissionGranted event should fire once").to.equal(1);
+      expect(permissionGrantedEvents[0].data?.sampleRate, "Event should advertise negotiated supported sample rate")
+        .to.equal(48000);
+      expect(permissionGrantedEvents[0].data?.channelCount, "Event should include negotiated channel count")
+        .to.equal(2);
+      expect(
         permissionGrantedEvents[0].data?.guidance,
         "Event should surface user guidance",
-      );
-      assert.strictEqual(
-        (capture as any).captureConfig.sampleRate,
-        48000,
-        "Capture configuration should adopt supported sample rate",
-      );
+      ).to.exist;
+      expect((capture as any).captureConfig.sampleRate, "Capture configuration should adopt supported sample rate")
+        .to.equal(48000);
       const context = capture.getAudioContext();
-      assert.strictEqual(
-        context?.sampleRate,
-        48000,
-        "Shared AudioContext should be recreated at negotiated sample rate",
-      );
+      expect(context?.sampleRate, "Shared AudioContext should be recreated at negotiated sample rate").to.equal(48000);
     } finally {
       await capture.stopCapture();
       capture.dispose();
@@ -304,7 +265,7 @@ describe("AudioCapture contract upgrades", () => {
     }
   });
 
-  it("emits permissionDenied guidance when microphone access is blocked", async () => {
+  test("emits permissionDenied guidance when microphone access is blocked", async () => {
     const logger = new Logger("AudioCapturePermissionDeniedTest");
     logger.setLevel("error");
     const provider = new AudioContextProvider(logger);
@@ -341,26 +302,16 @@ describe("AudioCapture contract upgrades", () => {
 
     try {
       await capture.initialize();
-      await assert.rejects(capture.startCapture(), (error: any) => {
-        assert.ok(
-          /Microphone access was denied/i.test(error.message),
-          "Start capture should reject with permission guidance",
-        );
-        return true;
-      });
+      await expect(capture.startCapture()).to.be.rejectedWith(/Microphone access was denied/i);
 
-      assert.strictEqual(
-        deniedEvents.length,
-        1,
-        "permissionDenied event should be emitted once",
-      );
+      expect(deniedEvents.length, "permissionDenied event should be emitted once").to.equal(1);
       const event = deniedEvents[0];
-      assert.ok(
+      expect(
         /Enable microphone/i.test(event.data?.guidance ?? ""),
         "Guidance should instruct the user to unblock the microphone",
-      );
-      assert.strictEqual(event.data?.canRetry, false);
-      assert.strictEqual(capture.getAudioContext(), null);
+      ).to.be.true;
+      expect(event.data?.canRetry).to.be.false;
+      expect(capture.getAudioContext()).to.equal(null);
     } finally {
       capture.dispose();
       navigator.mediaDevices.getUserMedia = originalGetUserMedia;

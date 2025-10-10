@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import type {
   ConnectionRecoveryEvent,
   ConnectionRecoveryObserver,
@@ -20,6 +19,8 @@ import {
   type WebRTCEventType,
   type WebRTCTransport,
 } from "../../../types/webrtc";
+import { expect } from "../../helpers/chai-setup";
+import { suite, test } from "../../mocha-globals";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -325,50 +326,45 @@ function buildError(
   });
 }
 
-describe("WebRTCErrorHandler", () => {
-  it("classifies errors based on known patterns", () => {
+suite("WebRTCErrorHandler", () => {
+  test("classifies errors based on known patterns", () => {
     const { handler } = createHandlerHarness();
 
-    assert.strictEqual(
-      handler.classifyError({ name: "NotAllowedError" }),
+    expect(handler.classifyError({ name: "NotAllowedError" })).to.equal(
       WebRTCErrorCode.AuthenticationFailed,
     );
-    assert.strictEqual(
-      handler.classifyError({ name: "DevicesNotFoundError" }),
+    expect(handler.classifyError({ name: "DevicesNotFoundError" })).to.equal(
       WebRTCErrorCode.AudioTrackFailed,
     );
-    assert.strictEqual(
+    expect(
       handler.classifyError({ message: "data channel closed" }),
-      WebRTCErrorCode.DataChannelFailed,
-    );
-    assert.strictEqual(
+    ).to.equal(WebRTCErrorCode.DataChannelFailed);
+    expect(
       handler.classifyError({ message: "ICE connection lost" }),
-      WebRTCErrorCode.IceConnectionFailed,
-    );
-    assert.strictEqual(
+    ).to.equal(WebRTCErrorCode.IceConnectionFailed);
+    expect(
       handler.classifyError({ message: "region unsupported" }),
-      WebRTCErrorCode.RegionNotSupported,
-    );
+    ).to.equal(WebRTCErrorCode.RegionNotSupported);
   });
 
-  it("wraps unknown errors with recoverable flags inferred from classification", () => {
+  test("wraps unknown errors with recoverable flags inferred from classification", () => {
     const { handler } = createHandlerHarness();
 
     const dataChannelError = handler.createWebRTCError({
       message: "data channel failure",
     });
-    assert.strictEqual(dataChannelError.code, WebRTCErrorCode.DataChannelFailed);
-    assert.strictEqual(dataChannelError.recoverable, true);
+    expect(dataChannelError.code).to.equal(WebRTCErrorCode.DataChannelFailed);
+    expect(dataChannelError.recoverable).to.be.true;
 
     const authError = handler.createWebRTCError({
       name: "NotAllowedError",
       message: "permission denied",
     });
-    assert.strictEqual(authError.code, WebRTCErrorCode.AuthenticationFailed);
-    assert.strictEqual(authError.recoverable, false);
+    expect(authError.code).to.equal(WebRTCErrorCode.AuthenticationFailed);
+    expect(authError.recoverable).to.be.false;
   });
 
-  it("invokes authentication callback when credentials fail", async () => {
+  test("invokes authentication callback when credentials fail", async () => {
     const { handler, recoveryManager } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -378,7 +374,7 @@ describe("WebRTCErrorHandler", () => {
     let invoked = 0;
     handler.onAuthenticationError(async (error) => {
       invoked += 1;
-      assert.strictEqual(error.code, WebRTCErrorCode.AuthenticationFailed);
+      expect(error.code).to.equal(WebRTCErrorCode.AuthenticationFailed);
     });
 
     await handler.handleError(
@@ -387,11 +383,11 @@ describe("WebRTCErrorHandler", () => {
       config,
     );
 
-    assert.strictEqual(invoked, 1);
-    assert.strictEqual(recoveryManager.handleCalls.length, 0);
+    expect(invoked).to.equal(1);
+    expect(recoveryManager.handleCalls).to.have.lengthOf(0);
   });
 
-  it("attempts recovery and raises connection callback when recovery fails", async () => {
+  test("attempts recovery and raises connection callback when recovery fails", async () => {
     const { handler, recoveryManager } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -401,7 +397,7 @@ describe("WebRTCErrorHandler", () => {
     let callbackCount = 0;
     handler.onConnectionError(async (error) => {
       callbackCount += 1;
-      assert.strictEqual(error.code, WebRTCErrorCode.NetworkTimeout);
+      expect(error.code).to.equal(WebRTCErrorCode.NetworkTimeout);
     });
 
     await handler.handleError(
@@ -410,11 +406,11 @@ describe("WebRTCErrorHandler", () => {
       config,
     );
 
-    assert.strictEqual(recoveryManager.handleCalls.length, 1);
-    assert.strictEqual(callbackCount, 1);
+    expect(recoveryManager.handleCalls).to.have.lengthOf(1);
+    expect(callbackCount).to.equal(1);
   });
 
-  it("suppresses connection callback when data channel recovery succeeds", async () => {
+  test("suppresses connection callback when data channel recovery succeeds", async () => {
     const { handler, recoveryManager } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -432,11 +428,11 @@ describe("WebRTCErrorHandler", () => {
       config,
     );
 
-    assert.strictEqual(recoveryManager.handleCalls.length, 1);
-    assert.strictEqual(callbackCount, 0);
+    expect(recoveryManager.handleCalls).to.have.lengthOf(1);
+    expect(callbackCount).to.equal(0);
   });
 
-  it("escalates fatal errors via the registered callback", async () => {
+  test("escalates fatal errors via the registered callback", async () => {
     const { handler } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -444,7 +440,7 @@ describe("WebRTCErrorHandler", () => {
     let fatalCount = 0;
     handler.onFatalError(async (error) => {
       fatalCount += 1;
-      assert.strictEqual(error.code, WebRTCErrorCode.ConfigurationInvalid);
+      expect(error.code).to.equal(WebRTCErrorCode.ConfigurationInvalid);
     });
 
     await handler.handleError(
@@ -453,10 +449,10 @@ describe("WebRTCErrorHandler", () => {
       config,
     );
 
-    assert.strictEqual(fatalCount, 1);
+    expect(fatalCount).to.equal(1);
   });
 
-  it("routes unknown recoverable errors through the recovery manager", async () => {
+  test("routes unknown recoverable errors through the recovery manager", async () => {
     const { handler, recoveryManager } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -469,10 +465,10 @@ describe("WebRTCErrorHandler", () => {
       config,
     );
 
-    assert.strictEqual(recoveryManager.handleCalls.length, 1);
+    expect(recoveryManager.handleCalls).to.have.lengthOf(1);
   });
 
-  it("forwards recovery events to observers", () => {
+  test("forwards recovery events to observers", () => {
     const { handler, recoveryManager } = createHandlerHarness();
 
     const received: ConnectionRecoveryEvent[] = [];
@@ -489,15 +485,15 @@ describe("WebRTCErrorHandler", () => {
 
     recoveryManager.emit(event);
 
-    assert.strictEqual(received.length, 1);
-    assert.strictEqual(received[0], event);
+    expect(received).to.have.lengthOf(1);
+    expect(received[0]).to.equal(event);
 
     disposable.dispose();
     recoveryManager.emit(event);
-    assert.strictEqual(received.length, 1);
+    expect(received).to.have.lengthOf(1);
   });
 
-  it("collects error statistics including recency and counts", async () => {
+  test("collects error statistics including recency and counts", async () => {
     const { handler } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -528,39 +524,36 @@ describe("WebRTCErrorHandler", () => {
     }
 
     const stats = handler.getErrorStatistics();
-    assert.strictEqual(stats.totalErrors, 2);
-    assert.strictEqual(stats.recentErrors, 1);
-    assert.strictEqual(stats.errorsByCode[WebRTCErrorCode.NetworkTimeout], 1);
-    assert.strictEqual(
-      stats.errorsByCode[WebRTCErrorCode.AuthenticationFailed],
-      1,
-    );
-    assert.ok(stats.lastError);
-    assert.strictEqual(stats.averageErrorsPerHour, 1);
+    expect(stats.totalErrors).to.equal(2);
+    expect(stats.recentErrors).to.equal(1);
+    expect(stats.errorsByCode[WebRTCErrorCode.NetworkTimeout]).to.equal(1);
+    expect(stats.errorsByCode[WebRTCErrorCode.AuthenticationFailed]).to.equal(1);
+    expect(stats.lastError).to.exist;
+    expect(stats.averageErrorsPerHour).to.equal(1);
   });
 
-  it("configures recovery strategy options", () => {
+  test("configures recovery strategy options", () => {
     const { handler, recoveryManager } = createHandlerHarness();
 
     handler.configureRecovery({ maxAttempts: 5, baseDelayMs: 250 });
 
-    assert.strictEqual(recoveryManager.configureCalls.length, 1);
-    assert.deepStrictEqual(recoveryManager.configureCalls[0], {
+    expect(recoveryManager.configureCalls).to.have.lengthOf(1);
+    expect(recoveryManager.configureCalls[0]).to.deep.equal({
       maxAttempts: 5,
       baseDelayMs: 250,
     });
   });
 
-  it("disposes recovery subscription and observers", () => {
+  test("disposes recovery subscription and observers", () => {
     const { handler, recoveryManager } = createHandlerHarness();
 
     handler.dispose();
 
-    assert.strictEqual(recoveryManager.disposed, true);
-    assert.strictEqual(recoveryManager.observers.length, 0);
+    expect(recoveryManager.disposed).to.be.true;
+    expect(recoveryManager.observers).to.have.lengthOf(0);
   });
 
-  it("logs each handled error with structured metadata", async () => {
+  test("logs each handled error with structured metadata", async () => {
     const { handler, entries } = createHandlerHarness();
     const transport = new WebRTCTransportStub();
     const config = createConfig();
@@ -572,7 +565,9 @@ describe("WebRTCErrorHandler", () => {
     );
 
     const log = entries.find((entry) => entry.message.includes("WebRTC Error"));
-    assert.ok(log, "expected log entry for handled error");
-    assert.strictEqual(log?.data && (log.data as any).code, WebRTCErrorCode.AudioTrackFailed);
+    expect(log, "expected log entry for handled error").to.exist;
+    expect((log?.data as { code?: WebRTCErrorCode } | undefined)?.code).to.equal(
+      WebRTCErrorCode.AudioTrackFailed,
+    );
   });
 });

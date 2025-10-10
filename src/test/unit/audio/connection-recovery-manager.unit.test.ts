@@ -1,25 +1,26 @@
-import * as assert from "assert";
 import { ConnectionRecoveryManager } from "../../../audio/connection-recovery-manager";
 import { WebRTCConfigFactory } from "../../../audio/webrtc-config-factory";
 import { WebRTCTransportImpl } from "../../../audio/webrtc-transport";
 import { Logger } from "../../../core/logger";
 import type { RealtimeEvent } from "../../../types/realtime-events";
 import type {
-  AudioTrackRegistrationOptions,
-  RecoveryEventPayload,
-  WebRTCConfig,
+    AudioTrackRegistrationOptions,
+    RecoveryEventPayload,
+    WebRTCConfig,
 } from "../../../types/webrtc";
 import {
-  ConnectionQuality,
-  RecoveryStrategy,
-  WebRTCConnectionState,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  type ConnectionResult,
-  type ConnectionStatistics,
-  type WebRTCEventHandler,
-  type WebRTCTransport,
+    ConnectionQuality,
+    RecoveryStrategy,
+    WebRTCConnectionState,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    type ConnectionResult,
+    type ConnectionStatistics,
+    type WebRTCEventHandler,
+    type WebRTCTransport,
 } from "../../../types/webrtc";
+import { expect } from "../../helpers/chai-setup";
+import { suite, test } from "../../mocha-globals";
 
 type RecoveryEvent = Parameters<WebRTCTransport["publishRecoveryEvent"]>[0];
 
@@ -171,12 +172,12 @@ class StubTransport implements WebRTCTransport {
   replaceAudioTrack?: any;
 }
 
-describe("ConnectionRecoveryManager", () => {
+suite("Unit: ConnectionRecoveryManager", () => {
   const logger = createTestLogger();
   const configFactory = new WebRTCConfigFactory(logger);
   const config: WebRTCConfig = configFactory.createTestConfig();
 
-  it("restarts ICE with exponential backoff and publishes telemetry", async () => {
+  test("restarts ICE with exponential backoff and publishes telemetry", async () => {
     const manager = new ConnectionRecoveryManager(logger);
     manager.configure({ baseDelayMs: 0, maxAttempts: 5, backoffMultiplier: 2 });
 
@@ -202,15 +203,15 @@ describe("ConnectionRecoveryManager", () => {
       error,
     );
 
-    assert.strictEqual(recovered, true);
-    assert.strictEqual(transport.restartIceCalls, 3);
-  assert.strictEqual(events.length, 4);
-  assert.strictEqual(events.every((strategy) => strategy === "restart_ice"), true);
-    assert.strictEqual(transport.published.filter((e) => e.type === "reconnectAttempt").length, 3);
-    assert.strictEqual(transport.published.some((e) => e.type === "reconnectSucceeded"), true);
+    expect(recovered).to.be.true;
+    expect(transport.restartIceCalls).to.equal(3);
+    expect(events.length).to.equal(4);
+    expect(events.every((strategy) => strategy === "restart_ice")).to.be.true;
+    expect(transport.published.filter((e) => e.type === "reconnectAttempt").length).to.equal(3);
+    expect(transport.published.some((e) => e.type === "reconnectSucceeded")).to.be.true;
   });
 
-  it("attempts data channel recreation and emits failure telemetry", async () => {
+  test("attempts data channel recreation and emits failure telemetry", async () => {
     const manager = new ConnectionRecoveryManager(logger);
     manager.configure({ baseDelayMs: 0, maxAttempts: 1 });
 
@@ -233,15 +234,12 @@ describe("ConnectionRecoveryManager", () => {
       error,
     );
 
-    assert.strictEqual(recovered, false);
-    assert.strictEqual(transport.recreateCalls, 1);
-    assert.strictEqual(
-      transport.published.some((event) => event.type === "reconnectFailed"),
-      true,
-    );
+    expect(recovered).to.be.false;
+    expect(transport.recreateCalls).to.equal(1);
+    expect(transport.published.some((event) => event.type === "reconnectFailed")).to.be.true;
   });
 
-  it("applies exponential backoff and updates recovery stats", async () => {
+  test("applies exponential backoff and updates recovery stats", async () => {
     const manager = new ConnectionRecoveryManager(logger);
     manager.configure({ baseDelayMs: 10, maxAttempts: 3, backoffMultiplier: 2 });
 
@@ -270,15 +268,15 @@ describe("ConnectionRecoveryManager", () => {
         error,
       );
 
-      assert.strictEqual(recovered, true);
-      assert.deepStrictEqual(recordedDelays, [10, 20]);
+      expect(recovered).to.be.true;
+      expect(recordedDelays).to.deep.equal([10, 20]);
 
       const stats = manager.getRecoveryStats();
-      assert.strictEqual(stats.isRecovering, false);
-      assert.strictEqual(stats.currentAttempt, 0);
-      assert.strictEqual(stats.successiveFailures, 0);
-      assert.ok(stats.totalRecoveryAttempts >= 1);
-      assert.ok(stats.lastConnectionTime > 0);
+      expect(stats.isRecovering).to.be.false;
+      expect(stats.currentAttempt).to.equal(0);
+      expect(stats.successiveFailures).to.equal(0);
+      expect(stats.totalRecoveryAttempts >= 1).to.be.true;
+      expect(stats.lastConnectionTime > 0).to.be.true;
 
       const attemptEvents = transport.published.filter(
         (event) => event.type === "reconnectAttempt",
@@ -287,8 +285,8 @@ describe("ConnectionRecoveryManager", () => {
         (event) => event.type === "reconnectSucceeded",
       );
 
-      assert.strictEqual(attemptEvents.length, 3);
-      assert.strictEqual(successEvents.length, 1);
+      expect(attemptEvents.length).to.equal(3);
+      expect(successEvents.length).to.equal(1);
     } finally {
       (manager as any).delay = originalDelay;
       Math.random = originalRandom;
@@ -296,7 +294,7 @@ describe("ConnectionRecoveryManager", () => {
   });
 });
 
-describe("WebRTCTransportImpl fallback queue", () => {
+suite("Unit: WebRTCTransportImpl fallback queue", () => {
   const logger = createTestLogger();
 
   function createEventlessTransport(): WebRTCTransportImpl {
@@ -338,31 +336,31 @@ describe("WebRTCTransportImpl fallback queue", () => {
     return channel as RTCDataChannel & { sentMessages: string[] };
   }
 
-  it("queues messages when data channel unavailable and flushes after reopen", async () => {
+  test("queues messages when data channel unavailable and flushes after reopen", async () => {
     const transport = createEventlessTransport();
 
     await transport.sendDataChannelMessage({ type: "test.event" });
 
     const pending = (transport as any).pendingDataChannelMessages as RealtimeEvent[];
-    assert.strictEqual(pending.length, 1);
-    assert.strictEqual(transport.isDataChannelFallbackActive(), true);
+  expect(pending.length).to.equal(1);
+  expect(transport.isDataChannelFallbackActive()).to.be.true;
 
     const fakeChannel = createFakeDataChannel();
     const attach = (transport as any).attachDataChannel.bind(transport);
     attach(fakeChannel, "local");
 
-  (fakeChannel as any).readyState = "open";
+    (fakeChannel as any).readyState = "open";
     if (typeof fakeChannel.onopen === "function") {
       fakeChannel.onopen(undefined as any);
     }
 
     await new Promise((resolve) => setImmediate(resolve));
 
-    assert.strictEqual(pending.length, 0);
-    assert.strictEqual(fakeChannel.sentMessages.length, 1);
-    assert.strictEqual(transport.isDataChannelFallbackActive(), false);
+    expect(pending.length).to.equal(0);
+    expect(fakeChannel.sentMessages.length).to.equal(1);
+    expect(transport.isDataChannelFallbackActive()).to.be.false;
 
     await transport.sendDataChannelMessage({ type: "after.open" });
-    assert.strictEqual(fakeChannel.sentMessages.length, 2);
+    expect(fakeChannel.sentMessages.length).to.equal(2);
   });
 });

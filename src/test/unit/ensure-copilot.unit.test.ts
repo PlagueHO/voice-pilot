@@ -1,6 +1,7 @@
-import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { ensureCopilotChatInstalled, isCopilotChatAvailable } from '../../helpers/ensure-copilot';
+import { expect } from "../helpers/chai-setup";
+import { beforeEach, suite, test } from '../mocha-globals';
 
 // Utility to reset mutable vscode mock facets between tests
 function resetVscodeMocks() {
@@ -13,33 +14,33 @@ function resetVscodeMocks() {
   (vscode as any).commands.executeCommand = () => Promise.resolve(undefined);
 }
 
-describe('Unit: ensure-copilot helper', () => {
+suite('Unit: ensure-copilot helper', () => {
   beforeEach(() => {
     resetVscodeMocks();
   });
 
-  it('returns true when Copilot Chat is already installed and active', async () => {
+  test('returns true when Copilot Chat is already installed and active', async () => {
     let activated = false;
     (vscode as any).extensions.getExtension = () => ({ isActive: true, activate: () => { activated = true; } });
 
     const availablePre = isCopilotChatAvailable();
     const result = await ensureCopilotChatInstalled();
 
-    assert.strictEqual(availablePre, true, 'Extension should be reported available');
-    assert.strictEqual(result, true, 'Should resolve true');
-    assert.strictEqual(activated, false, 'Should not call activate when already active');
+    expect(availablePre, 'Extension should be reported available').to.equal(true);
+    expect(result, 'Should resolve true').to.equal(true);
+    expect(activated, 'Should not call activate when already active').to.equal(false);
   });
 
-  it('activates extension when installed but inactive', async () => {
+  test('activates extension when installed but inactive', async () => {
     let activateCalls = 0;
     (vscode as any).extensions.getExtension = () => ({ isActive: false, activate: async () => { activateCalls++; } });
 
     const result = await ensureCopilotChatInstalled();
-    assert.strictEqual(result, true);
-    assert.strictEqual(activateCalls, 1, 'Should activate inactive extension');
+    expect(result).to.equal(true);
+    expect(activateCalls, 'Should activate inactive extension').to.equal(1);
   });
 
-  it('returns false when activation throws', async () => {
+  test('returns false when activation throws', async () => {
     (vscode as any).extensions.getExtension = () => ({
       isActive: false,
       activate: async () => {
@@ -48,10 +49,10 @@ describe('Unit: ensure-copilot helper', () => {
     });
 
     const result = await ensureCopilotChatInstalled();
-    assert.strictEqual(result, false, 'Should return false when activation fails');
+    expect(result, 'Should return false when activation fails').to.equal(false);
   });
 
-  it('prompts and returns false when user declines install', async () => {
+  test('prompts and returns false when user declines install', async () => {
     let promptShown = false;
     (vscode as any).window.showInformationMessage = (msg: string, install: string, later: string) => {
       promptShown = true;
@@ -64,12 +65,12 @@ describe('Unit: ensure-copilot helper', () => {
     };
 
     const result = await ensureCopilotChatInstalled();
-    assert.strictEqual(promptShown, true, 'Prompt should be shown');
-    assert.strictEqual(installCalled, false, 'Install should not be triggered');
-    assert.strictEqual(result, false, 'Result should be false when user declines');
+    expect(promptShown, 'Prompt should be shown').to.equal(true);
+    expect(installCalled, 'Install should not be triggered').to.equal(false);
+    expect(result, 'Result should be false when user declines').to.equal(false);
   });
 
-  it('installs and reloads when user accepts', async () => {
+  test('installs and reloads when user accepts', async () => {
     const callSeq: string[] = [];
     // First information message -> accept install, second -> reload
     let infoCall = 0;
@@ -92,13 +93,13 @@ describe('Unit: ensure-copilot helper', () => {
     };
 
     const result = await ensureCopilotChatInstalled();
-    assert.strictEqual(result, true, 'Should return true after installation flow');
-    assert.ok(installed, 'Install command should be executed');
-    assert.ok(reloaded, 'Reload command should be executed');
-    assert.deepStrictEqual(callSeq, ['prompt-install', 'prompt-reload']);
+    expect(result, 'Should return true after installation flow').to.equal(true);
+    expect(installed, 'Install command should be executed').to.equal(true);
+    expect(reloaded, 'Reload command should be executed').to.equal(true);
+    expect(callSeq).to.deep.equal(['prompt-install', 'prompt-reload']);
   });
 
-  it('shows error and returns false when install throws', async () => {
+  test('shows error and returns false when install throws', async () => {
     let errorShown: string | undefined;
     (vscode as any).window.showInformationMessage = () => Promise.resolve('Install Copilot Chat');
     (vscode as any).window.showErrorMessage = (m: string) => { errorShown = m; return Promise.resolve(undefined as any); };
@@ -110,7 +111,7 @@ describe('Unit: ensure-copilot helper', () => {
     };
 
     const result = await ensureCopilotChatInstalled();
-    assert.strictEqual(result, false, 'Should return false on install failure');
-    assert.ok(errorShown && /Failed to install Copilot Chat/.test(errorShown), 'Should show install failure error');
+    expect(result, 'Should return false on install failure').to.equal(false);
+    expect(errorShown && /Failed to install Copilot Chat/.test(errorShown), 'Should show install failure error').to.equal(true);
   });
 });

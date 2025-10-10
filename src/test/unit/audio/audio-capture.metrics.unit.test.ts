@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import { AudioCapture } from "../../../audio/audio-capture";
 import { AudioContextProvider } from "../../../audio/audio-context-provider";
 import { WebAudioProcessingChain } from "../../../audio/audio-processing-chain";
@@ -9,6 +8,8 @@ import type {
     RenderQuantumTelemetry,
 } from "../../../types/audio-capture";
 import { AudioErrorCode } from "../../../types/audio-errors";
+import { expect } from "../../helpers/chai-setup";
+import { afterEach, beforeEach, suite, test } from "../../mocha-globals";
 import {
     installMockAudioEnvironment,
     MockAnalyserNode,
@@ -20,7 +21,7 @@ import {
     MockMediaStreamTrack,
 } from "./audio-mock-environment";
 
-describe("AudioCapture performance diagnostics", () => {
+suite("Unit: AudioCapture performance diagnostics", () => {
   let env = installMockAudioEnvironment();
 
   beforeEach(() => {
@@ -142,7 +143,7 @@ describe("AudioCapture performance diagnostics", () => {
     return capture;
   }
 
-  it("records initialization and analysis performance budgets", async () => {
+  test("records initialization and analysis performance budgets", async () => {
     const capture = createCapture();
 
     await capture.initialize();
@@ -152,19 +153,22 @@ describe("AudioCapture performance diagnostics", () => {
       await flushMetricsLoop();
 
       const diagnostics = capture.getPerformanceDiagnostics();
-      assert.ok(diagnostics.budgets.length >= 2, "Expected diagnostics for initialization and analysis budgets");
+      expect(
+        diagnostics.budgets.length >= 2,
+        "Expected diagnostics for initialization and analysis budgets",
+      ).to.be.true;
       const initialization = diagnostics.budgets.find((item) => item.id === "initialization");
       const analysis = diagnostics.budgets.find((item) => item.id === "analysis-cycle");
 
-      assert.ok(initialization, "Initialization budget should be tracked");
-      assert.ok(analysis, "Analysis cycle budget should be tracked");
+      expect(initialization, "Initialization budget should be tracked").to.exist;
+      expect(analysis, "Analysis cycle budget should be tracked").to.exist;
     } finally {
       await capture.stopCapture();
       capture.dispose();
     }
   });
 
-  it("captures CPU utilization samples", async () => {
+  test("captures CPU utilization samples", async () => {
     const capture = createCapture();
 
     await capture.initialize();
@@ -174,18 +178,18 @@ describe("AudioCapture performance diagnostics", () => {
       await flushMetricsLoop();
 
       const diagnostics = capture.getPerformanceDiagnostics();
-      assert.ok(diagnostics.cpu, "CPU diagnostics should be available");
-      assert.ok(
+      expect(diagnostics.cpu, "CPU diagnostics should be available").to.exist;
+      expect(
         typeof diagnostics.cpu!.maxUtilization === "number",
         "CPU diagnostics should include utilization statistics",
-      );
+      ).to.be.true;
     } finally {
       await capture.stopCapture();
       capture.dispose();
     }
   });
 
-  it("forwards render telemetry payloads from the audio worklet", async () => {
+  test("forwards render telemetry payloads from the audio worklet", async () => {
     const telemetryEvents: RenderQuantumTelemetry[] = [];
     const capture = createCapture(undefined, telemetryEvents);
 
@@ -196,7 +200,7 @@ describe("AudioCapture performance diagnostics", () => {
       const graph = (capture as any).processingGraph as AudioProcessingGraph;
       const port = graph.workletNode.port as Record<string, any>;
 
-      assert.ok(typeof port.onmessage === "function", "Worklet port should have an onmessage handler");
+      expect(typeof port.onmessage === "function", "Worklet port should have an onmessage handler").to.be.true;
 
       port.onmessage({
         data: {
@@ -215,22 +219,22 @@ describe("AudioCapture performance diagnostics", () => {
         },
       });
 
-      assert.strictEqual(telemetryEvents.length, 1, "Expected telemetry to be forwarded once");
+      expect(telemetryEvents.length, "Expected telemetry to be forwarded once").to.equal(1);
       const event = telemetryEvents[0];
-      assert.strictEqual(event.frameCount, 96);
-      assert.strictEqual(event.expectedFrameCount, 128);
-      assert.strictEqual(event.droppedFrames, 32);
-      assert.strictEqual(event.sequence, 7);
-      assert.ok(event.underrun);
-      assert.ok(event.timestamp > 0);
-      assert.strictEqual(event.totals?.underrunCount, 3);
+      expect(event.frameCount).to.equal(96);
+      expect(event.expectedFrameCount).to.equal(128);
+      expect(event.droppedFrames).to.equal(32);
+      expect(event.sequence).to.equal(7);
+      expect(event.underrun).to.be.true;
+      expect(event.timestamp > 0).to.be.true;
+      expect(event.totals?.underrunCount).to.equal(3);
     } finally {
       await capture.stopCapture();
       capture.dispose();
     }
   });
 
-  it("buffer underrun recovery metadata remains available", () => {
+  test("buffer underrun recovery metadata remains available", () => {
     const capture = createCapture();
     const underrunError = (capture as any).createProcessingError(
       AudioErrorCode.BufferUnderrun,
@@ -238,11 +242,9 @@ describe("AudioCapture performance diagnostics", () => {
       true,
     );
 
-    assert.strictEqual(
-      underrunError.recovery?.recommendedAction,
+    expect(underrunError.recovery?.recommendedAction, "Buffer underrun errors should recommend retry").to.equal(
       "retry",
-      "Buffer underrun errors should recommend retry",
     );
-    assert.strictEqual(underrunError.recovery?.recoverable, true);
+    expect(underrunError.recovery?.recoverable).to.be.true;
   });
 });

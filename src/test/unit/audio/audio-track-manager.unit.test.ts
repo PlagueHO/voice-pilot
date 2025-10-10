@@ -1,27 +1,28 @@
-import * as assert from "assert";
 import { AudioContextProvider } from "../../../audio/audio-context-provider";
 import { AudioTrackManager } from "../../../audio/audio-track-manager";
 import { Logger } from "../../../core/logger";
 import type { RealtimeEvent } from "../../../types/realtime-events";
 import type {
-  AudioConfiguration,
-  ConnectionResult,
-  ConnectionStatistics,
-  RecoveryEventPayload,
-  WebRTCConfig,
-  WebRTCEventHandler,
-  WebRTCEventType,
-  WebRTCTransport,
+    AudioConfiguration,
+    ConnectionResult,
+    ConnectionStatistics,
+    RecoveryEventPayload,
+    WebRTCConfig,
+    WebRTCEventHandler,
+    WebRTCEventType,
+    WebRTCTransport,
 } from "../../../types/webrtc";
 import {
-  ConnectionQuality,
-  WebRTCConnectionState,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
+    ConnectionQuality,
+    WebRTCConnectionState,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
 } from "../../../types/webrtc";
+import { expect } from "../../helpers/chai-setup";
+import { afterEach, suite, test } from "../../mocha-globals";
 import {
-  installMockAudioEnvironment,
-  MockMediaStream,
+    installMockAudioEnvironment,
+    MockMediaStream,
 } from "./audio-mock-environment";
 
 class MockTransport implements WebRTCTransport {
@@ -99,7 +100,7 @@ class MockTransport implements WebRTCTransport {
   removeEventListener(_type: WebRTCEventType, _handler: WebRTCEventHandler): void {}
 }
 
-describe("AudioTrackManager", () => {
+suite("Unit: AudioTrackManager", () => {
   const audioConfig: AudioConfiguration = {
     sampleRate: 24000,
     codecProfileId: "pcm16-24k-mono",
@@ -124,7 +125,7 @@ describe("AudioTrackManager", () => {
     env = installMockAudioEnvironment();
   });
 
-  it("captures microphone audio through the processing graph", async () => {
+  test("captures microphone audio through the processing graph", async () => {
     const logger = new Logger("AudioTrackManagerTest");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -149,15 +150,13 @@ describe("AudioTrackManager", () => {
       manager.setAudioConfiguration(audioConfig);
 
       const processedTrack = await manager.captureMicrophone();
-      assert.ok(processedTrack, "Processed track should be returned");
+      expect(processedTrack, "Processed track should be returned").to.exist;
 
       const rawStream = capturedStreams[0];
       const rawTrack = rawStream?.getAudioTracks()[0];
-      assert.ok(rawTrack, "Capture pipeline should retain raw input track");
-      assert.notStrictEqual(
-        processedTrack.id,
+      expect(rawTrack, "Capture pipeline should retain raw input track").to.exist;
+      expect(processedTrack.id, "Processed track must differ from raw microphone track").to.not.equal(
         rawTrack?.id,
-        "Processed track must differ from raw microphone track",
       );
     } finally {
       navigator.mediaDevices.getUserMedia = originalGetUserMedia;
@@ -166,7 +165,7 @@ describe("AudioTrackManager", () => {
     }
   });
 
-  it("propagates mute state to underlying input track", async () => {
+  test("propagates mute state to underlying input track", async () => {
     const logger = new Logger("AudioTrackManagerTestMute");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -180,19 +179,19 @@ describe("AudioTrackManager", () => {
       const rawTrack = env.capturedStreams[0]!.getAudioTracks()[0];
 
       manager.setTrackMuted(processedTrack.id, true);
-      assert.strictEqual(processedTrack.enabled, false);
-      assert.strictEqual(rawTrack.enabled, false);
+      expect(processedTrack.enabled).to.be.false;
+      expect(rawTrack.enabled).to.be.false;
 
       manager.setTrackMuted(processedTrack.id, false);
-      assert.strictEqual(processedTrack.enabled, true);
-      assert.strictEqual(rawTrack.enabled, true);
+      expect(processedTrack.enabled).to.be.true;
+      expect(rawTrack.enabled).to.be.true;
     } finally {
       manager.dispose();
       logger.dispose();
     }
   });
 
-  it("stops and cleans up capture graph when track ends", async () => {
+  test("stops and cleans up capture graph when track ends", async () => {
     const logger = new Logger("AudioTrackManagerTestStop");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -207,15 +206,15 @@ describe("AudioTrackManager", () => {
 
       manager.stopTrack(processedTrack.id);
 
-      assert.strictEqual(processedTrack.readyState, "ended");
-      assert.strictEqual(rawTrack.readyState, "ended");
+      expect(processedTrack.readyState).to.equal("ended");
+      expect(rawTrack.readyState).to.equal("ended");
     } finally {
       manager.dispose();
       logger.dispose();
     }
   });
 
-  it("keeps adaptive sample rates within supported bounds", async () => {
+  test("keeps adaptive sample rates within supported bounds", async () => {
     const logger = new Logger("AudioTrackManagerSampleRateTest");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -226,45 +225,33 @@ describe("AudioTrackManager", () => {
       manager.setAudioConfiguration(audioConfig);
 
       manager.adjustAudioQuality(ConnectionQuality.Poor);
-      assert.strictEqual(
-        (manager as any).audioConstraints.sampleRate,
-        16000,
-        "Sample rate should clamp to 16 kHz for poor networks",
-      );
+      expect((manager as any).audioConstraints.sampleRate, "Sample rate should clamp to 16 kHz for poor networks")
+        .to.equal(16000);
 
       manager.adjustAudioQuality(ConnectionQuality.Excellent);
-      assert.strictEqual(
-        (manager as any).audioConstraints.sampleRate,
-        48000,
-        "Sample rate should scale up to 48 kHz when excellent",
-      );
+      expect((manager as any).audioConstraints.sampleRate, "Sample rate should scale up to 48 kHz when excellent")
+        .to.equal(48000);
 
       manager.adjustAudioQuality(ConnectionQuality.Failed);
-      assert.strictEqual(
-        (manager as any).audioConstraints.sampleRate,
-        48000,
-        "Failed state should not reduce sample rate below negotiated bounds",
-      );
+      expect((manager as any).audioConstraints.sampleRate, "Failed state should not reduce sample rate below negotiated bounds")
+        .to.equal(48000);
     } finally {
       manager.dispose();
       logger.dispose();
     }
   });
 
-  it("throws during initialization when getUserMedia is unavailable", async () => {
+  test("throws during initialization when getUserMedia is unavailable", async () => {
     const logger = new Logger("AudioTrackManagerInitGuard");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
     const manager = new AudioTrackManager(logger, provider);
 
-  const original = navigator.mediaDevices.getUserMedia;
-  delete (navigator.mediaDevices as any).getUserMedia;
+    const original = navigator.mediaDevices.getUserMedia;
+    delete (navigator.mediaDevices as any).getUserMedia;
 
     try {
-      await assert.rejects(
-        () => manager.initialize(),
-        /getUserMedia not supported/,
-      );
+      await expect(manager.initialize()).to.be.rejectedWith(/getUserMedia not supported/);
     } finally {
       (navigator.mediaDevices as any).getUserMedia = original;
       manager.dispose();
@@ -272,7 +259,7 @@ describe("AudioTrackManager", () => {
     }
   });
 
-  it("wraps NotAllowedError into non-recoverable WebRTCError", async () => {
+  test("wraps NotAllowedError into non-recoverable WebRTCError", async () => {
     const logger = new Logger("AudioTrackManagerNotAllowed");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -289,14 +276,14 @@ describe("AudioTrackManager", () => {
       await manager.initialize();
       manager.setAudioConfiguration(audioConfig);
 
-      await assert.rejects(async () => {
-        await manager.captureMicrophone();
-      }, (error: unknown) => {
-        assert.ok(error instanceof WebRTCErrorImpl);
-        assert.strictEqual(error.code, WebRTCErrorCode.AudioTrackFailed);
-        assert.strictEqual(error.recoverable, false);
-        return true;
-      });
+      await manager
+        .captureMicrophone()
+        .then(() => expect.fail("captureMicrophone should reject when permission denied"))
+        .catch((error: unknown) => {
+          expect(error).to.be.instanceOf(WebRTCErrorImpl);
+          expect((error as WebRTCErrorImpl).code).to.equal(WebRTCErrorCode.AudioTrackFailed);
+          expect((error as WebRTCErrorImpl).recoverable).to.be.false;
+        });
     } finally {
       navigator.mediaDevices.getUserMedia = original;
       manager.dispose();
@@ -304,7 +291,7 @@ describe("AudioTrackManager", () => {
     }
   });
 
-  it("marks NotFoundError as non-recoverable when microphone missing", async () => {
+  test("marks NotFoundError as non-recoverable when microphone missing", async () => {
     const logger = new Logger("AudioTrackManagerNotFound");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -321,14 +308,14 @@ describe("AudioTrackManager", () => {
       await manager.initialize();
       manager.setAudioConfiguration(audioConfig);
 
-      await assert.rejects(async () => {
-        await manager.captureMicrophone();
-      }, (error: unknown) => {
-        assert.ok(error instanceof WebRTCErrorImpl);
-        assert.strictEqual(error.code, WebRTCErrorCode.AudioTrackFailed);
-        assert.strictEqual(error.recoverable, false);
-        return true;
-      });
+      await manager
+        .captureMicrophone()
+        .then(() => expect.fail("captureMicrophone should reject when device missing"))
+        .catch((error: unknown) => {
+          expect(error).to.be.instanceOf(WebRTCErrorImpl);
+          expect((error as WebRTCErrorImpl).code).to.equal(WebRTCErrorCode.AudioTrackFailed);
+          expect((error as WebRTCErrorImpl).recoverable).to.be.false;
+        });
     } finally {
       navigator.mediaDevices.getUserMedia = original;
       manager.dispose();
@@ -336,7 +323,7 @@ describe("AudioTrackManager", () => {
     }
   });
 
-  it("treats unexpected capture errors as recoverable", async () => {
+  test("treats unexpected capture errors as recoverable", async () => {
     const logger = new Logger("AudioTrackManagerGenericError");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -351,14 +338,14 @@ describe("AudioTrackManager", () => {
       await manager.initialize();
       manager.setAudioConfiguration(audioConfig);
 
-      await assert.rejects(async () => {
-        await manager.captureMicrophone();
-      }, (error: unknown) => {
-        assert.ok(error instanceof WebRTCErrorImpl);
-        assert.strictEqual(error.code, WebRTCErrorCode.AudioTrackFailed);
-        assert.strictEqual(error.recoverable, true);
-        return true;
-      });
+      await manager
+        .captureMicrophone()
+        .then(() => expect.fail("captureMicrophone should reject on unexpected errors"))
+        .catch((error: unknown) => {
+          expect(error).to.be.instanceOf(WebRTCErrorImpl);
+          expect((error as WebRTCErrorImpl).code).to.equal(WebRTCErrorCode.AudioTrackFailed);
+          expect((error as WebRTCErrorImpl).recoverable).to.be.true;
+        });
     } finally {
       navigator.mediaDevices.getUserMedia = original;
       manager.dispose();
@@ -366,7 +353,7 @@ describe("AudioTrackManager", () => {
     }
   });
 
-  it("adds processed tracks to the WebRTC transport with metadata", async () => {
+  test("adds processed tracks to the WebRTC transport with metadata", async () => {
     const logger = new Logger("AudioTrackManagerTransportAdd");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -380,19 +367,19 @@ describe("AudioTrackManager", () => {
 
       await manager.addTrackToTransport(transport, track);
 
-      assert.strictEqual(transport.addCalls.length, 1);
+      expect(transport.addCalls.length).to.equal(1);
       const call = transport.addCalls[0];
-      assert.strictEqual(call.track, track);
-      assert.ok(call.options?.processedStream, "Processed stream should be included");
-      assert.ok(call.options?.sourceStream, "Source stream should be retained");
-      assert.strictEqual(call.options?.metadata?.graphNodes, "active");
+      expect(call.track).to.equal(track);
+      expect(call.options?.processedStream, "Processed stream should be included").to.exist;
+      expect(call.options?.sourceStream, "Source stream should be retained").to.exist;
+      expect(call.options?.metadata?.graphNodes).to.equal("active");
     } finally {
       manager.dispose();
       logger.dispose();
     }
   });
 
-  it("removes transport tracks and emits terminal state", async () => {
+  test("removes transport tracks and emits terminal state", async () => {
     const logger = new Logger("AudioTrackManagerTransportRemove");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -412,16 +399,16 @@ describe("AudioTrackManager", () => {
       await manager.addTrackToTransport(transport, track);
       await manager.removeTrackFromTransport(transport, track);
 
-      assert.strictEqual(transport.removeCalls.length, 1);
-      assert.strictEqual(transport.removeCalls[0], track);
-      assert.ok(states.some((entry) => entry.trackId === track.id && entry.ended));
+      expect(transport.removeCalls.length).to.equal(1);
+      expect(transport.removeCalls[0]).to.equal(track);
+      expect(states.some((entry) => entry.trackId === track.id && entry.ended)).to.be.true;
     } finally {
       manager.dispose();
       logger.dispose();
     }
   });
 
-  it("switches audio devices using transport replace logic when available", async () => {
+  test("switches audio devices using transport replace logic when available", async () => {
     const logger = new Logger("AudioTrackManagerSwitchDevice");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -435,18 +422,21 @@ describe("AudioTrackManager", () => {
 
       const newTrack = await manager.switchAudioDevice("mock-device", transport);
 
-      assert.ok(newTrack, "Switching devices should return the new track");
-      assert.strictEqual(transport.replaceCalls.length, 1);
+      expect(newTrack, "Switching devices should return the new track").to.exist;
+      expect(transport.replaceCalls.length).to.equal(1);
       const replaceCall = transport.replaceCalls[0];
-      assert.strictEqual(replaceCall.newTrack, newTrack);
-      assert.ok(replaceCall.options?.processedStream, "Replacement should include processed stream metadata");
+      expect(replaceCall.newTrack).to.equal(newTrack);
+      expect(
+        replaceCall.options?.processedStream,
+        "Replacement should include processed stream metadata",
+      ).to.exist;
     } finally {
       manager.dispose();
       logger.dispose();
     }
   });
 
-  it("monitors connection quality and clears interval on stop", async () => {
+  test("monitors connection quality and clears interval on stop", async () => {
     const logger = new Logger("AudioTrackManagerQualityMonitor");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -487,10 +477,10 @@ describe("AudioTrackManager", () => {
     try {
       await manager.initialize();
       manager.startQualityMonitor(transport, 5);
-      assert.deepStrictEqual(qualityEvents, [ConnectionQuality.Good]);
+      expect(qualityEvents).to.deep.equal([ConnectionQuality.Good]);
 
       manager.stopQualityMonitor();
-      assert.strictEqual(clearedHandle, 1);
+      expect(clearedHandle).to.equal(1);
     } finally {
       (global as any).setInterval = originalSetInterval;
       (global as any).clearInterval = originalClearInterval;
@@ -499,7 +489,7 @@ describe("AudioTrackManager", () => {
     }
   });
 
-  it("builds track statistics with derived bitrate and audio level", async () => {
+  test("builds track statistics with derived bitrate and audio level", async () => {
     const logger = new Logger("AudioTrackManagerStats");
     logger.setLevel("error");
     const provider = new AudioContextProvider();
@@ -526,10 +516,11 @@ describe("AudioTrackManager", () => {
       };
 
       const snapshot = manager.getTrackStatistics(track, stats);
-      assert.strictEqual(snapshot.trackId, track.id);
-      assert.ok(snapshot.bitrate && snapshot.bitrate > 0);
-      assert.strictEqual(snapshot.jitter, stats.jitter);
-      assert.strictEqual(snapshot.audioLevel, 0.9);
+      expect(snapshot.trackId).to.equal(track.id);
+      expect(snapshot.bitrate, "Bitrate should be calculated").to.be.a("number");
+      expect(snapshot.bitrate!, "Bitrate should be positive").to.be.greaterThan(0);
+      expect(snapshot.jitter).to.equal(stats.jitter);
+      expect(snapshot.audioLevel).to.equal(0.9);
     } finally {
       manager.dispose();
       logger.dispose();

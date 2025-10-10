@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import {
     createEmptyMetrics,
     DEFAULT_EXPECTED_RENDER_QUANTUM,
@@ -8,6 +7,8 @@ import type {
     AudioProcessingGraph,
     RenderQuantumTelemetry,
 } from "../../../types/audio-capture";
+import { expect } from "../../helpers/chai-setup";
+import { afterEach, beforeEach, suite, test } from "../../mocha-globals";
 import {
     installMockAudioEnvironment,
     MockAnalyserNode,
@@ -19,7 +20,7 @@ import {
     MockMediaStreamTrack,
 } from "./audio-mock-environment";
 
-describe("WebAudioProcessingChain render telemetry", () => {
+suite("Unit: WebAudioProcessingChain render telemetry", () => {
   let environment = installMockAudioEnvironment();
 
   beforeEach(() => {
@@ -73,7 +74,7 @@ describe("WebAudioProcessingChain render telemetry", () => {
     return { chain, graph };
   }
 
-  it("updates metrics and notifies listeners when render telemetry is ingested", async () => {
+  test("updates metrics and notifies listeners when render telemetry is ingested", async () => {
     const { chain, graph } = await createGraph();
     const received: RenderQuantumTelemetry[] = [];
     const disposeListener = chain.addRenderTelemetryListener(graph, (event) => {
@@ -93,10 +94,10 @@ describe("WebAudioProcessingChain render telemetry", () => {
       });
 
       const underrunMetrics = chain.analyzeAudioLevel(graph);
-      assert.strictEqual(underrunMetrics.renderUnderrunCount, 1);
-      assert.strictEqual(underrunMetrics.renderDroppedFrameCount, 64);
-      assert.strictEqual(underrunMetrics.consecutiveUnderruns, 1);
-      assert.strictEqual(Math.round(underrunMetrics.bufferHealth * 100), 50);
+      expect(underrunMetrics.renderUnderrunCount).to.equal(1);
+      expect(underrunMetrics.renderDroppedFrameCount).to.equal(64);
+      expect(underrunMetrics.consecutiveUnderruns).to.equal(1);
+      expect(Math.round(underrunMetrics.bufferHealth * 100)).to.equal(50);
 
       chain.ingestRenderTelemetry(graph, {
         frameCount: 128,
@@ -109,14 +110,14 @@ describe("WebAudioProcessingChain render telemetry", () => {
       });
 
       const recoveryMetrics = chain.analyzeAudioLevel(graph);
-      assert.strictEqual(recoveryMetrics.renderUnderrunCount, 1);
-      assert.strictEqual(recoveryMetrics.renderDroppedFrameCount, 64);
-      assert.strictEqual(recoveryMetrics.consecutiveUnderruns, 0);
-      assert.strictEqual(Math.round(recoveryMetrics.bufferHealth * 100), 75);
+      expect(recoveryMetrics.renderUnderrunCount).to.equal(1);
+      expect(recoveryMetrics.renderDroppedFrameCount).to.equal(64);
+      expect(recoveryMetrics.consecutiveUnderruns).to.equal(0);
+      expect(Math.round(recoveryMetrics.bufferHealth * 100)).to.equal(75);
 
-      assert.strictEqual(received.length, 2, "Expected listener to receive two telemetry events");
-      assert.ok(received[0].underrun, "First telemetry should reflect an underrun");
-      assert.ok(!received[1].underrun, "Second telemetry should be healthy");
+      expect(received.length, "Expected listener to receive two telemetry events").to.equal(2);
+      expect(received[0].underrun, "First telemetry should reflect an underrun").to.be.true;
+      expect(received[1].underrun, "Second telemetry should be healthy").to.be.false;
     } finally {
       disposeListener();
       chain.disposeGraph(graph);

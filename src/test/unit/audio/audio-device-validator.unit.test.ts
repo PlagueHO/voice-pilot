@@ -1,9 +1,10 @@
-import * as assert from "assert";
 import { AudioDeviceValidator } from "../../../audio/device-validator";
 import { AudioErrorSeverity } from "../../../types/audio-errors";
+import { expect } from "../../helpers/chai-setup";
+import { afterEach, suite, test } from "../../mocha-globals";
 import { installMockAudioEnvironment } from "./audio-mock-environment";
 
-describe("AudioDeviceValidator error metadata", () => {
+suite("Unit: AudioDeviceValidator error metadata", () => {
   let env = installMockAudioEnvironment();
 
   afterEach(() => {
@@ -11,19 +12,19 @@ describe("AudioDeviceValidator error metadata", () => {
     env = installMockAudioEnvironment();
   });
 
-  it("marks missing devices as non-recoverable errors", async () => {
+  test("marks missing devices as non-recoverable errors", async () => {
     const validator = new AudioDeviceValidator();
     const result = await validator.validateDevice("non-existent-device");
 
-    assert.strictEqual(result.isValid, false);
-    assert.ok(result.error, "Expected a structured error");
-    assert.strictEqual(result.error?.severity, AudioErrorSeverity.Error);
-    assert.strictEqual(result.error?.recoverable, false);
-    assert.strictEqual(result.error?.recovery?.recoverable, false);
-    assert.strictEqual(result.error?.recovery?.recommendedAction, "fallback");
+    expect(result.isValid).to.be.false;
+    expect(result.error, "Expected a structured error").to.exist;
+    expect(result.error?.severity).to.equal(AudioErrorSeverity.Error);
+    expect(result.error?.recoverable).to.be.false;
+    expect(result.error?.recovery?.recoverable).to.be.false;
+    expect(result.error?.recovery?.recommendedAction).to.equal("fallback");
   });
 
-  it("classifies temporarily unavailable devices as recoverable", async () => {
+  test("classifies temporarily unavailable devices as recoverable", async () => {
     const validator = new AudioDeviceValidator();
 
     const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
@@ -36,15 +37,15 @@ describe("AudioDeviceValidator error metadata", () => {
     try {
       const result = await validator.validateDevice("mock-device");
 
-      assert.strictEqual(result.isValid, false);
-      assert.ok(result.error, "Expected a structured error");
-      assert.strictEqual(result.error?.severity, AudioErrorSeverity.Warning);
-      assert.strictEqual(result.error?.recoverable, true);
-      assert.strictEqual(result.error?.recovery?.recommendedAction, "retry");
-      assert.ok(
+      expect(result.isValid).to.be.false;
+      expect(result.error, "Expected a structured error").to.exist;
+      expect(result.error?.severity).to.equal(AudioErrorSeverity.Warning);
+      expect(result.error?.recoverable).to.be.true;
+      expect(result.error?.recovery?.recommendedAction).to.equal("retry");
+      expect(
         typeof result.error?.recovery?.retryAfterMs === "number",
         "Recoverable errors should include retry guidance",
-      );
+      ).to.be.true;
     } finally {
       navigator.mediaDevices.getUserMedia = originalGetUserMedia;
     }

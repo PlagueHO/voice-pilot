@@ -1,12 +1,13 @@
-import * as assert from 'assert';
 import { EphemeralKeyServiceImpl } from '../../auth/ephemeral-key-service';
 import { resolveRealtimeSessionPreferences } from '../../config/realtime-session';
 import { Logger } from '../../core/logger';
 import {
-    AudioConfig,
-    AzureOpenAIConfig,
-    AzureRealtimeConfig,
+  AudioConfig,
+  AzureOpenAIConfig,
+  AzureRealtimeConfig,
 } from '../../types/configuration';
+import { expect } from "../helpers/chai-setup";
+import { afterEach, suite, test } from '../mocha-globals';
 
 // Minimal mock credential manager implementing only required surface
 class MockCredMgr {
@@ -99,11 +100,11 @@ const baseAudioConfig: AudioConfig = {
   },
 };
 
-describe('Unit: EphemeralKeyServiceImpl', () => {
+suite('Unit: EphemeralKeyServiceImpl', () => {
   const originalFetch = (global as any).fetch;
   afterEach(() => { (global as any).fetch = originalFetch; });
 
-  it('initializes successfully with valid key and session creation', async () => {
+  test('initializes successfully with valid key and session creation', async () => {
     (global as any).fetch = async () => ({ ok: true, status: 200, json: async () => okSessionResponse() });
     const svc = new EphemeralKeyServiceImpl(
       new MockCredMgr('abc123') as any,
@@ -111,20 +112,20 @@ describe('Unit: EphemeralKeyServiceImpl', () => {
       new Logger('Test'),
     );
     await svc.initialize();
-    assert.ok(svc.isInitialized());
+    expect(svc.isInitialized()).to.equal(true);
   });
 
-  it('fails initialization when authentication test cannot create session', async () => {
+  test('fails initialization when authentication test cannot create session', async () => {
     (global as any).fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'Unauthorized' }}) });
     const svc = new EphemeralKeyServiceImpl(
       new MockCredMgr('bad') as any,
       new MockConfigMgr(baseConfig, baseRealtimeConfig, baseAudioConfig) as any,
       new Logger('Test'),
     );
-    await assert.rejects(svc.initialize(), /Authentication test failed/i);
+    await expect(svc.initialize()).to.be.rejectedWith(/Authentication test failed/i);
   });
 
-  it('requestEphemeralKey returns error when missing key', async () => {
+  test('requestEphemeralKey returns error when missing key', async () => {
     (global as any).fetch = async () => ({ ok: true, status: 200, json: async () => okSessionResponse() });
     const svc = new EphemeralKeyServiceImpl(
       new MockCredMgr(undefined) as any,
@@ -134,11 +135,11 @@ describe('Unit: EphemeralKeyServiceImpl', () => {
     // Manually set initialized to bypass initialize path for this focused unit check
     (svc as any).initialized = true;
     const result = await svc.requestEphemeralKey();
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.error?.code, 'MISSING_CREDENTIALS');
+    expect(result.success).to.equal(false);
+    expect(result.error?.code).to.equal('MISSING_CREDENTIALS');
   });
 
-  it('maps 429 to RATE_LIMITED', async () => {
+  test('maps 429 to RATE_LIMITED', async () => {
     (global as any).fetch = async () => ({ ok: false, status: 429, json: async () => ({ error: { message: 'Too many' }}) });
     const svc = new EphemeralKeyServiceImpl(
       new MockCredMgr('key') as any,
@@ -147,7 +148,7 @@ describe('Unit: EphemeralKeyServiceImpl', () => {
     );
     (svc as any).initialized = true;
     const result = await svc.requestEphemeralKey();
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.error?.code, 'RATE_LIMITED');
+    expect(result.success).to.equal(false);
+    expect(result.error?.code).to.equal('RATE_LIMITED');
   });
 });

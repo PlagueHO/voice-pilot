@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import { WebRTCConfigFactory } from "../../../audio/webrtc-config-factory";
 import type { ConfigurationManager } from "../../../config/configuration-manager";
 import { resolveRealtimeSessionPreferences } from "../../../config/realtime-session";
@@ -14,6 +13,8 @@ import {
   WebRTCErrorImpl,
   type WebRTCConfig,
 } from "../../../types/webrtc";
+import { expect } from "../../helpers/chai-setup";
+import { suite, test } from "../../mocha-globals";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -211,8 +212,8 @@ class EphemeralKeyServiceStub {
   }
 }
 
-describe("WebRTCConfigFactory", () => {
-  it("creates a configuration bundle with normalized fields", async () => {
+suite("Unit: WebRTCConfigFactory", () => {
+  test("creates a configuration bundle with normalized fields", async () => {
     const { logger, entries } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const { manager } = createConfigManagerStub({
@@ -230,32 +231,31 @@ describe("WebRTCConfigFactory", () => {
 
     const config = await factory.createConfig(manager, keyService as any);
 
-    assert.strictEqual(config.endpoint.region, "eastus2");
-    assert.strictEqual(
-      config.endpoint.url,
+    expect(config.endpoint.region).to.equal("eastus2");
+    expect(config.endpoint.url).to.equal(
       "https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc",
     );
-    assert.strictEqual(config.authentication.ephemeralKey, session.ephemeralKey);
-    assert.strictEqual(config.audioConfig.sampleRate, 24000);
-    assert.strictEqual(config.audioConfig.codecProfileId, "pcm16-24k-mono");
-    assert.deepStrictEqual(config.audioConfig.workletModuleUrls, [
+    expect(config.authentication.ephemeralKey).to.equal(session.ephemeralKey);
+    expect(config.audioConfig.sampleRate).to.equal(24000);
+    expect(config.audioConfig.codecProfileId).to.equal("pcm16-24k-mono");
+    expect(config.audioConfig.workletModuleUrls).to.deep.equal([
       "resource://voicepilot/processors/vad-processor.js",
       "resource://voicepilot/processors/gain-processor.js",
     ]);
-    assert.ok(
+    expect(
       Object.isFrozen(config.audioConfig.workletModuleUrls),
       "worklet modules should be frozen to prevent mutation",
-    );
-    assert.strictEqual(config.sessionConfig.voice, "alloy");
-    assert.ok(config.sessionConfig.turnDetection);
-    assert.strictEqual(config.dataChannelConfig?.channelName, "realtime-channel");
-    assert.strictEqual(config.connectionConfig?.reconnectAttempts, 3);
+    ).to.be.true;
+    expect(config.sessionConfig.voice).to.equal("alloy");
+    expect(config.sessionConfig.turnDetection).to.exist;
+    expect(config.dataChannelConfig?.channelName).to.equal("realtime-channel");
+    expect(config.connectionConfig?.reconnectAttempts).to.equal(3);
 
     const debugEntry = entries.find((entry) => entry.level === "debug");
-    assert.ok(debugEntry, "should emit a debug log when config is created");
+    expect(debugEntry, "should emit a debug log when config is created").to.exist;
   });
 
-  it("maps known Azure regions to supported WebRTC regions", async () => {
+  test("maps known Azure regions to supported WebRTC regions", async () => {
     const { logger } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const { manager } = createConfigManagerStub({
@@ -267,14 +267,13 @@ describe("WebRTCConfigFactory", () => {
     const keyService = new EphemeralKeyServiceStub(createRealtimeSession());
     const config = await factory.createConfig(manager, keyService as any);
 
-    assert.strictEqual(config.endpoint.region, "eastus2");
-    assert.strictEqual(
-      config.endpoint.url,
+    expect(config.endpoint.region).to.equal("eastus2");
+    expect(config.endpoint.url).to.equal(
       "https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc",
     );
   });
 
-  it("rejects creation when the region is unsupported", async () => {
+  test("rejects creation when the region is unsupported", async () => {
     const { logger } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const { manager } = createConfigManagerStub({
@@ -284,18 +283,18 @@ describe("WebRTCConfigFactory", () => {
     });
     const keyService = new EphemeralKeyServiceStub(createRealtimeSession());
 
-    await assert.rejects(
-      factory.createConfig(manager, keyService as any),
-      (error: unknown) => {
-        assert.ok(error instanceof WebRTCErrorImpl);
-        assert.strictEqual(error.code, WebRTCErrorCode.ConfigurationInvalid);
-        assert.match(error.message, /Unsupported region/i);
-        return true;
-      },
-    );
+    try {
+      await factory.createConfig(manager, keyService as any);
+      expect.fail("Expected createConfig to reject for unsupported region");
+    } catch (error) {
+      const webrtcError = error as WebRTCErrorImpl;
+      expect(webrtcError).to.be.instanceOf(WebRTCErrorImpl);
+      expect(webrtcError.code).to.equal(WebRTCErrorCode.ConfigurationInvalid);
+      expect(webrtcError.message).to.match(/Unsupported region/i);
+    }
   });
 
-  it("fails fast when session expiry window is unsafe", async () => {
+  test("fails fast when session expiry window is unsafe", async () => {
     const { logger } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const { manager } = createConfigManagerStub();
@@ -312,18 +311,18 @@ describe("WebRTCConfigFactory", () => {
       }),
     );
 
-    await assert.rejects(
-      factory.createConfig(manager, keyService as any),
-      (error: unknown) => {
-        assert.ok(error instanceof WebRTCErrorImpl);
-        assert.strictEqual(error.code, WebRTCErrorCode.AuthenticationFailed);
-        assert.match(error.message, /expires too soon/i);
-        return true;
-      },
-    );
+    try {
+      await factory.createConfig(manager, keyService as any);
+      expect.fail("Expected createConfig to reject when expiry is unsafe");
+    } catch (error) {
+      const webrtcError = error as WebRTCErrorImpl;
+      expect(webrtcError).to.be.instanceOf(WebRTCErrorImpl);
+      expect(webrtcError.code).to.equal(WebRTCErrorCode.AuthenticationFailed);
+      expect(webrtcError.message).to.match(/expires too soon/i);
+    }
   });
 
-  it("warns when requested sample rate is adjusted for compliance", async () => {
+  test("warns when requested sample rate is adjusted for compliance", async () => {
     const { logger, entries } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const { manager } = createConfigManagerStub({
@@ -335,13 +334,13 @@ describe("WebRTCConfigFactory", () => {
     const keyService = new EphemeralKeyServiceStub(createRealtimeSession());
     const config = await factory.createConfig(manager, keyService as any);
 
-    assert.strictEqual(config.audioConfig.sampleRate, 24000);
+    expect(config.audioConfig.sampleRate).to.equal(24000);
     const warning = entries.find((entry) => entry.level === "warn");
-    assert.ok(warning, "expected warning when sample rate is adjusted");
-    assert.match(warning.message, /Audio sample rate adjusted/i);
+    expect(warning, "expected warning when sample rate is adjusted").to.exist;
+    expect(warning?.message).to.match(/Audio sample rate adjusted/i);
   });
 
-  it("refreshes authentication material via updateConfigWithNewKey", async () => {
+  test("refreshes authentication material via updateConfigWithNewKey", async () => {
     const { logger } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const originalSession = createRealtimeSession();
@@ -366,12 +365,12 @@ describe("WebRTCConfigFactory", () => {
       keyService as any,
     );
 
-    assert.notStrictEqual(updated, baseConfig);
-    assert.strictEqual(updated.authentication.ephemeralKey, "refreshed-key");
-    assert.strictEqual(baseConfig.authentication.ephemeralKey, "ephemeral-key");
+    expect(updated).to.not.equal(baseConfig);
+    expect(updated.authentication.ephemeralKey).to.equal("refreshed-key");
+    expect(baseConfig.authentication.ephemeralKey).to.equal("ephemeral-key");
   });
 
-  it("surfaces structured errors when key refresh fails", async () => {
+  test("surfaces structured errors when key refresh fails", async () => {
     const { logger } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const keyService = new EphemeralKeyServiceStub(createRealtimeSession());
@@ -380,23 +379,23 @@ describe("WebRTCConfigFactory", () => {
 
     keyService.setSession(new Error("network unavailable") as unknown as RealtimeSessionInfo);
 
-    await assert.rejects(
-      factory.updateConfigWithNewKey(baseConfig, keyService as any),
-      (error: unknown) => {
-        assert.ok(error instanceof WebRTCErrorImpl);
-        assert.strictEqual(error.code, WebRTCErrorCode.AuthenticationFailed);
-        assert.match(error.message, /Key update failed/i);
-        return true;
-      },
-    );
+    try {
+      await factory.updateConfigWithNewKey(baseConfig, keyService as any);
+      expect.fail("Expected updateConfigWithNewKey to reject when key refresh fails");
+    } catch (error) {
+      const webrtcError = error as WebRTCErrorImpl;
+      expect(webrtcError).to.be.instanceOf(WebRTCErrorImpl);
+      expect(webrtcError.code).to.equal(WebRTCErrorCode.AuthenticationFailed);
+      expect(webrtcError.message).to.match(/Key update failed/i);
+    }
   });
 
-  it("validates configurations and logs failures", () => {
+  test("validates configurations and logs failures", () => {
     const { logger, entries } = createTestLogger();
     const factory = new WebRTCConfigFactory(logger);
     const config = factory.createTestConfig();
 
-    assert.strictEqual(factory.validateConfig(config), true);
+  expect(factory.validateConfig(config)).to.be.true;
 
     const expiredConfig: WebRTCConfig = {
       ...config,
@@ -406,9 +405,9 @@ describe("WebRTCConfigFactory", () => {
       },
     };
 
-    assert.strictEqual(factory.validateConfig(expiredConfig), false);
+    expect(factory.validateConfig(expiredConfig)).to.be.false;
     const errorEntry = entries.find((entry) => entry.level === "error");
-    assert.ok(errorEntry, "validation failure should emit error log");
-    assert.match(errorEntry.message, /validation failed/i);
+    expect(errorEntry, "validation failure should emit error log").to.exist;
+    expect(errorEntry?.message).to.match(/validation failed/i);
   });
 });

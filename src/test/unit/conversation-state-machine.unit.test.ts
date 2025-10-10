@@ -4,7 +4,7 @@ import { ConnectionInfo, SessionConfig, SessionInfo, SessionState, SessionStatis
 import { TranscriptDeltaEvent, TranscriptFinalEvent, TranscriptionStatusEvent } from '../../types/speech-to-text';
 import { TtsPlaybackEvent } from '../../types/tts';
 import { expect } from "../helpers/chai-setup";
-import { afterEach, beforeEach, describe, it } from '../mocha-globals';
+import { afterEach, beforeEach, suite, test } from '../mocha-globals';
 
 function createSessionInfo(): SessionInfo {
   const config: SessionConfig = {
@@ -42,7 +42,7 @@ function createSessionInfo(): SessionInfo {
   };
 }
 
-describe('ConversationStateMachine', () => {
+suite('Unit: ConversationStateMachine', () => {
   let logger: Logger;
   let machine: ConversationStateMachine;
   let sessionInfo: SessionInfo;
@@ -60,7 +60,7 @@ describe('ConversationStateMachine', () => {
     logger.dispose();
   });
 
-  it('should transition from idle to listening on start', async () => {
+  test('should transition from idle to listening on start', async () => {
     const transitions: Array<{ from: string; to: string }> = [];
     machine.onStateChanged(event => {
       transitions.push({ from: event.transition.from, to: event.transition.to });
@@ -75,7 +75,7 @@ describe('ConversationStateMachine', () => {
     expect(state.state).to.equal('listening');
   });
 
-  it('should enter processing after final transcript', async () => {
+  test('should enter processing after final transcript', async () => {
     await machine.startConversation({ sessionId: sessionInfo.sessionId });
 
     const statusEvent: TranscriptionStatusEvent = {
@@ -124,7 +124,7 @@ describe('ConversationStateMachine', () => {
   expect(state.state).to.equal('processing');
   });
 
-  it('should reach speaking state after copilot completion and tts playback', async () => {
+  test('should reach speaking state after copilot completion and tts playback', async () => {
     await machine.startConversation({ sessionId: sessionInfo.sessionId });
 
     const finalEvent: TranscriptFinalEvent = {

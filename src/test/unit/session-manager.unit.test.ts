@@ -1,4 +1,5 @@
-import { expect } from "../helpers/chai-setup";
+import { expect } from '../helpers/chai-setup';
+import { beforeEach, suite, test } from '../mocha-globals';
 
 // Create a minimal mock to avoid VS Code dependencies in unit tests
 class MockSessionManager {
@@ -50,43 +51,43 @@ class MockSessionManager {
   }
 }
 
-describe("Unit: SessionManager Core Logic", () => {
+suite('Unit: SessionManager Core Logic', () => {
   let manager: MockSessionManager;
 
   beforeEach(() => {
     manager = new MockSessionManager();
   });
 
-  it("is not initialized by default", () => {
+  test('is not initialized by default', () => {
     expect(manager.isInitialized()).to.equal(false);
   });
 
-  it("initializes successfully", async () => {
+  test('initializes successfully', async () => {
     await manager.initialize();
     expect(manager.isInitialized()).to.equal(true);
   });
 
-  it("is idempotent on initialization", async () => {
+  test('is idempotent on initialization', async () => {
     await manager.initialize();
     await manager.initialize(); // Should not throw
     expect(manager.isInitialized()).to.equal(true);
   });
 
-  it("throws when starting session before initialization", async () => {
+  test('throws when starting session before initialization', async () => {
     await expect(manager.startSession()).to.be.rejectedWith(/not initialized/i);
   });
 
-  it("starts session successfully after initialization", async () => {
+  test('starts session successfully after initialization', async () => {
     await manager.initialize();
     const session = await manager.startSession();
 
-    expect(session.sessionId).to.be.a("string").and.not.empty;
-    expect(session.state).to.equal("active");
+    expect(session.sessionId).to.be.a('string').and.not.empty;
+    expect(session.state).to.equal('active');
     expect(session.startedAt).to.be.instanceOf(Date);
     expect(manager.isSessionActive()).to.equal(true);
   });
 
-  it("ends session successfully", async () => {
+  test('ends session successfully', async () => {
     await manager.initialize();
     const session = await manager.startSession();
 
@@ -94,7 +95,7 @@ describe("Unit: SessionManager Core Logic", () => {
     expect(manager.isSessionActive()).to.equal(false);
   });
 
-  it("handles multiple sessions", async () => {
+  test('handles multiple sessions', async () => {
     await manager.initialize();
 
     const session1 = await manager.startSession();
@@ -104,7 +105,7 @@ describe("Unit: SessionManager Core Logic", () => {
     expect(session1.sessionId).to.not.equal(session2.sessionId);
   });
 
-  it("disposes cleanly", async () => {
+  test('disposes cleanly', async () => {
     await manager.initialize();
     await manager.startSession();
 
@@ -114,15 +115,15 @@ describe("Unit: SessionManager Core Logic", () => {
     expect(manager.getAllSessions()).to.have.lengthOf(0);
   });
 
-  it("validates session configuration structure", async () => {
+  test('validates session configuration structure', async () => {
     await manager.initialize();
     const session = await manager.startSession();
 
     expect(session.config).to.exist;
-    expect(session.config.renewalMarginSeconds).to.be.a("number");
+    expect(session.config.renewalMarginSeconds).to.be.a('number');
   });
 
-  it("generates unique session IDs", async () => {
+  test('generates unique session IDs', async () => {
     await manager.initialize();
 
     const ids = new Set();
@@ -133,6 +134,6 @@ describe("Unit: SessionManager Core Logic", () => {
       await new Promise((resolve) => setTimeout(resolve, 2));
     }
 
-    expect(ids.size, "All session IDs should be unique").to.equal(5);
+    expect(ids.size, 'All session IDs should be unique').to.equal(5);
   });
 });

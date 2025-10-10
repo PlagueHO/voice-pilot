@@ -1,16 +1,17 @@
 // @ts-nocheck
-import * as assert from "assert";
-import { RealtimeSpeechToTextService } from "../../../services/realtime-speech-to-text-service";
-import { SessionManagerImpl } from "../../../session/session-manager";
+import { RealtimeSpeechToTextService } from '../../../services/realtime-speech-to-text-service';
+import { SessionManagerImpl } from '../../../session/session-manager';
 import type {
-    RealtimeEvent,
-    ResponseOutputTextDeltaEvent,
-} from "../../../types/realtime-events";
+  RealtimeEvent,
+  ResponseOutputTextDeltaEvent,
+} from '../../../types/realtime-events';
 import {
-    SessionState,
-    type SessionInfo,
-} from "../../../types/session";
-import type { TranscriptEvent } from "../../../types/speech-to-text";
+  SessionState,
+  type SessionInfo,
+} from '../../../types/session';
+import type { TranscriptEvent } from '../../../types/speech-to-text';
+import { expect } from '../../helpers/chai-setup';
+import { suite, test } from '../../mocha-globals';
 
 class RecordingRealtimeSpeechService extends RealtimeSpeechToTextService {
   public readonly ingested: RealtimeEvent[] = [];
@@ -25,8 +26,8 @@ class RecordingRealtimeSpeechService extends RealtimeSpeechToTextService {
   }
 }
 
-describe("SessionManager realtime transcript integration", () => {
-  it("forwards realtime events to transcript subscribers", async () => {
+suite('Unit: SessionManager realtime transcript integration', () => {
+  test('forwards realtime events to transcript subscribers', async () => {
     const loggerStub = {
       info() {},
       warn() {},
@@ -41,12 +42,12 @@ describe("SessionManager realtime transcript integration", () => {
       loggerStub,
     );
     const realtimeService = new RecordingRealtimeSpeechService(loggerStub);
-    await realtimeService.initialize("test-session");
+  await realtimeService.initialize('test-session');
 
     manager.setRealtimeSpeechToTextService(realtimeService);
 
     const sessionInfo: SessionInfo = {
-      sessionId: "test-session",
+  sessionId: 'test-session',
       state: SessionState.Active,
       startedAt: new Date(),
       lastActivity: new Date(),
@@ -68,7 +69,7 @@ describe("SessionManager realtime transcript integration", () => {
         averageRenewalLatencyMs: 0,
       },
       connectionInfo: {
-        webrtcState: "connected",
+  webrtcState: 'connected',
         reconnectAttempts: 0,
       },
     };
@@ -81,20 +82,20 @@ describe("SessionManager realtime transcript integration", () => {
     });
 
     const deltaEvent: ResponseOutputTextDeltaEvent = {
-      type: "response.output_text.delta",
-      response_id: "resp-1",
-      item_id: "item-1",
+  type: 'response.output_text.delta',
+  response_id: 'resp-1',
+  item_id: 'item-1',
       output_index: 0,
-      delta: "Hello",
+  delta: 'Hello',
     };
 
     manager.handleRealtimeTranscriptEvent(deltaEvent);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    assert.strictEqual(realtimeService.ingested.length, 1);
-    assert.strictEqual(receivedEvents.length, 1);
+    expect(realtimeService.ingested.length).to.equal(1);
+    expect(receivedEvents.length).to.equal(1);
     const event = receivedEvents[0];
-    assert.strictEqual(event.type, "transcript-delta");
-    assert.strictEqual(event.utteranceId, "resp-1-item-1");
+    expect(event.type).to.equal('transcript-delta');
+    expect(event.utteranceId).to.equal('resp-1-item-1');
   });
 });

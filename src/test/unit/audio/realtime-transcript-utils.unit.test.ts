@@ -1,22 +1,23 @@
-import * as assert from "assert";
 import {
     extractTranscriptText,
     getTextFromDelta,
 } from "../../../audio/realtime-transcript-utils";
 import type { RealtimeEvent } from "../../../types/realtime-events";
+import { expect } from "../../helpers/chai-setup";
+import { suite, test } from "../../mocha-globals";
 
-describe("realtime-transcript-utils", () => {
-  it("returns string payloads unchanged", () => {
+suite("Unit: realtime-transcript-utils", () => {
+  test("returns string payloads unchanged", () => {
     const event: RealtimeEvent = {
       type: "response.audio_transcript.delta",
       delta: "hello world",
     };
 
     const result = extractTranscriptText(event);
-    assert.strictEqual(result, "hello world");
+    expect(result).to.equal("hello world");
   });
 
-  it("extracts text field from object delta", () => {
+  test("extracts text field from object delta", () => {
     const event: RealtimeEvent = {
       type: "response.output_audio_transcription.delta",
       delta: {
@@ -26,10 +27,10 @@ describe("realtime-transcript-utils", () => {
     };
 
     const result = extractTranscriptText(event);
-    assert.strictEqual(result, "normalized text");
+    expect(result).to.equal("normalized text");
   });
 
-  it("falls back to transcript field when text missing", () => {
+  test("falls back to transcript field when text missing", () => {
     const event: RealtimeEvent = {
       type: "conversation.item.audio_transcription.delta",
       delta: {
@@ -38,10 +39,10 @@ describe("realtime-transcript-utils", () => {
     };
 
     const result = extractTranscriptText(event);
-    assert.strictEqual(result, "fallback content");
+    expect(result).to.equal("fallback content");
   });
 
-  it("returns undefined when payload lacks text", () => {
+  test("returns undefined when payload lacks text", () => {
     const event: RealtimeEvent = {
       type: "response.output_audio_transcript.delta",
       delta: {
@@ -50,14 +51,14 @@ describe("realtime-transcript-utils", () => {
     };
 
     const result = extractTranscriptText(event);
-    assert.strictEqual(result, undefined);
+  expect(result).to.be.undefined;
   });
 
-  it("supports direct string lookup via getTextFromDelta", () => {
+  test("supports direct string lookup via getTextFromDelta", () => {
     const result = getTextFromDelta({
       text: "direct lookup",
     });
 
-    assert.strictEqual(result, "direct lookup");
+    expect(result).to.equal("direct lookup");
   });
 });
