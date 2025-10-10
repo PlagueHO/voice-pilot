@@ -1,4 +1,4 @@
-import * as assert from "assert";
+import { expect } from "chai";
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { ConfigurationManager } from "../../config/configuration-manager";
@@ -110,6 +110,7 @@ suite("Integration: Activation Failure Handling", () => {
   });
 
   afterEach(async () => {
+    captured.length = 0;
     ConfigurationManager.prototype.initialize =
       originalConfigInitialize ?? ConfigurationManager.prototype.initialize;
 
@@ -143,26 +144,28 @@ suite("Integration: Activation Failure Handling", () => {
     let activationError: unknown;
     try {
       await activate(context);
-      assert.fail("Activation should throw when configuration initialization fails");
+      expect.fail("Activation should throw when configuration initialization fails");
     } catch (error) {
       activationError = error;
     }
 
-    assert.ok(activationError instanceof Error, "Expected activation to reject with Error");
+    expect(activationError,
+      "Expected activation to reject with Error",
+    ).to.be.instanceOf(Error);
 
     const failureLog = captured.find((entry) =>
       entry.message.includes("VoicePilot activation failed"),
     );
-    assert.ok(failureLog, "Expected activation failure log entry");
+    expect(failureLog, "Expected activation failure log entry").to.exist;
 
     const disposeLogs = captured.filter((entry) =>
       entry.message.startsWith("Disposing"),
     );
-    assert.ok(disposeLogs.length > 0, "Expected disposal logs during failure cleanup");
+    expect(disposeLogs.length, "Expected disposal logs during failure cleanup").to.be.greaterThan(0);
 
     const initializingLogs = captured.filter((entry) =>
       entry.message.startsWith("Initializing"),
     );
-    assert.ok(initializingLogs.length > 0, "Expected initialization attempts to be logged");
+    expect(initializingLogs.length, "Expected initialization attempts to be logged").to.be.greaterThan(0);
   });
 });

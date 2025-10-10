@@ -2,15 +2,15 @@
 goal: Upgrade Mocha test runner to v11.7.4 with compliant toolchain
 version: 1.0
 date_created: 2025-10-09
-last_updated: 2025-10-09
+last_updated: 2025-10-10
 owner: VoicePilot Engineering
-status: 'Planned'
+status: 'Completed'
 tags: ['upgrade', 'testing']
 ---
 
 # Introduction
 
-![Status: Planned](https://img.shields.io/badge/status-Planned-blue)
+![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
 This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all local and CI runtimes with Mocha 11's Node.js requirements, and validates that VoicePilot's lint, unit, integration, and coverage workflows remain green after the migration.
 
@@ -32,9 +32,9 @@ This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all loc
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Edit `package.json` to set `devDependencies.mocha` to `^11.7.4`, remove the `@types/mocha` entry, and add `"node": ">=20.19.0"` inside the existing `engines` field alongside `vscode`. |  |  |
-| TASK-002 | Run `npm install` from the repository root to update `package-lock.json` and ensure Mocha 11.7.4 plus related transitive upgrades (e.g., `chokidar@4`) are captured. |  |  |
-| TASK-003 | Delete any stale `node_modules` artefacts from CI caches if required by purging the GitHub Actions cache key or bumping the cache version in workflows. |  |  |
+| TASK-001 | Edit `package.json` to set `devDependencies.mocha` to `^11.7.4`, remove the `@types/mocha` entry, and add `"node": ">=20.19.0"` inside the existing `engines` field alongside `vscode`. | ✅ | 2025-10-10 |
+| TASK-002 | Run `npm install` from the repository root to update `package-lock.json` and ensure Mocha 11.7.4 plus related transitive upgrades (e.g., `chokidar@4`) are captured. | ✅ | 2025-10-10 |
+| TASK-003 | Delete any stale `node_modules` artefacts from CI caches if required by purging the GitHub Actions cache key or bumping the cache version in workflows. | ✅ | 2025-10-10 |
 
 ### Implementation Phase 2
 
@@ -42,10 +42,10 @@ This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all loc
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-004 | Commit a new `.nvmrc` containing `22.12.0` to standardise the local Node.js version that satisfies Mocha 11's requirement. |  |  |
-| TASK-005 | Update `.github/workflows/continuous-integration.yml` to use `22.12.0` in the `matrix.node-version` values and adjust any caching keys accordingly. |  |  |
-| TASK-006 | Update `.devcontainer/devcontainer.json` post-create tooling (or base image tag) to guarantee the remote container installs Node.js `22.12.0` or newer. |  |  |
-| TASK-007 | Revise `README.md`, `docs/QUICKSTART.md`, and `docs/CI-PIPELINE.md` to call out the `>=20.19.0` Node.js prerequisite and reference the Mocha 11 upgrade. |  |  |
+| TASK-004 | Commit a new `.nvmrc` containing `22.12.0` to standardise the local Node.js version that satisfies Mocha 11's requirement. | ✅ | 2025-10-10 |
+| TASK-005 | Update `.github/workflows/continuous-integration.yml` to use `22.12.0` in the `matrix.node-version` values and adjust any caching keys accordingly. | ✅ | 2025-10-10 |
+| TASK-006 | Update `.devcontainer/devcontainer.json` post-create tooling (or base image tag) to guarantee the remote container installs Node.js `22.12.0` or newer. | ✅ | 2025-10-10 |
+| TASK-007 | Revise `README.md`, `docs/QUICKSTART.md`, and `docs/CI-PIPELINE.md` to call out the `>=20.19.0` Node.js prerequisite and reference the Mocha 11 upgrade. | ✅ | 2025-10-10 |
 
 ### Implementation Phase 3
 
@@ -53,9 +53,9 @@ This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all loc
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-008 | Run `npm run compile`, `npm run test:unit`, `npm run test:coverage`, and `npm run quality:gate` locally (or via CI dry-run) to confirm all suites pass after the upgrade. Capture outputs for audit. |  |  |
-| TASK-009 | Execute `npm run test` to ensure the VS Code integration harness still launches successfully under Mocha 11. |  |  |
-| TASK-010 | Add a `CHANGELOG.md` entry noting the Mocha 11.7.4 upgrade, Node.js baseline update, and any observable behavioural changes (e.g., watch mode using `chokidar@4`). |  |  |
+| TASK-008 | Run `npm run compile`, `npm run test:unit`, `npm run test:coverage`, and `npm run quality:gate` locally (or via CI dry-run) to confirm all suites pass after the upgrade. Capture outputs for audit. | ✅ | 2025-10-10 |
+| TASK-009 | Execute `npm run test` to ensure the VS Code integration harness still launches successfully under Mocha 11. | ✅ | 2025-10-10 |
+| TASK-010 | Add a `CHANGELOG.md` entry noting the Mocha 11.7.4 upgrade, Node.js baseline update, and any observable behavioural changes (e.g., watch mode using `chokidar@4`). | ✅ | 2025-10-10 |
 
 ## 3. Alternatives
 

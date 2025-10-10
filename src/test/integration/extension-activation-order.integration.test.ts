@@ -1,4 +1,4 @@
-import * as assert from "assert";
+import { expect } from "chai";
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { Logger } from "../../core/logger";
@@ -105,6 +105,8 @@ suite("Integration: Activation Telemetry", () => {
   });
 
   afterEach(async () => {
+    captured.length = 0;
+    capturedWarnings.length = 0;
     disposables.splice(0).forEach((d) => d.dispose());
     await deactivate();
     globalThis.fetch = originalFetch;
@@ -135,19 +137,18 @@ suite("Integration: Activation Telemetry", () => {
     const sessionIdx = getIndex("session manager");
     const uiIdx = getIndex("voice control panel");
 
-    assert.ok(configIdx !== -1, "Expected configuration manager initialization log");
-    assert.ok(authIdx !== -1, "Expected ephemeral key service initialization log");
-    assert.ok(sessionIdx !== -1, "Expected session manager initialization log");
-    assert.ok(uiIdx !== -1, "Expected voice control panel initialization log");
+    expect(configIdx, "Expected configuration manager initialization log").to.be.greaterThan(-1);
+    expect(authIdx, "Expected ephemeral key service initialization log").to.be.greaterThan(-1);
+    expect(sessionIdx, "Expected session manager initialization log").to.be.greaterThan(-1);
+    expect(uiIdx, "Expected voice control panel initialization log").to.be.greaterThan(-1);
 
-    assert.ok(configIdx < authIdx, "Configuration should initialize before authentication");
-    assert.ok(authIdx < sessionIdx, "Authentication should initialize before session");
-    assert.ok(sessionIdx < uiIdx, "Session should initialize before UI");
+    expect(configIdx, "Configuration should initialize before authentication").to.be.lessThan(authIdx);
+    expect(authIdx, "Authentication should initialize before session").to.be.lessThan(sessionIdx);
+    expect(sessionIdx, "Session should initialize before UI").to.be.lessThan(uiIdx);
 
-    assert.strictEqual(
-      capturedWarnings.filter((message) => message.includes("Activation exceeded")).length,
-      0,
-      "Activation should not exceed latency constraint",
-    );
+    const warningCount = capturedWarnings.filter((message) =>
+      message.includes("Activation exceeded"),
+    ).length;
+    expect(warningCount, "Activation should not exceed latency constraint").to.equal(0);
   });
 });

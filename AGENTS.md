@@ -120,6 +120,7 @@ voice-pilot/
 - `npm run test:all` executes unit then integration; use before commits.
 - Coverage is enforced by NYC thresholds (90/85/90/90). Run `npm run test:coverage` if instrumentation is needed.
 - For performance probes, use `npm run test:perf` (outputs JSON payload for telemetry analysis).
+- The repository uses Mocha as the test runner. Wrap specs with `suite` from `src/test/mocha-globals`, prefixing names with `Unit:` or `Integration:` as appropriate, and define scenarios with `test`. Chai is the assertion library; always import `{ expect }` (plus `chai-as-promised` helpers when dealing with async flows) and express checks in BDD style—never fall back to Node's `assert`/`should`. Keep shared setup in `before`/`after` hooks, reset mutable state in `afterEach`, and isolate side effects with fakes so every run is deterministic.
 
 ## VS Code Tasks Workflow
 

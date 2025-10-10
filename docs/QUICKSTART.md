@@ -96,6 +96,7 @@ VoicePilot
 - **Use TypeScript**: TypeScript provides type safety and better tooling support.
 - **Follow VS Code Extension Guidelines**: Adhere to the [VS Code Extension Guidelines](https://code.visualstudio.com/api) for best practices in extension development.
 - **Test Your Extension**: Regularly test your extension to ensure it works as expected.
+- **Assertion Libraries**: To write BDD-style tests with Promise support, use `chai-as-promised` and the `expect` API.
 
 ## Conclusion
 

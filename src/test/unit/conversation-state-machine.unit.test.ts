@@ -1,9 +1,9 @@
-import * as assert from 'assert';
 import { ConversationStateMachine, CopilotResponseEvent } from '../../conversation/conversation-state-machine';
 import { Logger } from '../../core/logger';
 import { ConnectionInfo, SessionConfig, SessionInfo, SessionState, SessionStatistics } from '../../types/session';
 import { TranscriptDeltaEvent, TranscriptFinalEvent, TranscriptionStatusEvent } from '../../types/speech-to-text';
 import { TtsPlaybackEvent } from '../../types/tts';
+import { expect } from "../helpers/chai-setup";
 import { afterEach, beforeEach, describe, it } from '../mocha-globals';
 
 function createSessionInfo(): SessionInfo {
@@ -69,10 +69,10 @@ describe('ConversationStateMachine', () => {
     await machine.startConversation({ sessionId: sessionInfo.sessionId });
 
     const expected = transitions.map(t => `${t.from}->${t.to}`);
-    assert.ok(expected.includes('idle->preparing'));
-    assert.ok(expected.includes('preparing->listening'));
+    expect(expected).to.include('idle->preparing');
+    expect(expected).to.include('preparing->listening');
     const state = machine.getState();
-    assert.strictEqual(state.state, 'listening');
+    expect(state.state).to.equal('listening');
   });
 
   it('should enter processing after final transcript', async () => {
@@ -120,8 +120,8 @@ describe('ConversationStateMachine', () => {
     };
     await machine.notifyTranscript(finalEvent);
 
-    const state = machine.getState();
-    assert.strictEqual(state.state, 'processing');
+  const state = machine.getState();
+  expect(state.state).to.equal('processing');
   });
 
   it('should reach speaking state after copilot completion and tts playback', async () => {
@@ -166,7 +166,7 @@ describe('ConversationStateMachine', () => {
     };
     await machine.notifyTts(speakingEvent);
 
-    const state = machine.getState();
-    assert.strictEqual(state.state, 'speaking');
+  const state = machine.getState();
+  expect(state.state).to.equal('speaking');
   });
 });

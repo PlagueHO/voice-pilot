@@ -51,7 +51,7 @@ Plans must consist of discrete, atomic phases containing executable tasks. Each 
 
 ## Mandatory Template Structure
 
-All implementation plans must strictly adhere to the following template. Each section is required and must be populated with specific, actionable content. AI agents must validate template compliance before execution.
+ All implementation plans must strictly adhere to the following template. Each section is required and must be populated with specific, actionable content. AI agents must validate template compliance before execution.
 
 ## Template Validation Rules
 

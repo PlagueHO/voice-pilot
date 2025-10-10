@@ -1,8 +1,8 @@
-import * as assert from "assert";
+import { expect } from "chai";
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { lifecycleTelemetry } from "../../telemetry/lifecycle-telemetry";
-import { suite, test } from "../mocha-globals";
+import { afterEach, beforeEach, suite, test } from "../mocha-globals";
 
 const manifest = require("../../../package.json") as {
   name: string;
@@ -21,17 +21,29 @@ const getVoicePilotExtension = (): vscode.Extension<any> | undefined => {
   );
 };
 
-suite("Activation lifecycle telemetry", () => {
-  test("emits configuration → authentication → session → UI order", async function () {
-    this.timeout(15000);
-    lifecycleTelemetry.reset();
-    const extension = getVoicePilotExtension();
-    assert.ok(extension, "VoicePilot extension should be discoverable");
+suite("Integration: Activation lifecycle telemetry", () => {
+  let activatedExtension: vscode.Extension<any> | undefined;
+  let originalGetAzureKey:
+    | CredentialManagerImpl["getAzureOpenAIKey"]
+    | undefined;
+  let originalTestCredentialAccess:
+    | CredentialManagerImpl["testCredentialAccess"]
+    | undefined;
+  let originalShowInformationMessage:
+    | typeof vscode.window.showInformationMessage
+    | undefined;
+  let originalFetch: typeof fetch;
 
-    const originalGetAzureKey =
-      CredentialManagerImpl.prototype.getAzureOpenAIKey;
-    const originalTestCredentialAccess =
+  beforeEach(() => {
+    lifecycleTelemetry.reset();
+    activatedExtension = getVoicePilotExtension();
+    expect(activatedExtension, "VoicePilot extension should be discoverable").to.exist;
+
+    originalGetAzureKey = CredentialManagerImpl.prototype.getAzureOpenAIKey;
+    originalTestCredentialAccess =
       CredentialManagerImpl.prototype.testCredentialAccess;
+    originalShowInformationMessage = vscode.window.showInformationMessage;
+    originalFetch = globalThis.fetch;
 
     CredentialManagerImpl.prototype.getAzureOpenAIKey = async function () {
       return "azure-openai-test-key";
@@ -44,10 +56,7 @@ suite("Activation lifecycle telemetry", () => {
       };
     };
 
-    const originalShowInformationMessage = vscode.window.showInformationMessage;
     (vscode.window as any).showInformationMessage = async () => undefined;
-
-    const originalFetch = globalThis.fetch;
     globalThis.fetch = async () =>
       ({
         ok: true,
@@ -62,26 +71,37 @@ suite("Activation lifecycle telemetry", () => {
           },
         }),
       }) as Response;
+  });
 
-    try {
-      await extension.activate();
-      const events = lifecycleTelemetry
-        .getEvents()
-        .filter((event) => event.endsWith(".initialized"));
-      assert.deepStrictEqual(events, [
-        "config.initialized",
-        "auth.initialized",
-        "session.initialized",
-        "ui.initialized",
-      ]);
-    } finally {
-      globalThis.fetch = originalFetch;
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    if (originalGetAzureKey) {
       CredentialManagerImpl.prototype.getAzureOpenAIKey = originalGetAzureKey;
+    }
+    if (originalTestCredentialAccess) {
       CredentialManagerImpl.prototype.testCredentialAccess =
         originalTestCredentialAccess;
+    }
+    if (originalShowInformationMessage) {
       (vscode.window as any).showInformationMessage =
         originalShowInformationMessage;
-      await extension.exports?.deactivate?.();
     }
+    lifecycleTelemetry.reset();
+    await activatedExtension?.exports?.deactivate?.();
+  });
+
+  test("emits configuration → authentication → session → UI order", async function () {
+    this.timeout(15000);
+
+    await activatedExtension!.activate();
+    const events = lifecycleTelemetry
+      .getEvents()
+      .filter((event) => event.endsWith(".initialized"));
+    expect(events).to.deep.equal([
+      "config.initialized",
+      "auth.initialized",
+      "session.initialized",
+      "ui.initialized",
+    ]);
   });
 });

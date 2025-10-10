@@ -30,18 +30,29 @@ function expectFunction<T extends (...args: any[]) => any>(
   return candidate;
 }
 
-export const describe: SuiteFunction = expectFunction(mochaGlobal.describe, "describe");
+export const describe: SuiteFunction = expectFunction(
+  mochaGlobal.describe,
+  "describe",
+);
 export const it: TestFunction = expectFunction(mochaGlobal.it, "it");
-export const before: HookFunction = expectFunction(mochaGlobal.before, "before");
+export const before: HookFunction = expectFunction(
+  mochaGlobal.before,
+  "before",
+);
 export const after: HookFunction = expectFunction(mochaGlobal.after, "after");
-export const beforeEach: HookFunction = expectFunction(mochaGlobal.beforeEach, "beforeEach");
-export const afterEach: HookFunction = expectFunction(mochaGlobal.afterEach, "afterEach");
+export const beforeEach: HookFunction = expectFunction(
+  mochaGlobal.beforeEach,
+  "beforeEach",
+);
+export const afterEach: HookFunction = expectFunction(
+  mochaGlobal.afterEach,
+  "afterEach",
+);
 
 export const suite: SuiteFunction = mochaGlobal.suite ?? describe;
 export const test: TestFunction = mochaGlobal.test ?? it;
 export const suiteSetup: HookFunction = mochaGlobal.suiteSetup ?? before;
-export const suiteTeardown: HookFunction =
-  mochaGlobal.suiteTeardown ?? after;
+export const suiteTeardown: HookFunction = mochaGlobal.suiteTeardown ?? after;
 export const setup: HookFunction = mochaGlobal.setup ?? beforeEach;
 export const teardown: HookFunction = mochaGlobal.teardown ?? afterEach;
 

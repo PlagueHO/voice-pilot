@@ -1,4 +1,4 @@
-import * as assert from "assert";
+import { expect } from "chai";
 import { promises as fs } from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -6,7 +6,7 @@ import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../../auth/ephemeral-key-service";
 import { activate, deactivate } from "../../extension";
 import { lifecycleTelemetry } from "../../telemetry/lifecycle-telemetry";
-import { describe, suiteSetup, teardown, test } from "../mocha-globals";
+import { afterEach, before, suite, test } from "../mocha-globals";
 import { sanitizeLogMessage } from "../utils/sanitizers";
 const FIXTURE_ROOT = path.resolve(
   __dirname,
@@ -51,7 +51,7 @@ const createTestContext = (namespace: string): vscode.ExtensionContext => {
   } as unknown as vscode.ExtensionContext;
 };
 
-describe("Activation failure regressions", () => {
+suite("Integration: Activation failure regressions", () => {
   let originalEphemeralInitialize:
     | EphemeralKeyServiceImpl["initialize"]
     | undefined;
@@ -74,7 +74,7 @@ describe("Activation failure regressions", () => {
     | typeof vscode.window.showErrorMessage
     | undefined;
 
-  suiteSetup(() => {
+  before(() => {
     originalEphemeralInitialize =
       EphemeralKeyServiceImpl.prototype.initialize;
     originalGetAzureKey =
@@ -85,7 +85,7 @@ describe("Activation failure regressions", () => {
     originalShowErrorMessage = vscode.window.showErrorMessage;
   });
 
-  teardown(async () => {
+  afterEach(async () => {
     if (originalEphemeralInitialize) {
       EphemeralKeyServiceImpl.prototype.initialize =
         originalEphemeralInitialize;
@@ -145,33 +145,27 @@ describe("Activation failure regressions", () => {
 
     const context = createTestContext("activation-failure-outage");
 
-    let activationError: unknown;
-    try {
-      await activate(context);
-      assert.fail("Activation should have thrown an error");
-    } catch (error) {
-      activationError = error;
-    }
+    const activationError = await activate(context).catch((error) => error);
 
-    assert.ok(
-      activationError instanceof Error,
-      "Activation failure should surface as Error",
-    );
+    expect(
+      activationError,
+      "Activation should fail when authentication upstream is unavailable",
+    ).to.be.instanceOf(Error);
     const sanitizedMessage = sanitizeLogMessage(
       (activationError as Error).message,
     );
-    assert.match(sanitizedMessage, /Authentication initialization failed/i);
+    expect(sanitizedMessage).to.match(/Authentication initialization failed/i);
 
     const events = lifecycleTelemetry.getEvents();
-    assert.ok(events.includes("activation.failed"));
-    assert.ok(
-      !events.includes("session.initialized"),
+    expect(events).to.include("activation.failed");
+    expect(
+      events,
       "Session phase should not initialize during outage",
-    );
-    assert.ok(
-      !events.includes("ui.initialized"),
+    ).to.not.include("session.initialized");
+    expect(
+      events,
       "UI phase should not initialize during outage",
-    );
+    ).to.not.include("ui.initialized");
   });
 
   test("reports friendly failure when Azure credentials are missing", async function () {
@@ -208,31 +202,27 @@ describe("Activation failure regressions", () => {
 
     const context = createTestContext("activation-failure-missing-creds");
 
-    let activationError: unknown;
-    try {
-      await activate(context);
-      assert.fail("Activation should throw when credentials are missing");
-    } catch (error) {
-      activationError = error;
-    }
+    const activationError = await activate(context).catch((error) => error);
 
-    assert.ok(activationError instanceof Error, "Activation should throw Error");
+    expect(
+      activationError,
+      "Activation should fail when credentials are missing",
+    ).to.be.instanceOf(Error);
     const sanitizedMessage = sanitizeLogMessage(
       (activationError as Error).message,
     );
-    assert.match(sanitizedMessage, /Authentication initialization failed/i);
+    expect(sanitizedMessage).to.match(/Authentication initialization failed/i);
 
     const events = lifecycleTelemetry.getEvents();
-    assert.ok(events.includes("activation.failed"));
-    assert.ok(!events.includes("auth.initialized"));
+    expect(events).to.include("activation.failed");
+    expect(events).to.not.include("auth.initialized");
 
     // Ensure logs communicate missing credential scenario via telemetry description
     const failureEvents = events.filter((event) => event === "activation.failed");
-    assert.ok(failureEvents.length >= 1);
+    expect(failureEvents.length).to.be.at.least(1);
 
     // Validate the test fixture's guidance snippet is reflected in error message expectations
-    assert.match(
-      sanitizedMessage,
+    expect(sanitizedMessage).to.match(
       new RegExp(escapeRegExp(hintFixture.expectedErrorSnippet), "i"),
     );
   });

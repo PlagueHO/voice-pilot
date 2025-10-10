@@ -1,4 +1,4 @@
-import * as assert from "assert";
+import { expect } from "chai";
 import { WebRTCAudioService } from "../../audio/webrtc-audio-service";
 import { WebRTCConfigFactory } from "../../audio/webrtc-config-factory";
 import { Logger } from "../../core/logger";
@@ -224,30 +224,41 @@ class IntegrationStubTransport implements WebRTCTransport {
   }
 }
 
-describe("WebRTC audio service recovery integration", () => {
+import { afterEach, beforeEach, suite, test } from "../mocha-globals";
+
+suite("Integration: WebRTC audio service recovery", () => {
   const logger = createTestLogger();
   const configFactory = new WebRTCConfigFactory(logger);
   const config = configFactory.createTestConfig();
 
-  it("retries ICE restart until success and reports telemetry", async () => {
-    const service = new WebRTCAudioService(undefined, undefined, undefined, logger);
-    const transport = new IntegrationStubTransport([false, false, true]);
+  let service: WebRTCAudioService;
+  let transport: IntegrationStubTransport;
+  let telemetry: any[];
+
+  beforeEach(() => {
+    service = new WebRTCAudioService(undefined, undefined, undefined, logger);
+    transport = new IntegrationStubTransport([false, false, true]);
     (service as any).transport = transport;
     (service as any).setupEventHandlers();
-
-    const telemetry: any[] = [];
+    telemetry = [];
     service.addTelemetryObserver((event) => telemetry.push(event));
+  });
 
+  afterEach(() => {
+    telemetry.length = 0;
+    service.dispose();
+  });
+
+  test("retries ICE restart until success and reports telemetry", async () => {
     transport.simulateNegotiationTimeout(5200);
 
     const diagnosticsEvent = telemetry.find(
       (event) => event.type === "connectionDiagnostics",
     );
 
-    assert.ok(diagnosticsEvent, "Diagnostics telemetry should be emitted");
-    assert.strictEqual(diagnosticsEvent.negotiation?.timedOut, true);
-    assert.strictEqual(
-      diagnosticsEvent.negotiation?.errorCode,
+    expect(diagnosticsEvent, "Diagnostics telemetry should be emitted").to.exist;
+    expect(diagnosticsEvent?.negotiation?.timedOut).to.be.true;
+    expect(diagnosticsEvent?.negotiation?.errorCode).to.equal(
       WebRTCErrorCode.SdpNegotiationFailed,
     );
 
@@ -263,9 +274,9 @@ describe("WebRTC audio service recovery integration", () => {
 
     await errorHandler.handleError(error, transport, config);
 
-    assert.strictEqual(transport.restartIceCalls, 3);
+    expect(transport.restartIceCalls).to.equal(3);
     const eventTypes = telemetry.map((event) => event.type);
-    assert.deepStrictEqual(eventTypes.slice(0, 7), [
+    expect(eventTypes.slice(0, 7)).to.deep.equal([
       "connectionDiagnostics",
       "reconnectAttempt",
       "reconnectFailed",
@@ -278,17 +289,15 @@ describe("WebRTC audio service recovery integration", () => {
     transport.simulateFallback(true, 2, "Data channel closed");
     await new Promise((resolve) => setImmediate(resolve));
     const lastEvent = telemetry[telemetry.length - 1];
-    assert.strictEqual(lastEvent.type, "fallbackStateChanged");
-    assert.strictEqual(lastEvent.fallbackActive, true);
-    assert.strictEqual(lastEvent.queuedMessages, 2);
-    assert.strictEqual(service.getSessionStatus().fallbackActive, true);
+    expect(lastEvent.type).to.equal("fallbackStateChanged");
+    expect(lastEvent.fallbackActive).to.be.true;
+    expect(lastEvent.queuedMessages).to.equal(2);
+    expect(service.getSessionStatus().fallbackActive).to.be.true;
 
     transport.simulateFallback(false, 0, "Data channel restored");
     await new Promise((resolve) => setImmediate(resolve));
     const finalEvent = telemetry[telemetry.length - 1];
-    assert.strictEqual(finalEvent.type, "fallbackStateChanged");
-    assert.strictEqual(finalEvent.fallbackActive, false);
-
-    service.dispose();
+    expect(finalEvent.type).to.equal("fallbackStateChanged");
+    expect(finalEvent.fallbackActive).to.be.false;
   });
 });
