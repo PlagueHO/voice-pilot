@@ -6,6 +6,11 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 
 **Implementation Approach**: VoicePilot functions as an AI manager agent that orchestrates the VS Code GitHub Copilot Agent, acting as an intelligent translator between voice interactions and Copilot's planning and specification capabilities. This design enables 100% hands/eyes free communication by converting spoken planning discussions into appropriate Copilot prompts and translating responses back into natural speech. By leveraging Copilot's existing system context awareness and MCP server integrations, VoicePilot can help with specification writing and planning that considers existing codebases, design documents, and external system knowledge without reimplementing these complex integrations.
 
+## System Requirements
+
+- **Node.js**: `>=20.19.0` (project provides an `.nvmrc` pinned to `22.12.0`; run `nvm use` to align your shell).
+- **npm**: Bundled with the Node.js runtime noted above (Corepack-enabled).
+
 ## Why GitHub Copilot Integration?
 
 **Leveraging Existing Context**: When planning features for existing systems, context matters tremendously. GitHub Copilot already has sophisticated understanding of:

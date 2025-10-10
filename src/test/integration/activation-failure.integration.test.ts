@@ -1,12 +1,12 @@
 import * as assert from "assert";
 import { promises as fs } from "fs";
-import { describe, suiteSetup, teardown, test } from "mocha";
 import * as path from "path";
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../../auth/ephemeral-key-service";
 import { activate, deactivate } from "../../extension";
 import { lifecycleTelemetry } from "../../telemetry/lifecycle-telemetry";
+import { describe, suiteSetup, teardown, test } from "../mocha-globals";
 import { sanitizeLogMessage } from "../utils/sanitizers";
 const FIXTURE_ROOT = path.resolve(
   __dirname,

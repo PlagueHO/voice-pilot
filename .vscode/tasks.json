@@ -157,11 +157,29 @@
       "problemMatcher": []
     },
     {
+      "label": "Install Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "icon": {
+        "id": "package"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Package Extension",
       "type": "npm",
       "script": "package",
       "icon": {
         "id": "package"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Quality Gate (npm)",
+      "type": "shell",
+      "command": "npm run quality:gate",
+      "icon": {
+        "id": "shield"
       },
       "problemMatcher": []
     },

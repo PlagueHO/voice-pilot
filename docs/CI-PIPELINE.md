@@ -18,7 +18,7 @@ post_date: 2025-10-09
 <!-- markdownlint-disable-next-line MD041 -->
 ## Overview
 
-The VoicePilot repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. The pipeline currently fans out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.x. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
+The VoicePilot repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. The pipeline currently fans out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.12.0. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
 
 ## Workflow Triggers and Permissions
 
@@ -29,7 +29,7 @@ The VoicePilot repository ships a single GitHub Actions workflow, `continuous-in
 
 Each job runs twice—once per VS Code channel—using the following environment contract:
 
-- `matrix.node-version`: `22.x`
+- `matrix.node-version`: `22.12.0`
 - `matrix.vs_code_channel`: `stable`, `insiders`
 - `VS_CODE_CHANNEL`: propagated to tasks and scanners for channel-aware behavior
 - `NODE_OPTIONS`: defaulted to `--max-old-space-size=4096`, but temporarily cleared while the quality gate executes to avoid xvfb memory contention
@@ -43,7 +43,7 @@ Each job runs twice—once per VS Code channel—using the following environment
 **Key steps**:
 
 1. Check out the repository (`actions/checkout@v4`).
-2. Provision Node.js (`actions/setup-node@v4`) with npm caching enabled.
+2. Provision Node.js 22.12.0 (`actions/setup-node@v4`) with npm caching enabled.
 3. Install dependencies using `npm ci` to keep lockfile parity.
 4. Execute the Quality Gate under a virtual display using `xvfb-run --auto-servernum`. The script orchestrates the `Quality Gate Sequence` VS Code task, chaining linting, unit tests, integration tests, coverage, and performance suites.
 5. Collect artifacts (`telemetry/gate-report.json`, coverage reports) into an `artefacts/` folder.

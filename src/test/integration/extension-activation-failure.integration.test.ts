@@ -1,10 +1,10 @@
 import * as assert from "assert";
-import { afterEach, beforeEach, suite, test } from "mocha";
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { ConfigurationManager } from "../../config/configuration-manager";
 import { Logger } from "../../core/logger";
 import { activate, deactivate } from "../../extension";
+import { afterEach, beforeEach, suite, test } from "../mocha-globals";
 import { sanitizeLogEntry } from "../utils/sanitizers";
 
 suite("Integration: Activation Failure Handling", () => {

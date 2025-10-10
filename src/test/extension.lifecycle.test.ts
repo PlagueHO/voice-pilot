@@ -1,5 +1,4 @@
 import * as assert from "assert";
-import { suiteSetup, suiteTeardown } from "mocha";
 import * as vscode from "vscode";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
@@ -11,7 +10,7 @@ describe("Extension Lifecycle", () => {
   const disposables: vscode.Disposable[] = [];
   let context: vscode.ExtensionContext;
 
-  suiteSetup(async () => {
+  before(async () => {
     // Create mock extension context
     context = {
       subscriptions: disposables,
@@ -40,7 +39,7 @@ describe("Extension Lifecycle", () => {
     } as vscode.ExtensionContext;
   });
 
-  suiteTeardown(() => {
+  after(() => {
     // Clean up any disposables
     disposables.forEach((d) => d.dispose());
   });

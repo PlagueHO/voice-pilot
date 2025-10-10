@@ -9,7 +9,8 @@
     "url": "https://github.com/PlagueHO/voice-pilot.git"
   },
   "engines": {
-    "vscode": "^1.104.0"
+    "vscode": "^1.104.0",
+    "node": ">=20.19.0"
   },
   "main": "./out/extension.js",
   "files": [
@@ -440,7 +441,6 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
     "@microsoft/eslint-formatter-sarif": "^3.1.0",
     "@types/glob": "^9.0.0",
-    "@types/mocha": "^10.0.6",
     "@types/node": "22.x",
     "@types/vscode": "^1.104.0",
     "@types/ws": "^8.5.13",
@@ -452,7 +452,7 @@
     "copy-webpack-plugin": "^13.0.1",
     "eslint": "^9.37.0",
     "glob": "^11.0.3",
-    "mocha": "^10.7.3",
+    "mocha": "^11.7.4",
     "nyc": "^17.1.0",
     "ts-loader": "^9.5.0",
     "ts-node": "^10.9.2",

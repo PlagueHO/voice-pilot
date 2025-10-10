@@ -6,7 +6,7 @@ This guide provides a quick start for developing Visual Studio Code extensions. 
 
 ## Prerequisites
 
-- **Node.js**: Ensure you have Node.js installed. You can download it from [nodejs.org](https://nodejs.org/).
+- **Node.js**: Install Node.js `>=20.19.0` (the repository ships an `.nvmrc` targeting `22.12.0`; run `nvm use` after cloning). Download Node.js from [nodejs.org](https://nodejs.org/).
 - **Visual Studio Code**: Download and install Visual Studio Code from [code.visualstudio.com](https://code.visualstudio.com/).
 - **Yeoman and VS Code Extension Generator**: Install Yeoman and the VS Code Extension Generator globally using the following command:
 

@@ -1,5 +1,4 @@
 import * as assert from "assert";
-import { afterEach, beforeEach, describe, it } from "mocha";
 import { Logger } from "../../../core/logger";
 import { RetryExecutorImpl } from "../../../core/retry/retry-executor";
 import type {
@@ -15,6 +14,7 @@ import type {
 } from "../../../types/error/error-taxonomy";
 import type { CircuitBreakerState } from "../../../types/error/voice-pilot-error";
 import type { RetryEnvelope } from "../../../types/retry";
+import { afterEach, beforeEach, describe, it } from "../../mocha-globals";
 
 class FakeClock implements RetryClock {
   nowMs = 0;

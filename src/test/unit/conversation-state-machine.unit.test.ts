@@ -1,10 +1,10 @@
 import * as assert from 'assert';
-import { afterEach, beforeEach, describe, it } from 'mocha';
 import { ConversationStateMachine, CopilotResponseEvent } from '../../conversation/conversation-state-machine';
 import { Logger } from '../../core/logger';
 import { ConnectionInfo, SessionConfig, SessionInfo, SessionState, SessionStatistics } from '../../types/session';
 import { TranscriptDeltaEvent, TranscriptFinalEvent, TranscriptionStatusEvent } from '../../types/speech-to-text';
 import { TtsPlaybackEvent } from '../../types/tts';
+import { afterEach, beforeEach, describe, it } from '../mocha-globals';
 
 function createSessionInfo(): SessionInfo {
   const config: SessionConfig = {

@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated package.json to exclude unnecessary files from extension packaging
 - Configured webpack for production builds to reduce extension size
 - Optimized TypeScript compilation for ES2022 target
+- Upgraded Mocha test runner to 11.7.4, removed redundant `@types/mocha`, and standardized tooling on Node.js 22.12.0 (minimum supported runtime is now 20.19.0)
 
 ### Security
 

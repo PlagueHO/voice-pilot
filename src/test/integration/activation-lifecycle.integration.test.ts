@@ -1,8 +1,8 @@
 import * as assert from "assert";
-import { suite, test } from "mocha";
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../../auth/credential-manager";
 import { lifecycleTelemetry } from "../../telemetry/lifecycle-telemetry";
+import { suite, test } from "../mocha-globals";
 
 const manifest = require("../../../package.json") as {
   name: string;
