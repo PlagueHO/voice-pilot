@@ -1255,7 +1255,7 @@ export class SessionManagerImpl implements SessionManager {
   }
 
   private generateSessionId(): string {
-    return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `session-${Date.now()}-${randomUUID()}`;
   }
 
   private getDefaultConfig(): SessionConfig {
