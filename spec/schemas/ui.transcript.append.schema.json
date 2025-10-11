@@ -1,0 +1,38 @@
+{
+  "$id": "https://voicepilot/spec/ui.transcript.append.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UI Transcript Append Envelope",
+  "description": "Transcript entry append message delivered to the VoicePilot webview.",
+  "allOf": [
+    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ui.transcript.append" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["entry"],
+          "properties": {
+            "entry": {
+              "type": "object",
+              "required": ["entryId", "speaker", "content", "timestamp"],
+              "properties": {
+                "entryId": { "type": "string", "minLength": 1 },
+                "speaker": { "type": "string", "enum": ["user", "voicepilot", "copilot"] },
+                "content": { "type": "string" },
+                "timestamp": { "type": "string", "format": "date-time" },
+                "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+                "partial": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

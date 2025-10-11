@@ -30,14 +30,8 @@ class StatusBarItemTestDouble {
 }
 
 suite("Unit: StatusBar", () => {
-  const originalStatusBarAlignmentDescriptor = Object.getOwnPropertyDescriptor(
-    vscode as unknown as Record<string, unknown>,
-    "StatusBarAlignment",
-  );
-  const originalThemeColorDescriptor = Object.getOwnPropertyDescriptor(
-    vscode as unknown as Record<string, unknown>,
-    "ThemeColor",
-  );
+  let statusBarAlignmentPatched = false;
+  let themeColorPatched = false;
 
   class ThemeColorStub {
     readonly id: string;
@@ -48,36 +42,29 @@ suite("Unit: StatusBar", () => {
   }
 
   before(() => {
-    const statusBarAlignment =
-      originalStatusBarAlignmentDescriptor?.get?.call(vscode) ?? originalStatusBarAlignmentDescriptor?.value;
-    if (!statusBarAlignment) {
-      Object.defineProperty(vscode, "StatusBarAlignment", {
-        configurable: true,
-        value: { Left: 1, Right: 2 },
-      });
+    if (!(vscode as unknown as Record<string, unknown>).StatusBarAlignment) {
+      (vscode as unknown as Record<string, unknown>).StatusBarAlignment = {
+        Left: 1,
+        Right: 2,
+      } satisfies Record<string, number>;
+      statusBarAlignmentPatched = true;
     }
 
-    const themeColor =
-      originalThemeColorDescriptor?.get?.call(vscode) ?? originalThemeColorDescriptor?.value;
-    if (!themeColor) {
-      Object.defineProperty(vscode, "ThemeColor", {
-        configurable: true,
-        value: ThemeColorStub,
-      });
+    if (!(vscode as unknown as Record<string, unknown>).ThemeColor) {
+      (vscode as unknown as Record<string, unknown>).ThemeColor = ThemeColorStub;
+      themeColorPatched = true;
     }
   });
 
   after(() => {
-    if (originalStatusBarAlignmentDescriptor) {
-      Object.defineProperty(vscode, "StatusBarAlignment", originalStatusBarAlignmentDescriptor);
-    } else {
+    if (statusBarAlignmentPatched) {
       delete (vscode as unknown as Record<string, unknown>).StatusBarAlignment;
+      statusBarAlignmentPatched = false;
     }
 
-    if (originalThemeColorDescriptor) {
-      Object.defineProperty(vscode, "ThemeColor", originalThemeColorDescriptor);
-    } else {
+    if (themeColorPatched) {
       delete (vscode as unknown as Record<string, unknown>).ThemeColor;
+      themeColorPatched = false;
     }
   });
   const originalCreateStatusBarItem = vscode.window.createStatusBarItem;

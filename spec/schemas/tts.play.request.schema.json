@@ -1,0 +1,47 @@
+{
+  "$id": "https://voicepilot/spec/tts.play.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TTS Play Request Envelope",
+  "description": "Text-to-speech synthesis request dispatched from the host to the audio feedback subsystem.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "tts.play.request" },
+        "version": { "pattern": "^1\\.(0|1)\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["requestId", "text", "voice", "bargeInToken"],
+          "properties": {
+            "requestId": { "type": "string", "minLength": 1 },
+            "text": { "type": "string", "minLength": 1 },
+            "voice": { "type": "string", "minLength": 1 },
+            "style": { "type": ["string", "null"] },
+            "locale": { "type": ["string", "null"] },
+            "bargeInToken": { "type": "string", "minLength": 1 },
+            "priority": { "type": "string", "enum": ["low", "normal", "high"] },
+            "prosody": {
+              "type": "object",
+              "properties": {
+                "rate": { "type": ["string", "null"], "pattern": "^-?\\d+%$" },
+                "pitch": { "type": ["string", "null"], "pattern": "^-?\\d+%$" },
+                "volume": { "type": ["string", "null"], "pattern": "^-?\\d+%$" }
+              },
+              "additionalProperties": false
+            },
+            "metadata": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["string", "number", "boolean", "null"]
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "$id": "https://voicepilot/spec/tts.play.chunk.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TTS Play Chunk Envelope",
+  "description": "Text-to-speech audio chunk delivered from the TTS service to the host.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "tts.play.chunk" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "tts-service" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "payload": {
+          "type": "object",
+          "required": ["requestId", "sequence", "data", "codec", "sampleRate"],
+          "properties": {
+            "requestId": { "type": "string", "minLength": 1 },
+            "sequence": { "type": "integer", "minimum": 0 },
+            "data": { "type": "string", "contentEncoding": "base64" },
+            "codec": { "type": "string", "enum": ["pcm16", "pcm24", "pcm32", "opus"] },
+            "sampleRate": { "type": "number", "enum": [16000, 24000, 48000] },
+            "channels": { "type": "integer", "minimum": 1, "maximum": 2 },
+            "durationMs": { "type": "number", "minimum": 0 },
+            "final": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "sequence", "payload"]
+    }
+  ]
+}

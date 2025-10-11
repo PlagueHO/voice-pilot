@@ -1,0 +1,38 @@
+{
+  "$id": "https://voicepilot/spec/ui.command.invoke.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UI Command Invoke Envelope",
+  "description": "Command invocation request emitted by the VoicePilot webview to the host.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ui.command.invoke" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "webview" },
+        "payload": {
+          "type": "object",
+          "required": ["command"],
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["start", "stop", "configure"]
+            },
+            "arguments": {
+              "type": "array",
+              "items": { "type": "string" },
+              "maxItems": 4
+            },
+            "metadata": {
+              "type": "object",
+              "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

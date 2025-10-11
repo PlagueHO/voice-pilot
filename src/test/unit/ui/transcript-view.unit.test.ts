@@ -55,23 +55,19 @@ function createPanelStub(): CreatePanelStubResult {
 
 suite('Unit: TranscriptView', () => {
   const originalCreateWebviewPanel = vscode.window.createWebviewPanel;
-  const originalViewColumnDescriptor = Object.getOwnPropertyDescriptor(vscode, 'ViewColumn');
   let createPanelCalls = 0;
   let lastPanelStub: PanelStub | undefined;
+  let viewColumnPatched = false;
 
   beforeEach(() => {
-    const currentViewColumn =
-      originalViewColumnDescriptor?.get?.call(vscode) ?? originalViewColumnDescriptor?.value ?? (vscode as any).ViewColumn;
-    if (!currentViewColumn) {
+  if (!((vscode as unknown as Record<string, unknown>).ViewColumn)) {
       Object.defineProperty(vscode, 'ViewColumn', {
         configurable: true,
+        enumerable: true,
+        writable: true,
         value: { Beside: 2 },
       });
-    } else if (typeof currentViewColumn === 'object' && currentViewColumn && !(currentViewColumn as any).Beside) {
-      Object.defineProperty(vscode, 'ViewColumn', {
-        configurable: true,
-        value: { ...(currentViewColumn as Record<string, unknown>), Beside: 2 },
-      });
+      viewColumnPatched = true;
     }
     createPanelCalls = 0;
     lastPanelStub = undefined;
@@ -90,10 +86,9 @@ suite('Unit: TranscriptView', () => {
 
   afterEach(() => {
     (vscode.window as any).createWebviewPanel = originalCreateWebviewPanel;
-    if (originalViewColumnDescriptor) {
-      Object.defineProperty(vscode, 'ViewColumn', originalViewColumnDescriptor);
-    } else {
-      delete (vscode as any).ViewColumn;
+    if (viewColumnPatched) {
+  delete (vscode as unknown as Record<string, unknown>).ViewColumn;
+      viewColumnPatched = false;
     }
     createPanelCalls = 0;
     lastPanelStub = undefined;
@@ -121,11 +116,13 @@ suite('Unit: TranscriptView', () => {
     view.updateTranscript('Hello world');
     view.updateTranscript('Another line');
 
-  const html = panel!.webview.html;
-  const firstMatches = html.match(/<div class="message">Hello world<\/div>/g) ?? [];
-  const secondMatches = html.match(/<div class="message">Another line<\/div>/g) ?? [];
-  expect(firstMatches).to.have.length(1);
-  expect(secondMatches).to.have.length(1);
+    const html = panel!.webview.html;
+    const firstMatches =
+      html.match(/<div class="message">Hello world<\/div>/g) ?? [];
+    const secondMatches =
+      html.match(/<div class="message">Another line<\/div>/g) ?? [];
+    expect(firstMatches).to.have.length(1);
+    expect(secondMatches).to.have.length(1);
   });
 
   test('disposal clears panel reference and subsequent updates do not mutate html', () => {

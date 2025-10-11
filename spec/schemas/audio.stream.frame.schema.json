@@ -1,0 +1,34 @@
+{
+  "$id": "https://voicepilot/spec/audio.stream.frame.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Audio Stream Frame Envelope",
+  "description": "PCM frame payload streamed across the realtime audio channel.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "audio.stream.frame" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "audio-service" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "payload": {
+          "type": "object",
+          "required": ["frameId", "codec", "sampleRate", "channels", "data"],
+          "properties": {
+            "frameId": { "type": "string", "minLength": 1 },
+            "codec": { "type": "string", "enum": ["pcm16", "pcm24", "pcm32", "opus"] },
+            "sampleRate": { "type": "number", "enum": [16000, 24000, 48000] },
+            "channels": { "type": "integer", "minimum": 1, "maximum": 2 },
+            "data": { "type": "string", "contentEncoding": "base64" },
+            "durationMs": { "type": "number", "minimum": 0 },
+            "final": { "type": "boolean" },
+            "checksum": { "type": ["string", "null"], "pattern": "^[A-Fa-f0-9]{8,}$" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "sequence", "payload"]
+    }
+  ]
+}

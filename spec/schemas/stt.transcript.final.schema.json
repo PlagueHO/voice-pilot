@@ -1,0 +1,43 @@
+{
+  "$id": "https://voicepilot/spec/stt.transcript.final.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "STT Transcript Final Envelope",
+  "description": "Finalized transcript segment emitted by the transcription service.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "stt.transcript.final" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "stt-service" },
+        "payload": {
+          "type": "object",
+          "required": ["sessionId", "utteranceId", "content", "timestamp"],
+          "properties": {
+            "sessionId": { "type": "string", "minLength": 1 },
+            "utteranceId": { "type": "string", "minLength": 1 },
+            "content": { "type": "string" },
+            "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "metadata": {
+              "type": "object",
+              "properties": {
+                "startOffsetMs": { "type": "number", "minimum": 0 },
+                "endOffsetMs": { "type": "number", "minimum": 0 },
+                "locale": { "type": "string" },
+                "serverVad": { "type": ["boolean", "null"] },
+                "clientVad": { "type": ["boolean", "null"] },
+                "redactionsApplied": { "type": "boolean" },
+                "chunkCount": { "type": "number", "minimum": 0 }
+              },
+              "additionalProperties": false
+            },
+            "timestamp": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

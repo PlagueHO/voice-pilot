@@ -1,0 +1,36 @@
+{
+  "$id": "https://voicepilot/spec/ui.error.notice.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UI Error Notice Envelope",
+  "description": "Recoverable error notification delivered to the VoicePilot webview UI.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ui.error.notice" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["code", "summary", "severity"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "summary": { "type": "string", "minLength": 1 },
+            "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+            "remediation": { "type": ["string", "null"] },
+            "correlationId": { "type": ["string", "null"], "format": "uuid" },
+            "details": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["string", "number", "boolean", "null"]
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

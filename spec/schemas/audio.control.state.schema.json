@@ -1,0 +1,54 @@
+{
+  "$id": "https://voicepilot/spec/audio.control.state.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Audio Control State Envelope",
+  "description": "Control message communicating audio transport state across the realtime pipeline.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "audio.control.state" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": {
+          "type": "string",
+          "enum": ["host", "audio-service"]
+        },
+        "payload": {
+          "type": "object",
+          "required": ["sessionId", "state", "timestamp"],
+          "properties": {
+            "sessionId": { "type": "string", "minLength": 1 },
+            "state": {
+              "type": "string",
+              "enum": [
+                "negotiating",
+                "connected",
+                "disconnected",
+                "recovering",
+                "muted"
+              ]
+            },
+            "transport": {
+              "type": "object",
+              "properties": {
+                "channel": { "type": "string", "enum": ["voicepilot-control", "voicepilot-audio"] },
+                "fallback": { "type": "boolean" },
+                "latencyMs": { "type": "number", "minimum": 0 },
+                "rttMs": { "type": "number", "minimum": 0 },
+                "jitterMs": { "type": "number", "minimum": 0 }
+              },
+              "additionalProperties": false
+            },
+            "codec": { "type": "string", "enum": ["pcm16", "pcm24", "pcm32", "opus"] },
+            "sampleRate": { "type": "number", "enum": [16000, 24000, 48000] },
+            "channels": { "type": "integer", "minimum": 1, "maximum": 2 },
+            "timestamp": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

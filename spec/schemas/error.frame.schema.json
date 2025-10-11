@@ -1,0 +1,40 @@
+{
+  "$id": "https://voicepilot/spec/error.frame.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Error Frame Envelope",
+  "description": "Error payload propagated through the VoicePilot error event bus.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "error.frame" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": {
+          "type": "string",
+          "enum": ["host", "webview", "audio-service", "stt-service", "tts-service", "error-service"]
+        },
+        "payload": {
+          "type": "object",
+          "required": ["code", "severity", "category", "message", "retryable"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "severity": { "type": "string", "enum": ["info", "warning", "error", "critical"] },
+            "category": { "type": "string", "minLength": 1 },
+            "message": { "type": "string", "minLength": 1 },
+            "retryable": { "type": "boolean" },
+            "remediation": { "type": ["string", "null"] },
+            "context": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["string", "number", "boolean", "null"]
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

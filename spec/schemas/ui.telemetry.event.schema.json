@@ -1,0 +1,34 @@
+{
+  "$id": "https://voicepilot/spec/ui.telemetry.event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UI Telemetry Event Envelope",
+  "description": "Telemetry snapshot emitted from host to the VoicePilot webview for diagnostics.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ui.telemetry.event" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["event", "timestamp"],
+          "properties": {
+            "event": { "type": "string", "minLength": 1 },
+            "durationMs": { "type": "number", "minimum": 0 },
+            "attributes": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["string", "number", "boolean", "null"]
+              }
+            },
+            "timestamp": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

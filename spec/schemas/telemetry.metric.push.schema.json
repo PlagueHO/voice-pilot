@@ -1,0 +1,38 @@
+{
+  "$id": "https://voicepilot/spec/telemetry.metric.push.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telemetry Metric Push Envelope",
+  "description": "Metric snapshot published to the host telemetry pipeline.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "telemetry.metric.push" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": {
+          "type": "string",
+          "enum": ["host", "webview", "audio-service", "stt-service", "tts-service", "telemetry"]
+        },
+        "payload": {
+          "type": "object",
+          "required": ["metric", "timestamp"],
+          "properties": {
+            "metric": { "type": "string", "minLength": 1 },
+            "value": { "type": "number" },
+            "unit": { "type": ["string", "null"] },
+            "tags": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["string", "number", "boolean", "null"]
+              }
+            },
+            "timestamp": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

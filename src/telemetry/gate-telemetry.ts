@@ -1,3 +1,4 @@
+import { posix as pathPosix } from "path";
 import { TextDecoder, TextEncoder } from "util";
 import * as vscode from "vscode";
 
@@ -36,6 +37,17 @@ export interface GateTelemetryEmitterOptions {
    * Defaults to 50 to keep the artefact concise for CI uploads.
    */
   maxEntries?: number;
+  /**
+   * File system implementation used for persistence. Primarily injected by tests to avoid mutating the real workspace.
+   */
+  fileSystem?: Pick<
+    (typeof vscode.workspace)["fs"],
+    "createDirectory" | "writeFile" | "readFile"
+  >;
+  /**
+   * Custom joinPath helper. Defaults to VS Code's implementation or a POSIX-based fallback when unavailable.
+   */
+  joinPath?: (base: vscode.Uri, ...segments: string[]) => vscode.Uri;
 }
 
 const DEFAULT_MAX_ENTRIES = 50;
@@ -53,16 +65,20 @@ export class GateTelemetryEmitter {
   private readonly directoryUri: vscode.Uri;
   private readonly maxEntries: number;
   private readonly logger?: GateTelemetryLogger;
+  private readonly fileSystem: Pick<
+    (typeof vscode.workspace)["fs"],
+    "createDirectory" | "writeFile" | "readFile"
+  >;
+  private readonly joinPath: (base: vscode.Uri, ...segments: string[]) => vscode.Uri;
 
   constructor(options: GateTelemetryEmitterOptions = {}) {
     this.logger = options.logger;
+    this.fileSystem = options.fileSystem ?? vscode.workspace.fs;
+    this.joinPath = options.joinPath ?? GateTelemetryEmitter.resolveJoinPath();
     const baseUri =
       options.baseUri ?? GateTelemetryEmitter.resolveDefaultBaseUri();
-    this.directoryUri = vscode.Uri.joinPath(baseUri, TELEMETRY_DIRECTORY_NAME);
-    this.reportUri = vscode.Uri.joinPath(
-      this.directoryUri,
-      TELEMETRY_FILE_NAME,
-    );
+    this.directoryUri = this.joinPath(baseUri, TELEMETRY_DIRECTORY_NAME);
+    this.reportUri = this.joinPath(this.directoryUri, TELEMETRY_FILE_NAME);
     this.maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
   }
 
@@ -77,7 +93,7 @@ export class GateTelemetryEmitter {
       const existing = await this.readExisting();
       existing.push(sanitized);
       const trimmed = existing.slice(-this.maxEntries);
-      await vscode.workspace.fs.writeFile(
+      await this.fileSystem.writeFile(
         this.reportUri,
         this.encoder.encode(JSON.stringify(trimmed, null, 2)),
       );
@@ -93,7 +109,7 @@ export class GateTelemetryEmitter {
    */
   async read(): Promise<GateTaskTelemetryRecord[]> {
     try {
-      const buffer = await vscode.workspace.fs.readFile(this.reportUri);
+      const buffer = await this.fileSystem.readFile(this.reportUri);
       const content = this.decoder.decode(buffer);
       const parsed = JSON.parse(content);
       if (!Array.isArray(parsed)) {
@@ -106,12 +122,12 @@ export class GateTelemetryEmitter {
   }
 
   private async ensureDirectory(): Promise<void> {
-    await vscode.workspace.fs.createDirectory(this.directoryUri);
+    await this.fileSystem.createDirectory(this.directoryUri);
   }
 
   private async readExisting(): Promise<GateTaskTelemetryRecord[]> {
     try {
-      const buffer = await vscode.workspace.fs.readFile(this.reportUri);
+      const buffer = await this.fileSystem.readFile(this.reportUri);
       const content = this.decoder.decode(buffer);
       const parsed = JSON.parse(content);
       if (!Array.isArray(parsed)) {
@@ -170,5 +186,26 @@ export class GateTelemetryEmitter {
       sanitized.lines = normalize(coverage.lines);
     }
     return sanitized;
+  }
+
+  private static resolveJoinPath(): (
+    base: vscode.Uri,
+    ...segments: string[]
+  ) => vscode.Uri {
+    const uriWithJoin = vscode.Uri as typeof vscode.Uri & {
+      joinPath?: (base: vscode.Uri, ...segments: string[]) => vscode.Uri;
+    };
+    if (typeof uriWithJoin.joinPath === "function") {
+      return (base: vscode.Uri, ...segments: string[]) =>
+        uriWithJoin.joinPath!(base, ...segments);
+    }
+
+    return (base: vscode.Uri, ...segments: string[]) => {
+      const sanitizedSegments = segments.map((segment) =>
+        segment.replace(/^\/+/, ""),
+      );
+      const joined = pathPosix.join(base.path, ...sanitizedSegments);
+      return base.with({ path: joined });
+    };
   }
 }

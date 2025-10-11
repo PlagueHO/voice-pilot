@@ -1,0 +1,53 @@
+{
+  "$id": "https://voicepilot/spec/stt.transcript.delta.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "STT Transcript Delta Envelope",
+  "description": "Realtime speech-to-text delta emitted by the transcription service.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "stt.transcript.delta" },
+        "version": { "pattern": "^1\\.(0|1|2)\\.\\d+$" },
+        "source": { "const": "stt-service" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "payload": {
+          "type": "object",
+          "required": ["sessionId", "utteranceId", "diff", "confidence", "timecodes"],
+          "properties": {
+            "sessionId": { "type": "string", "minLength": 1 },
+            "utteranceId": { "type": "string", "minLength": 1 },
+            "diff": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["op", "text"],
+                "properties": {
+                  "op": { "type": "string", "enum": ["append", "replace", "remove"] },
+                  "text": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "isFinal": { "type": "boolean" },
+            "timecodes": {
+              "type": "object",
+              "required": ["startMs", "endMs"],
+              "properties": {
+                "startMs": { "type": "number", "minimum": 0 },
+                "endMs": { "type": "number", "minimum": 0 }
+              },
+              "additionalProperties": false
+            },
+            "content": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "sequence", "payload"]
+    }
+  ]
+}

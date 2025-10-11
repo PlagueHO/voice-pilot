@@ -1,0 +1,70 @@
+{
+  "$id": "https://voicepilot/spec/envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VoicePilot Message Envelope",
+  "description": "Canonical wrapper for VoicePilot message payloads exchanged across transports.",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "version",
+    "timestamp",
+    "source",
+    "payload"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier assigned to the envelope instance."
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9]+)+$",
+      "description": "Fully-qualified message type identifier (e.g., ui.session.state)."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the message contract."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp indicating when the envelope was produced."
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identifier linking request/response pairs across transports."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "host",
+        "webview",
+        "audio-service",
+        "stt-service",
+        "tts-service",
+        "telemetry",
+        "error-service"
+      ],
+      "description": "Logical origin of the message within the VoicePilot architecture."
+    },
+    "privacyTier": {
+      "type": "string",
+      "enum": ["public", "customer", "sensitive"],
+      "description": "Privacy tier classification applied to the payload."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic sequence number used for chunking or replay protection."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Concrete payload for the declared message type."
+    }
+  },
+  "additionalProperties": false
+}

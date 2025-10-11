@@ -1,0 +1,28 @@
+{
+  "$id": "https://voicepilot/spec/ui.transcript.commit.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UI Transcript Commit Envelope",
+  "description": "Finalizes a transcript entry within the VoicePilot webview.",
+  "allOf": [
+    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ui.transcript.commit" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["entryId", "content"],
+          "properties": {
+            "entryId": { "type": "string", "minLength": 1 },
+            "content": { "type": "string" },
+            "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "$id": "https://voicepilot/spec/audio.feedback.control.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Audio Feedback Control Envelope",
+  "description": "Audio feedback control command delivered to the webview audio player.",
+  "allOf": [
+    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "audio.feedback.control" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "oneOf": [
+            {
+              "required": ["command", "handleId", "cueId", "category", "duckStrategy", "accessibilityProfile", "gain", "fadeOutMs"],
+              "properties": {
+                "command": { "const": "play" },
+                "handleId": { "type": "string", "minLength": 1 },
+                "cueId": {
+                  "type": "string",
+                  "enum": [
+                    "session.start",
+                    "session.end",
+                    "listening.prompt",
+                    "thinking.transition",
+                    "speaking.transition",
+                    "interruption.detected",
+                    "error.critical",
+                    "degraded.enter",
+                    "degraded.exit"
+                  ]
+                },
+                "category": {
+                  "type": "string",
+                  "enum": ["session", "state", "error", "accessibility"]
+                },
+                "duckStrategy": {
+                  "type": "string",
+                  "enum": ["none", "attenuate", "pause", "crossfade"]
+                },
+                "accessibilityProfile": {
+                  "type": "string",
+                  "enum": ["standard", "high-contrast", "silent"]
+                },
+                "gain": { "type": "number", "minimum": 0, "maximum": 3 },
+                "fadeOutMs": { "type": "number", "minimum": 0 },
+                "metadata": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": ["string", "number", "boolean", "null"]
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "required": ["command"],
+              "properties": {
+                "command": { "const": "stop" },
+                "handleId": { "type": ["string", "null"] },
+                "reason": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            },
+            {
+              "required": ["command", "accessibilityProfile", "duckStrategy", "categoryGains"],
+              "properties": {
+                "command": { "const": "configure" },
+                "accessibilityProfile": {
+                  "type": "string",
+                  "enum": ["standard", "high-contrast", "silent"]
+                },
+                "duckStrategy": {
+                  "type": "string",
+                  "enum": ["none", "attenuate", "pause", "crossfade"]
+                },
+                "categoryGains": {
+                  "type": "object",
+                  "required": ["session", "state", "error", "accessibility"],
+                  "properties": {
+                    "session": { "type": "number" },
+                    "state": { "type": "number" },
+                    "error": { "type": "number" },
+                    "accessibility": { "type": "number" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

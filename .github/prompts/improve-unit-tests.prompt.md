@@ -4,6 +4,7 @@ description: 'Improve Unit Tests to improve coverage and reliability.'
 tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'Microsoft Docs/*', 'Azure MCP/search', 'context7/*', 'extensions', 'todos', 'runTests', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
 ---
 # Improve Unit Tests
+
 You must improve the unit tests for `${fileBasename}` to align with testing best practices. Operate on the selected file, pulling in nearby modules or tests only as supporting context. You must use testing guidelines from [AGENTS.md](../../AGENTS.md).
 
 ## Instructions

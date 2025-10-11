@@ -10,7 +10,9 @@
         "outDir": "./out",
         "rootDir": "./src",
         "sourceMap": true,
-        "declaration": false
+        "declaration": false,
+        "moduleResolution": "node",
+        "resolveJsonModule": true
     },
     "include": ["src/**/*.ts"],
     "exclude": ["node_modules", "**/*.spec.ts", "out"]

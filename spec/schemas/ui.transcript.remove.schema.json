@@ -1,0 +1,26 @@
+{
+  "$id": "https://voicepilot/spec/ui.transcript.remove.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UI Transcript Remove Envelope",
+  "description": "Removes a transcript entry from the VoicePilot webview.",
+  "allOf": [
+    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ui.transcript.remove" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["entryId"],
+          "properties": {
+            "entryId": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}

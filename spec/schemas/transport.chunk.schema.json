@@ -1,0 +1,29 @@
+{
+  "$id": "https://voicepilot/spec/transport.chunk.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Transport Chunk Envelope",
+  "description": "Chunked payload used when serialized envelopes exceed channel size limits.",
+  "allOf": [
+  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "transport.chunk" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "payload": {
+          "type": "object",
+          "required": ["originalType", "chunkIndex", "chunkCount", "data"],
+          "properties": {
+            "originalType": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9]+)+$" },
+            "chunkIndex": { "type": "integer", "minimum": 0 },
+            "chunkCount": { "type": "integer", "minimum": 1 },
+            "data": { "type": "string", "contentEncoding": "base64" },
+            "compression": { "type": ["string", "null"], "enum": ["gzip", "none", null] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "payload"]
+    }
+  ]
+}

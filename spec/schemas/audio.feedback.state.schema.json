@@ -1,0 +1,27 @@
+{
+  "$id": "https://voicepilot/spec/audio.feedback.state.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Audio Feedback State Envelope",
+  "description": "Audio feedback degraded state notification delivered to the webview.",
+  "allOf": [
+    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "audio.feedback.state" },
+        "version": { "pattern": "^1\\.0\\.\\d+$" },
+        "source": { "const": "host" },
+        "payload": {
+          "type": "object",
+          "required": ["degraded"],
+          "properties": {
+            "degraded": { "type": "boolean" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "version", "source", "payload"]
+    }
+  ]
+}
