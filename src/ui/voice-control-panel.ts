@@ -292,6 +292,9 @@ export class VoiceControlPanel
       nextState.fallbackActive = false;
       if (nextState.statusMode === "Fallback Mode") {
         nextState.statusMode = undefined;
+        nextState.statusDetail = undefined;
+      } else if (nextState.statusDetail?.startsWith("Fallback:")) {
+        nextState.statusDetail = undefined;
       }
     }
 
