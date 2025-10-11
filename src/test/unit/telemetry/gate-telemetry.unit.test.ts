@@ -7,37 +7,55 @@ suite('Unit: GateTelemetryEmitter', () => {
   const workspaceUri = vscode.Uri.parse('file:///tmp/workspace');
   let emitter: GateTelemetryEmitter;
   let writes: Map<string, Uint8Array>;
+  const originalWorkspaceFsDescriptor = Object.getOwnPropertyDescriptor(vscode.workspace, 'fs');
+  const originalJoinPathDescriptor = Object.getOwnPropertyDescriptor(vscode.Uri, 'joinPath');
 
   beforeEach(() => {
     // Ensure joinPath exists on the mocked Uri
-    (vscode.Uri as any).joinPath = (base: vscode.Uri, ...parts: string[]) => {
-      const joined = `${base.path}/${parts.join('/')}`;
-      return vscode.Uri.parse(`file://${joined}`);
-    };
+    Object.defineProperty(vscode.Uri, 'joinPath', {
+      configurable: true,
+      value: (base: vscode.Uri, ...parts: string[]) => {
+        const joined = `${base.path}/${parts.join('/')}`;
+        return vscode.Uri.parse(`file://${joined}`);
+      },
+    });
     writes = new Map();
     // stub workspace.fs methods
-    (vscode.workspace as any).fs = {
-      createDirectory: async (uri: vscode.Uri) => {},
-      writeFile: async (uri: vscode.Uri, content: Uint8Array) => {
-        writes.set(uri.path, content);
-        // also store a fallback key to avoid relying on exact path formats in the test env
-        writes.set('lastWrite', content);
-      },
-      readFile: async (uri: vscode.Uri) => {
-        const data = writes.get(uri.path);
-        if (!data) {
-          throw new Error('file not found');
-        }
-        return data;
-      },
-    };
+    Object.defineProperty(vscode.workspace, 'fs', {
+      configurable: true,
+      value: ({
+        createDirectory: async (_uri: vscode.Uri) => {},
+        writeFile: async (uri: vscode.Uri, content: Uint8Array) => {
+          writes.set(uri.path, content);
+          // also store a fallback key to avoid relying on exact path formats in the test env
+          writes.set('lastWrite', content);
+        },
+        readFile: async (uri: vscode.Uri) => {
+          const data = writes.get(uri.path);
+          if (!data) {
+            throw new Error('file not found');
+          }
+          return data;
+        },
+      }) satisfies Pick<typeof vscode.workspace.fs, 'createDirectory' | 'writeFile' | 'readFile'>,
+    });
 
     emitter = new GateTelemetryEmitter({ baseUri: workspaceUri });
   });
 
   afterEach(async () => {
     // reset
-    (vscode.workspace as any).fs = vscode.workspace.fs;
+    if (originalWorkspaceFsDescriptor) {
+      Object.defineProperty(vscode.workspace, 'fs', originalWorkspaceFsDescriptor);
+    } else {
+      delete (vscode.workspace as unknown as Record<string, unknown>).fs;
+    }
+
+    if (originalJoinPathDescriptor) {
+      Object.defineProperty(vscode.Uri, 'joinPath', originalJoinPathDescriptor);
+    } else {
+      delete (vscode.Uri as unknown as Record<string, unknown>).joinPath;
+    }
   });
 
   test('writes a new report file with a single record', async () => {

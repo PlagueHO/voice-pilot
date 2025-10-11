@@ -55,16 +55,23 @@ function createPanelStub(): CreatePanelStubResult {
 
 suite('Unit: TranscriptView', () => {
   const originalCreateWebviewPanel = vscode.window.createWebviewPanel;
-  let originalViewColumn: unknown;
+  const originalViewColumnDescriptor = Object.getOwnPropertyDescriptor(vscode, 'ViewColumn');
   let createPanelCalls = 0;
   let lastPanelStub: PanelStub | undefined;
 
   beforeEach(() => {
-    originalViewColumn = (vscode as any).ViewColumn;
-    if (!originalViewColumn) {
-      (vscode as any).ViewColumn = { Beside: 2 };
-    } else if (typeof originalViewColumn === 'object' && originalViewColumn && !(originalViewColumn as any).Beside) {
-      (vscode as any).ViewColumn = { ...(originalViewColumn as Record<string, unknown>), Beside: 2 };
+    const currentViewColumn =
+      originalViewColumnDescriptor?.get?.call(vscode) ?? originalViewColumnDescriptor?.value ?? (vscode as any).ViewColumn;
+    if (!currentViewColumn) {
+      Object.defineProperty(vscode, 'ViewColumn', {
+        configurable: true,
+        value: { Beside: 2 },
+      });
+    } else if (typeof currentViewColumn === 'object' && currentViewColumn && !(currentViewColumn as any).Beside) {
+      Object.defineProperty(vscode, 'ViewColumn', {
+        configurable: true,
+        value: { ...(currentViewColumn as Record<string, unknown>), Beside: 2 },
+      });
     }
     createPanelCalls = 0;
     lastPanelStub = undefined;
@@ -83,7 +90,11 @@ suite('Unit: TranscriptView', () => {
 
   afterEach(() => {
     (vscode.window as any).createWebviewPanel = originalCreateWebviewPanel;
-    (vscode as any).ViewColumn = originalViewColumn;
+    if (originalViewColumnDescriptor) {
+      Object.defineProperty(vscode, 'ViewColumn', originalViewColumnDescriptor);
+    } else {
+      delete (vscode as any).ViewColumn;
+    }
     createPanelCalls = 0;
     lastPanelStub = undefined;
   });
