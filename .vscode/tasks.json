@@ -209,6 +209,19 @@
       "presentation": {
         "reveal": "always"
       }
+    },
+    {
+      "label": "Clean Build Outputs",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "-e",
+        "const fs=require('fs');const path=require('path');const root=process.cwd();const targets=['out','coverage','.nyc_output','.vscode-test'];let removed=0;for(const rel of targets){const full=path.join(root,rel);if(fs.existsSync(full)){fs.rmSync(full,{recursive:true,force:true});removed++;console.log('Removed '+rel);}}for(const entry of fs.readdirSync(root)){if(entry.endsWith('.vsix')){fs.rmSync(path.join(root,entry),{force:true});removed++;console.log('Removed '+entry);}}if(removed===0){console.log('No build artifacts detected.');}"
+      ],
+      "icon": {
+        "id": "trash"
+      },
+      "problemMatcher": []
     }
   ]
 }
