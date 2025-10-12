@@ -16,6 +16,7 @@ import {
     MockAudioWorkletNode,
     MockGainNode,
     MockMediaStream,
+    MockMediaStreamAudioDestinationNode,
     MockMediaStreamAudioSourceNode,
     MockMediaStreamTrack,
 } from "./audio-mock-environment";
@@ -43,6 +44,7 @@ suite("Unit: WebAudioProcessingChain render telemetry", () => {
     const gainNode = new MockGainNode(context);
     const analyserNode = new MockAnalyserNode(context);
     const workletNode = new MockAudioWorkletNode(context, "pcm-encoder");
+    const destination = new MockMediaStreamAudioDestinationNode(context);
 
     const graph: AudioProcessingGraph = {
       context: context as unknown as AudioContext,
@@ -50,6 +52,7 @@ suite("Unit: WebAudioProcessingChain render telemetry", () => {
       gainNode: gainNode as unknown as GainNode,
       analyserNode: analyserNode as unknown as AnalyserNode,
       workletNode: workletNode as unknown as AudioWorkletNode,
+      destination: destination as unknown as MediaStreamAudioDestinationNode,
     };
 
     const metricsState = (chain as any).metricsState as WeakMap<

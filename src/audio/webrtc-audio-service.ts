@@ -1,31 +1,32 @@
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
+import type { AggregatedResourceTracker } from "../core/disposal/orphan-resource-tracker";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import { SessionManager } from "../session/session-manager";
 import type { EphemeralKeyInfo } from "../types/ephemeral";
 import type {
-  RealtimeEvent,
-  ResponseCreateEvent,
-  ResponseCreatedEvent,
-  ResponseDoneEvent,
-  ResponseInterruptedEvent,
-  SessionUpdateEvent,
+    RealtimeEvent,
+    ResponseCreateEvent,
+    ResponseCreatedEvent,
+    ResponseDoneEvent,
+    ResponseInterruptedEvent,
+    SessionUpdateEvent,
 } from "../types/realtime-events";
 import type { AudioPipelineIntegration } from "../types/service-integration";
 import type {
-  AudioConfiguration,
-  ConnectionStatistics,
-  WebRTCConfig,
+    AudioConfiguration,
+    ConnectionStatistics,
+    WebRTCConfig,
 } from "../types/webrtc";
 import {
-  ConnectionDiagnosticsEvent,
-  ConnectionQuality,
-  DataChannelStateChangedEvent,
-  RecoveryStrategy,
-  WebRTCConnectionState,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
+    ConnectionDiagnosticsEvent,
+    ConnectionQuality,
+    DataChannelStateChangedEvent,
+    RecoveryStrategy,
+    WebRTCConnectionState,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
 } from "../types/webrtc";
 import { sharedAudioContextProvider } from "./audio-context-provider";
 import { AudioTrackManager } from "./audio-track-manager";
@@ -96,6 +97,7 @@ export class WebRTCAudioService implements ServiceInitializable {
   private ephemeralKeyService?: EphemeralKeyServiceImpl;
   private configurationManager?: ConfigurationManager;
   private sessionManager?: SessionManager;
+  private resourceTracker?: AggregatedResourceTracker;
 
   // Audio session state
   private isSessionActive = false;
@@ -139,11 +141,13 @@ export class WebRTCAudioService implements ServiceInitializable {
     configurationManager?: ConfigurationManager,
     sessionManager?: SessionManager,
     logger?: Logger,
+    resourceTracker?: AggregatedResourceTracker,
   ) {
     this.logger = logger || new Logger("WebRTCAudioService");
     this.ephemeralKeyService = ephemeralKeyService;
     this.configurationManager = configurationManager;
     this.sessionManager = sessionManager;
+    this.resourceTracker = resourceTracker;
 
     if (this.ephemeralKeyService) {
       this.attachEphemeralKeyObservers(this.ephemeralKeyService);
@@ -151,10 +155,12 @@ export class WebRTCAudioService implements ServiceInitializable {
 
     // Initialize components
     this.transport = new WebRTCTransportImpl(this.logger);
+    this.transport.setResourceTracker(resourceTracker);
     this.configFactory = new WebRTCConfigFactory(this.logger);
     this.audioManager = new AudioTrackManager(
       this.logger,
       sharedAudioContextProvider,
+      resourceTracker,
     );
     this.errorHandler = new WebRTCErrorHandler(this.logger);
     this.recoveryObserverDisposable = this.errorHandler.onRecoveryEvent(
@@ -164,6 +170,12 @@ export class WebRTCAudioService implements ServiceInitializable {
     );
 
     this.setupEventHandlers();
+  }
+
+  setResourceTracker(tracker?: AggregatedResourceTracker): void {
+    this.resourceTracker = tracker;
+    this.transport.setResourceTracker(tracker);
+    this.audioManager.setResourceTracker(tracker);
   }
 
   /**

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { ResourceTracker } from "../core/disposal/resource-tracker";
 import type { ServiceInitializable } from "../core/service-initializable";
 import type {
   AudioFeedbackControlMessage,
@@ -74,11 +75,16 @@ export class VoiceControlPanel
   private readonly audioFeedbackHandlers = new Set<
     (message: AudioFeedbackEventMessage) => void
   >();
+  private readonly trackedDisposables = new Map<string, () => void>();
 
   private initialized = false;
   private visible = false;
   private registration?: vscode.Disposable;
   private currentView?: vscode.WebviewView;
+  private messageSubscription?: vscode.Disposable;
+  private visibilitySubscription?: vscode.Disposable;
+  private viewDisposeSubscription?: vscode.Disposable;
+  private resourceTracker?: ResourceTracker;
   private state: VoiceControlPanelState = createInitialPanelState();
 
   /**
@@ -103,12 +109,22 @@ export class VoiceControlPanel
         },
       },
     );
+    this.trackDisposable("voice-control-panel.registration", this.registration);
     this.initialized = true;
   }
 
   /** @inheritdoc */
   dispose(): void {
     this.registration?.dispose();
+    this.releaseTrackedDisposable("voice-control-panel.registration");
+    this.messageSubscription?.dispose();
+    this.releaseTrackedDisposable("voice-control-panel.message-subscription");
+    this.visibilitySubscription?.dispose();
+    this.releaseTrackedDisposable(
+      "voice-control-panel.visibility-subscription",
+    );
+    this.viewDisposeSubscription?.dispose();
+    this.releaseTrackedDisposable("voice-control-panel.view-dispose");
     this.registration = undefined;
     this.currentView = undefined;
     this.pendingMessages.length = 0;
@@ -117,6 +133,16 @@ export class VoiceControlPanel
     this.audioFeedbackHandlers.clear();
     this.initialized = false;
     this.visible = false;
+    this.clearTrackedDisposables();
+  }
+
+  setResourceTracker(tracker?: ResourceTracker): void {
+    if (this.resourceTracker === tracker) {
+      return;
+    }
+    this.clearTrackedDisposables();
+    this.resourceTracker = tracker;
+    this.retrackActiveDisposables();
   }
 
   /**
@@ -579,25 +605,48 @@ export class VoiceControlPanel
       nonce: this.createNonce(),
     });
 
-    const messageSubscription = webview.onDidReceiveMessage((message) => {
+    this.messageSubscription = webview.onDidReceiveMessage((message) => {
       this.handleInboundMessage(message as PanelInboundMessage);
     });
+    this.trackDisposable(
+      "voice-control-panel.message-subscription",
+      this.messageSubscription,
+    );
 
-    const visibilitySubscription = webviewView.onDidChangeVisibility(() => {
+    this.visibilitySubscription = webviewView.onDidChangeVisibility(() => {
       this.visible = webviewView.visible;
       if (webviewView.visible) {
         this.flushPendingMessages();
       }
     });
+    this.trackDisposable(
+      "voice-control-panel.visibility-subscription",
+      this.visibilitySubscription,
+    );
 
-    webviewView.onDidDispose(() => {
-      messageSubscription.dispose();
-      visibilitySubscription.dispose();
+    this.viewDisposeSubscription = webviewView.onDidDispose(() => {
+      this.messageSubscription?.dispose();
+      this.releaseTrackedDisposable("voice-control-panel.message-subscription");
+      this.messageSubscription = undefined;
+
+      this.visibilitySubscription?.dispose();
+      this.releaseTrackedDisposable(
+        "voice-control-panel.visibility-subscription",
+      );
+      this.visibilitySubscription = undefined;
+
+      this.releaseTrackedDisposable("voice-control-panel.view-dispose");
+      this.viewDisposeSubscription = undefined;
+
       if (this.currentView === webviewView) {
         this.currentView = undefined;
       }
       this.visible = false;
     });
+    this.trackDisposable(
+      "voice-control-panel.view-dispose",
+      this.viewDisposeSubscription,
+    );
 
     this.sendInitializeMessage();
     this.sendSessionUpdate();
@@ -799,5 +848,59 @@ export class VoiceControlPanel
       nonce += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return nonce;
+  }
+
+  private trackDisposable(id: string, disposable?: vscode.Disposable): void {
+    this.releaseTrackedDisposable(id);
+    if (!disposable || !this.resourceTracker) {
+      return;
+    }
+    const release = this.resourceTracker.trackDisposable(id);
+    this.trackedDisposables.set(id, release);
+  }
+
+  private releaseTrackedDisposable(id: string): void {
+    const release = this.trackedDisposables.get(id);
+    if (!release) {
+      return;
+    }
+    try {
+      release();
+    } finally {
+      this.trackedDisposables.delete(id);
+    }
+  }
+
+  private clearTrackedDisposables(): void {
+    if (!this.trackedDisposables.size) {
+      return;
+    }
+    for (const release of this.trackedDisposables.values()) {
+      try {
+        release();
+      } catch (error) {
+        console.warn("VoicePilot: Failed to release tracked disposable", error);
+      }
+    }
+    this.trackedDisposables.clear();
+  }
+
+  private retrackActiveDisposables(): void {
+    if (!this.resourceTracker) {
+      return;
+    }
+    this.trackDisposable("voice-control-panel.registration", this.registration);
+    this.trackDisposable(
+      "voice-control-panel.message-subscription",
+      this.messageSubscription,
+    );
+    this.trackDisposable(
+      "voice-control-panel.visibility-subscription",
+      this.visibilitySubscription,
+    );
+    this.trackDisposable(
+      "voice-control-panel.view-dispose",
+      this.viewDisposeSubscription,
+    );
   }
 }

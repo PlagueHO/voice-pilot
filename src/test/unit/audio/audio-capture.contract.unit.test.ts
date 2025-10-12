@@ -90,8 +90,33 @@ function createTestHarness(): TestHarness {
     processingChain,
     deviceValidator,
   });
+  const stubGraph = {
+    context: mockEnvContext,
+    source: {
+      disconnect: () => {},
+    } as unknown as MediaStreamAudioSourceNode,
+    gainNode: {
+      disconnect: () => {},
+      gain: { value: 1 },
+    } as unknown as GainNode,
+    analyserNode: {
+      disconnect: () => {},
+    } as unknown as AnalyserNode,
+    workletNode: {
+      disconnect: () => {},
+      port: {
+        onmessage: null,
+        onmessageerror: null,
+        close: () => {},
+      },
+    } as unknown as AudioWorkletNode,
+    destination: {
+      disconnect: () => {},
+      stream: { id: "mock-destination" },
+    } as unknown as MediaStreamAudioDestinationNode,
+  } as AudioProcessingGraph;
 
-  (capture as any).processingGraph = { context: mockEnvContext } as AudioProcessingGraph;
+  (capture as any).processingGraph = stubGraph;
 
   return {
     capture,

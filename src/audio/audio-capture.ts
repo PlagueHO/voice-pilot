@@ -1,45 +1,46 @@
+import type { AudioResourceTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
 import {
-  AudioCaptureConfig,
-  AudioCaptureEventHandler,
-  AudioCaptureEventType,
-  AudioCapturePipeline,
-  AudioCapturePipelineEvent,
-  AudioCaptureSampleRate,
-  AudioMetrics,
-  AudioPerformanceDiagnostics,
-  AudioProcessingConfig,
-  AudioProcessingGraph,
-  CpuUtilizationSample,
-  DeviceValidationResult,
-  PerformanceBudgetSample,
-  RenderQuantumTelemetry,
-  VoiceActivityResult,
+    AudioCaptureConfig,
+    AudioCaptureEventHandler,
+    AudioCaptureEventType,
+    AudioCapturePipeline,
+    AudioCapturePipelineEvent,
+    AudioCaptureSampleRate,
+    AudioMetrics,
+    AudioPerformanceDiagnostics,
+    AudioProcessingConfig,
+    AudioProcessingGraph,
+    CpuUtilizationSample,
+    DeviceValidationResult,
+    PerformanceBudgetSample,
+    RenderQuantumTelemetry,
+    VoiceActivityResult,
 } from "../types/audio-capture";
 import type { AudioErrorRecoveryMetadata } from "../types/audio-errors";
 import {
-  AudioErrorCode,
-  AudioErrorSeverity,
-  AudioProcessingError,
+    AudioErrorCode,
+    AudioErrorSeverity,
+    AudioProcessingError,
 } from "../types/audio-errors";
 import {
-  AudioConfiguration,
-  MINIMUM_AUDIO_SAMPLE_RATE,
-  SUPPORTED_AUDIO_SAMPLE_RATES,
+    AudioConfiguration,
+    MINIMUM_AUDIO_SAMPLE_RATE,
+    SUPPORTED_AUDIO_SAMPLE_RATES,
 } from "../types/webrtc";
 import {
-  AudioContextProvider,
-  sharedAudioContextProvider,
+    AudioContextProvider,
+    sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-  CpuLoadTracker,
-  createEmptyMetrics,
-  DEFAULT_EXPECTED_RENDER_QUANTUM,
-  getTimestampMs,
-  mergeDiagnostics,
-  mergeMetrics,
-  PerformanceBudgetDefinition,
-  PerformanceBudgetTracker,
+    CpuLoadTracker,
+    createEmptyMetrics,
+    DEFAULT_EXPECTED_RENDER_QUANTUM,
+    getTimestampMs,
+    mergeDiagnostics,
+    mergeMetrics,
+    PerformanceBudgetDefinition,
+    PerformanceBudgetTracker,
 } from "./audio-metrics";
 import { WebAudioProcessingChain } from "./audio-processing-chain";
 import { sharedAudioCodecFactory } from "./codec/audio-codec-factory";
@@ -121,6 +122,7 @@ interface AudioCaptureDependencies {
   audioContextProvider?: AudioContextProvider;
   processingChain?: WebAudioProcessingChain;
   deviceValidator?: AudioDeviceValidator;
+  resourceTracker?: AudioResourceTracker;
 }
 
 /**
@@ -177,7 +179,16 @@ export class AudioCapture implements AudioCapturePipeline {
       dependencies.audioContextProvider ?? sharedAudioContextProvider;
     this.processingChain =
       dependencies.processingChain ??
-      new WebAudioProcessingChain(this.logger, this.audioContextProvider);
+      new WebAudioProcessingChain(
+        this.logger,
+        this.audioContextProvider,
+        dependencies.resourceTracker,
+      );
+    if (dependencies.resourceTracker) {
+      dependencies.processingChain?.setResourceTracker?.(
+        dependencies.resourceTracker,
+      );
+    }
     this.deviceValidator =
       dependencies.deviceValidator ?? new AudioDeviceValidator(this.logger);
     this.captureConfig = { ...DEFAULT_CAPTURE_CONFIG, ...config };

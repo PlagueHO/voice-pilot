@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import * as vscode from "vscode";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
+import type { TimerTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
 import { createVoicePilotError, withRecovery } from "../helpers/error/envelope";
 import { PrivacyController } from "../services/privacy/privacy-controller";
@@ -73,6 +74,7 @@ export class SessionManagerImpl implements SessionManager {
   private realtimeTranscriptSubscription?: { dispose(): void };
   private readonly realtimeTranscriptHandlers =
     new Set<TranscriptEventHandler>();
+  private timerResourceTracker?: TimerTracker;
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
@@ -82,6 +84,7 @@ export class SessionManagerImpl implements SessionManager {
     privacyController?: PrivacyController,
     recoveryExecutor?: RecoveryExecutor,
     recoveryPlan?: RecoveryPlan,
+    timerResourceTracker?: TimerTracker,
   ) {
     if (keyService) {
       this.keyService = keyService;
@@ -103,6 +106,9 @@ export class SessionManagerImpl implements SessionManager {
     }
     if (recoveryPlan) {
       this.defaultRecoveryPlan = recoveryPlan;
+    }
+    if (timerResourceTracker) {
+      this.timerResourceTracker = timerResourceTracker;
     }
   }
 
@@ -134,6 +140,7 @@ export class SessionManagerImpl implements SessionManager {
         this.handleRenewalRequired.bind(this),
         this.handleTimeoutExpired.bind(this),
         this.handleHeartbeatCheck.bind(this),
+        this.timerResourceTracker,
       );
     }
 
@@ -168,6 +175,11 @@ export class SessionManagerImpl implements SessionManager {
     if (plan) {
       this.defaultRecoveryPlan = plan;
     }
+  }
+
+  setTimerResourceTracker(tracker: TimerTracker): void {
+    this.timerResourceTracker = tracker;
+    this.timerManager?.setResourceTracker(tracker);
   }
 
   setRealtimeSpeechToTextService(service: RealtimeSpeechToTextService): void {
@@ -776,6 +788,7 @@ export class SessionManagerImpl implements SessionManager {
           this.handleRenewalRequired.bind(this),
           this.handleTimeoutExpired.bind(this),
           this.handleHeartbeatCheck.bind(this),
+          this.timerResourceTracker,
         );
       },
     });

@@ -69,7 +69,10 @@ export class GateTelemetryEmitter {
     (typeof vscode.workspace)["fs"],
     "createDirectory" | "writeFile" | "readFile"
   >;
-  private readonly joinPath: (base: vscode.Uri, ...segments: string[]) => vscode.Uri;
+  private readonly joinPath: (
+    base: vscode.Uri,
+    ...segments: string[]
+  ) => vscode.Uri;
 
   constructor(options: GateTelemetryEmitterOptions = {}) {
     this.logger = options.logger;

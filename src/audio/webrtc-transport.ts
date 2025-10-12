@@ -1,5 +1,6 @@
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
+import type { AggregatedResourceTracker } from "../core/disposal/orphan-resource-tracker";
 import type {
   RealtimeEvent,
   SessionUpdateEvent,
@@ -26,6 +27,13 @@ type TrackRegistrationState = {
   options?: AudioTrackRegistrationOptions;
 };
 
+interface WebRTCTrackedResourceEntry {
+  factory: (tracker: AggregatedResourceTracker) => () => void;
+  cleanup: () => void;
+}
+
+const NOOP_RELEASE = () => {};
+
 /**
  * WebRTC transport implementation for Azure OpenAI Realtime API
  * Provides low-latency, full-duplex audio communication with Azure endpoints
@@ -46,6 +54,16 @@ export class WebRTCTransportImpl
   private pendingDataChannelMessages: RealtimeEvent[] = [];
   private isFlushingQueue = false;
   private readonly maxQueuedMessages = 100;
+  private resourceTracker?: AggregatedResourceTracker;
+  private readonly trackedResources = new Map<
+    string,
+    WebRTCTrackedResourceEntry
+  >();
+  private dataChannelKey?: string;
+  private remoteStreamKey?: string;
+  private static readonly STATS_TIMER_RESOURCE_ID = "webrtc:stats-interval";
+  private static readonly NEGOTIATION_TIMER_RESOURCE_ID =
+    "webrtc:negotiation-timeout";
 
   // Event handling
   private eventHandlers = new Map<WebRTCEventType, Set<WebRTCEventHandler>>();
@@ -105,8 +123,9 @@ export class WebRTCTransportImpl
    */
   dispose(): void {
     this.logger.info("Disposing WebRTC transport");
-    this.closeConnection();
+    void this.closeConnection();
     this.eventHandlers.clear();
+    this.clearTrackedResources();
     this.initialized = false;
   }
 
@@ -223,6 +242,7 @@ export class WebRTCTransportImpl
       this.dataChannel.close();
       this.dataChannel = null;
     }
+    this.releaseDataChannelTracking();
 
     this.pendingDataChannelMessages = [];
     this.isFlushingQueue = false;
@@ -243,6 +263,7 @@ export class WebRTCTransportImpl
     }
 
     this.remoteStream = null;
+    this.releaseRemoteStreamTracking();
     this.setConnectionState(WebRTCConnectionState.Closed);
   }
 
@@ -336,6 +357,7 @@ export class WebRTCTransportImpl
         });
       }
       this.dataChannel = null;
+      this.releaseDataChannelTracking();
     }
 
     const newChannel = this.peerConnection.createDataChannel(
@@ -821,6 +843,9 @@ export class WebRTCTransportImpl
     return new Promise<T>((resolve, reject) => {
       this.negotiationTimeoutHandle = setTimeout(() => {
         this.negotiationTimeoutHandle = null;
+        this.releaseTrackedResource(
+          WebRTCTransportImpl.NEGOTIATION_TIMER_RESOURCE_ID,
+        );
 
         const durationMs = Date.now() - startedAt;
         const timeoutError = new WebRTCErrorImpl({
@@ -836,6 +861,12 @@ export class WebRTCTransportImpl
 
         reject(timeoutError);
       }, this.negotiationTimeoutMs);
+
+      this.registerTrackedResource(
+        WebRTCTransportImpl.NEGOTIATION_TIMER_RESOURCE_ID,
+        (tracker) =>
+          tracker.trackTimer(WebRTCTransportImpl.NEGOTIATION_TIMER_RESOURCE_ID),
+      );
 
       promise
         .then((value) => {
@@ -857,6 +888,9 @@ export class WebRTCTransportImpl
       clearTimeout(this.negotiationTimeoutHandle);
       this.negotiationTimeoutHandle = null;
     }
+    this.releaseTrackedResource(
+      WebRTCTransportImpl.NEGOTIATION_TIMER_RESOURCE_ID,
+    );
   }
 
   /**
@@ -930,10 +964,19 @@ export class WebRTCTransportImpl
   ): void {
     if (this.dataChannel && this.dataChannel !== channel) {
       this.detachDataChannelHandlers(this.dataChannel);
+      this.releaseDataChannelTracking();
     }
 
     this.dataChannel = channel;
     this.setupDataChannelHandlers(channel);
+
+    const key = this.buildDataChannelResourceKey(channel);
+    this.dataChannelKey = key;
+    this.registerTrackedResource(key, (tracker) =>
+      tracker.trackDataChannel(
+        `${this.connectionId}:${channel.label || channel.id || "unknown"}`,
+      ),
+    );
 
     this.logger.debug("Data channel attached", {
       origin,
@@ -1001,6 +1044,7 @@ export class WebRTCTransportImpl
   private handleDataChannelClose(reason: string): void {
     this.logger.debug("Data channel closed", { reason });
     this.updateFallbackState(true, reason);
+    this.releaseDataChannelTracking();
   }
 
   /**
@@ -1201,7 +1245,12 @@ export class WebRTCTransportImpl
    */
   private handleRemoteTrack(event: RTCTrackEvent): void {
     const [stream] = event.streams;
+    this.releaseRemoteStreamTracking();
     this.remoteStream = stream;
+    this.remoteStreamKey = this.buildRemoteStreamResourceKey(stream);
+    this.registerTrackedResource(this.remoteStreamKey, (tracker) =>
+      tracker.trackMediaStream(stream.id),
+    );
 
     this.logger.debug("Remote track received", { trackId: event.track.id });
 
@@ -1688,6 +1737,12 @@ export class WebRTCTransportImpl
         this.statsCollectionInProgress = false;
       }
     }, this.statsIntervalMs);
+
+    this.registerTrackedResource(
+      WebRTCTransportImpl.STATS_TIMER_RESOURCE_ID,
+      (tracker) =>
+        tracker.trackTimer(WebRTCTransportImpl.STATS_TIMER_RESOURCE_ID),
+    );
   }
 
   /**
@@ -1699,6 +1754,7 @@ export class WebRTCTransportImpl
       this.statsInterval = null;
     }
     this.statsCollectionInProgress = false;
+    this.releaseTrackedResource(WebRTCTransportImpl.STATS_TIMER_RESOURCE_ID);
   }
 
   /**
@@ -1833,6 +1889,103 @@ export class WebRTCTransportImpl
     return snapshot;
   }
 
+  setResourceTracker(tracker?: AggregatedResourceTracker): void {
+    if (this.resourceTracker === tracker) {
+      return;
+    }
+
+    const entries = Array.from(this.trackedResources.entries());
+    for (const [, entry] of entries) {
+      entry.cleanup();
+    }
+
+    this.resourceTracker = tracker;
+
+    for (const [key, entry] of entries) {
+      if (!this.resourceTracker) {
+        this.trackedResources.set(key, {
+          factory: entry.factory,
+          cleanup: NOOP_RELEASE,
+        });
+        continue;
+      }
+      const cleanup = entry.factory(this.resourceTracker);
+      this.trackedResources.set(key, {
+        factory: entry.factory,
+        cleanup,
+      });
+    }
+  }
+
+  private registerTrackedResource(
+    key: string,
+    factory: (tracker: AggregatedResourceTracker) => () => void,
+  ): void {
+    const existing = this.trackedResources.get(key);
+    existing?.cleanup();
+
+    if (!this.resourceTracker) {
+      this.trackedResources.set(key, { factory, cleanup: NOOP_RELEASE });
+      return;
+    }
+
+    const cleanup = factory(this.resourceTracker);
+    this.trackedResources.set(key, { factory, cleanup });
+  }
+
+  private releaseTrackedResource(key: string): void {
+    const entry = this.trackedResources.get(key);
+    if (!entry) {
+      return;
+    }
+    entry.cleanup();
+    this.trackedResources.delete(key);
+
+    if (this.dataChannelKey === key) {
+      this.dataChannelKey = undefined;
+    }
+    if (this.remoteStreamKey === key) {
+      this.remoteStreamKey = undefined;
+    }
+  }
+
+  private clearTrackedResources(): void {
+    for (const entry of this.trackedResources.values()) {
+      entry.cleanup();
+    }
+    this.trackedResources.clear();
+    this.dataChannelKey = undefined;
+    this.remoteStreamKey = undefined;
+  }
+
+  private releaseDataChannelTracking(): void {
+    if (!this.dataChannelKey) {
+      return;
+    }
+    this.releaseTrackedResource(this.dataChannelKey);
+    this.dataChannelKey = undefined;
+  }
+
+  private releaseRemoteStreamTracking(): void {
+    if (!this.remoteStreamKey) {
+      return;
+    }
+    this.releaseTrackedResource(this.remoteStreamKey);
+    this.remoteStreamKey = undefined;
+  }
+
+  private buildDataChannelResourceKey(channel: RTCDataChannel): string {
+    const idPart =
+      typeof channel.id === "number" && Number.isFinite(channel.id)
+        ? channel.id.toString(10)
+        : "unknown";
+    const labelPart = channel.label || "default";
+    return `data:${this.connectionId}:${labelPart}:${idPart}`;
+  }
+
+  private buildRemoteStreamResourceKey(stream: MediaStream): string {
+    return `media:remote:${stream.id}`;
+  }
   /**
    * Emits connection diagnostic events with the latest statistics and metadata.
    * @param options Diagnostic options including statistics or negotiation data.

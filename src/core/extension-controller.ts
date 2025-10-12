@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { CredentialManagerImpl } from "../auth/credential-manager";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
+import { presentCleanupDiagnostics, summarizeCleanupReport, type CleanupDiagnosticsResult } from "../commands/run-diagnostics";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
   StateChangeEvent as ConversationStateChangeEvent,
@@ -25,8 +26,10 @@ import {
   lifecycleTelemetry,
   type LifecyclePhase,
 } from "../telemetry/lifecycle-telemetry";
+import { telemetryLogger } from "../telemetry/logger";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
+import type { DisposalReason, DisposalReport } from "../types/disposal";
 import type {
   RecoveryPlan,
   VoicePilotError,
@@ -34,11 +37,28 @@ import type {
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
 import { VoiceControlPanel } from "../ui/voice-control-panel";
+import { DisposalOrchestratorImpl } from "./disposal/disposal-orchestrator";
+import { OrphanDetector } from "./disposal/orphan-detector";
+import type { AggregatedResourceTracker } from "./disposal/orphan-resource-tracker";
+import { OrphanResourceTracker } from "./disposal/orphan-resource-tracker";
+import {
+  createServiceScope,
+  DisposableScope,
+} from "./disposal/scoped-disposable";
 import { Logger } from "./logger";
 import { RetryConfigurationProviderImpl } from "./retry/retry-configuration-provider";
 import { RetryExecutorImpl } from "./retry/retry-executor";
 import { RetryMetricsLoggerSink } from "./retry/retry-metrics-sink";
 import { ServiceInitializable } from "./service-initializable";
+
+const DISPOSAL_PRIORITY = {
+  configuration: 10,
+  authentication: 20,
+  transport: 30,
+  session: 40,
+  ui: 50,
+  ancillary: 60,
+} as const;
 
 /**
  * Coordinates VoicePilot service initialization, lifecycle management, and
@@ -52,6 +72,9 @@ import { ServiceInitializable } from "./service-initializable";
  */
 export class ExtensionController implements ServiceInitializable {
   private initialized = false;
+  private readonly orphanDetector = new OrphanDetector();
+  private readonly resourceTracker: AggregatedResourceTracker;
+  private readonly disposalOrchestrator: DisposalOrchestratorImpl;
   private credentialManager!: CredentialManagerImpl;
   private ephemeralKeyService!: EphemeralKeyServiceImpl;
   private sessionTimerManager!: SessionTimerManagerImpl;
@@ -129,6 +152,12 @@ export class ExtensionController implements ServiceInitializable {
     });
     this.statusBar = new StatusBar();
     this.errorPresenter = new ErrorPresenter(this.voicePanel, this.statusBar);
+    this.resourceTracker = new OrphanResourceTracker(this.orphanDetector);
+    this.voicePanel.setResourceTracker(this.resourceTracker);
+    this.disposalOrchestrator = new DisposalOrchestratorImpl(
+      this.logger,
+      this.orphanDetector,
+    );
   }
 
   /**
@@ -148,52 +177,85 @@ export class ExtensionController implements ServiceInitializable {
       return;
     }
 
-    const initialized: Array<{ name: string; dispose: () => void }> = [];
     try {
+      await this.safeInit("disposal orchestrator", () =>
+        this.disposalOrchestrator.initialize(),
+      );
+      this.registerDisposableScope(
+        "controllerDisposables",
+        DISPOSAL_PRIORITY.ui,
+        () => this.disposeControllerDisposables(),
+        () => this.controllerDisposables.length === 0,
+      );
+      this.registerServiceScope(
+        "realtimeSpeechToTextService",
+        DISPOSAL_PRIORITY.session,
+        this.realtimeSttService,
+      );
+      this.registerDisposable(
+        "chatIntegration",
+        DISPOSAL_PRIORITY.session,
+        () => this.chatIntegration.dispose(),
+      );
+      this.registerDisposable(
+        "transcriptAggregator",
+        DISPOSAL_PRIORITY.session,
+        () => this.transcriptAggregator.dispose(),
+      );
+      this.registerDisposable("statusBar", DISPOSAL_PRIORITY.ui, () =>
+        this.statusBar.dispose(),
+      );
+
       // Initialize credential manager first
       this.credentialManager = new CredentialManagerImpl(
         this.context,
         this.logger,
       );
-      await this.safeInit(
-        "credential manager",
-        () => this.credentialManager.initialize(),
-        () => this.credentialManager.dispose(),
-        initialized,
+      await this.safeInit("credential manager", () =>
+        this.credentialManager.initialize(),
+      );
+      this.registerServiceScope(
         "credentialManager",
+        DISPOSAL_PRIORITY.authentication,
+        this.credentialManager,
       );
 
       // Initialize configuration manager
       await this.safeInit(
         "configuration manager",
         () => this.configurationManager.initialize(),
-        () => this.configurationManager.dispose(),
-        initialized,
-        "configurationManager",
         "config.initialized",
       );
+      this.registerServiceScope(
+        "configurationManager",
+        DISPOSAL_PRIORITY.configuration,
+        this.configurationManager,
+      );
 
-      await this.safeInit(
-        "privacy controller",
-        () => this.privacyController.initialize(),
-        () => this.privacyController.dispose(),
-        initialized,
+      await this.safeInit("privacy controller", () =>
+        this.privacyController.initialize(),
+      );
+      this.registerServiceScope(
         "privacyController",
+        DISPOSAL_PRIORITY.configuration,
+        this.privacyController,
       );
 
-      await this.safeInit(
-        "error event bus",
-        () => this.errorEventBus.initialize(),
-        () => this.errorEventBus.dispose(),
-        initialized,
-        "errorEventBus",
+      await this.safeInit("error event bus", () =>
+        this.errorEventBus.initialize(),
       );
-      await this.safeInit(
-        "recovery orchestrator",
-        () => this.recoveryOrchestrator.initialize(),
-        () => this.recoveryOrchestrator.dispose(),
-        initialized,
+      this.registerServiceScope(
+        "errorEventBus",
+        DISPOSAL_PRIORITY.ancillary,
+        this.errorEventBus,
+      );
+      await this.safeInit("recovery orchestrator", () =>
+        this.recoveryOrchestrator.initialize(),
+      );
+      this.registerServiceScope(
         "recoveryOrchestrator",
+        DISPOSAL_PRIORITY.transport,
+        this.recoveryOrchestrator,
       );
 
       try {
@@ -220,10 +282,12 @@ export class ExtensionController implements ServiceInitializable {
       await this.safeInit(
         "ephemeral key service",
         () => this.ephemeralKeyService.initialize(),
-        () => this.ephemeralKeyService.dispose(),
-        initialized,
-        "ephemeralKeyService",
         "auth.initialized",
+      );
+      this.registerServiceScope(
+        "ephemeralKeyService",
+        DISPOSAL_PRIORITY.authentication,
+        this.ephemeralKeyService,
       );
 
       this.registerRecoveryPlans();
@@ -241,20 +305,23 @@ export class ExtensionController implements ServiceInitializable {
           );
         }
       }
-      await this.safeInit(
-        "session manager",
-        () => this.sessionManager.initialize(),
-        () => this.sessionManager.dispose(),
-        initialized,
+      this.sessionManager.setTimerResourceTracker(this.resourceTracker);
+      await this.safeInit("session manager", () =>
+        this.sessionManager.initialize(),
+      );
+      this.registerServiceScope(
         "sessionManager",
+        DISPOSAL_PRIORITY.session,
+        this.sessionManager,
       );
 
-      await this.safeInit(
-        "conversation state machine",
-        () => this.conversationMachine.initialize(),
-        () => this.conversationMachine.dispose(),
-        initialized,
+      await this.safeInit("conversation state machine", () =>
+        this.conversationMachine.initialize(),
+      );
+      this.registerServiceScope(
         "conversationStateMachine",
+        DISPOSAL_PRIORITY.session,
+        this.conversationMachine,
       );
 
       this.sessionManager.setRealtimeSpeechToTextService(
@@ -266,50 +333,45 @@ export class ExtensionController implements ServiceInitializable {
         );
       this.controllerDisposables.push(realtimeTranscriptDisposable);
 
-      await this.safeInit(
-        "interruption engine",
-        async () => {
-          await this.interruptionEngine.initialize();
-          await this.applyConversationPolicy();
-          this.registerConversationObservers();
-        },
-        () => this.interruptionEngine.dispose(),
-        initialized,
+      await this.safeInit("interruption engine", async () => {
+        await this.interruptionEngine.initialize();
+        await this.applyConversationPolicy();
+        this.registerConversationObservers();
+      });
+      this.registerServiceScope(
         "interruptionEngine",
+        DISPOSAL_PRIORITY.session,
+        this.interruptionEngine,
       );
 
       this.registerConversationIntegration();
       lifecycleTelemetry.record("session.initialized");
 
-      await this.safeInit(
-        "audio feedback service",
-        () => this.audioFeedbackService.initialize(),
-        () => this.audioFeedbackService.dispose(),
-        initialized,
+      await this.safeInit("audio feedback service", () =>
+        this.audioFeedbackService.initialize(),
+      );
+      this.registerServiceScope(
         "audioFeedbackService",
+        DISPOSAL_PRIORITY.ui,
+        this.audioFeedbackService,
       );
 
       await this.safeInit(
         "voice control panel",
         () => this.voicePanel.initialize(),
-        () => this.voicePanel.dispose(),
-        initialized,
-        "voicePanel",
         "ui.initialized",
+      );
+      this.registerServiceScope(
+        "voicePanel",
+        DISPOSAL_PRIORITY.ui,
+        this.voicePanel,
       );
 
       this.registerCommands();
       this.initialized = true;
     } catch (err: any) {
       this.logger.error(`Initialization failed: ${err?.message || err}`);
-      this.disposeControllerDisposables();
-      for (const svc of initialized.reverse()) {
-        try {
-          svc.dispose();
-        } catch (e: any) {
-          this.logger.error(`Error disposing ${svc.name}: ${e?.message || e}`);
-        }
-      }
+      await this.executeDisposal("fatal-error");
       throw err;
     }
   }
@@ -317,9 +379,6 @@ export class ExtensionController implements ServiceInitializable {
   private async safeInit(
     label: string,
     initFn: () => Promise<void>,
-    disposeFn: () => void,
-    list: Array<{ name: string; dispose: () => void }>,
-    name: string,
     lifecycleEvent?: LifecyclePhase,
   ) {
     this.logger.info(`Initializing ${label}`);
@@ -327,7 +386,51 @@ export class ExtensionController implements ServiceInitializable {
     if (lifecycleEvent) {
       lifecycleTelemetry.record(lifecycleEvent);
     }
-    list.push({ name, dispose: disposeFn });
+  }
+
+  private registerServiceScope(
+    id: string,
+    priority: number,
+    service: ServiceInitializable,
+  ): void {
+    this.disposalOrchestrator.register(
+      createServiceScope(id, priority, service),
+    );
+  }
+
+  private registerDisposableScope(
+    id: string,
+    priority: number,
+    disposeFn: () => void,
+    isDisposed: () => boolean = () => false,
+  ): void {
+    const scope = new DisposableScope({
+      id,
+      priority,
+      dispose: disposeFn,
+      isDisposed,
+    });
+    this.disposalOrchestrator.register(scope);
+  }
+
+  private registerDisposable(
+    id: string,
+    priority: number,
+    disposeFn: () => void,
+  ): void {
+    let disposed = false;
+    this.registerDisposableScope(
+      id,
+      priority,
+      () => {
+        if (disposed) {
+          return;
+        }
+        disposeFn();
+        disposed = true;
+      },
+      () => disposed,
+    );
   }
 
   /**
@@ -348,7 +451,61 @@ export class ExtensionController implements ServiceInitializable {
    * Disposal is idempotent; repeated calls tear down any remaining services without
    * throwing when dependencies are already cleaned up.
    */
-  dispose(): void {
+  dispose(reason: DisposalReason = "extension-deactivate"): void {
+    void this.executeDisposal(reason);
+  }
+
+  private async executeDisposal(reason: DisposalReason): Promise<void> {
+    try {
+      if (!this.disposalOrchestrator.isInitialized()) {
+        this.logger.warn(
+          "Disposal orchestrator not initialized; falling back to manual disposal",
+          {
+            reason,
+          },
+        );
+        this.disposeFallback();
+        return;
+      }
+  const report = await this.disposalOrchestrator.disposeAll(reason);
+  telemetryLogger.recordCleanupReport(report, { emitStepEvents: true });
+      this.recordLifecycleTelemetry(report);
+    } catch (error: any) {
+      this.logger.error("Disposal orchestrator failed", {
+        reason,
+        error: error?.message ?? error,
+      });
+      this.disposeFallback();
+    } finally {
+      this.initialized = false;
+    }
+  }
+
+  private recordLifecycleTelemetry(report: DisposalReport): void {
+    for (const step of report.steps) {
+      if (!step.success) {
+        continue;
+      }
+      switch (step.name) {
+        case "voicePanel":
+          lifecycleTelemetry.record("ui.disposed");
+          break;
+        case "sessionManager":
+          lifecycleTelemetry.record("session.disposed");
+          break;
+        case "ephemeralKeyService":
+          lifecycleTelemetry.record("auth.disposed");
+          break;
+        case "configurationManager":
+          lifecycleTelemetry.record("config.disposed");
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  private disposeFallback(): void {
     const steps: Array<[string, () => void]> = [
       ["controller observers", () => this.disposeControllerDisposables()],
       ["conversation state machine", () => this.conversationMachine.dispose()],
@@ -365,8 +522,9 @@ export class ExtensionController implements ServiceInitializable {
       ["recovery orchestrator", () => this.recoveryOrchestrator.dispose()],
       ["configuration manager", () => this.configurationManager.dispose()],
     ];
+
     for (const [name, fn] of steps) {
-      this.logger.info(`Disposing ${name}`);
+      this.logger.info(`Fallback disposing ${name}`);
       try {
         fn();
         switch (name) {
@@ -434,6 +592,27 @@ export class ExtensionController implements ServiceInitializable {
       }),
     );
 
+    disposables.push(
+      vscode.commands.registerCommand(
+        "voicepilot.runCleanupDiagnostics",
+        async () => {
+          try {
+            return await this.runCleanupDiagnostics();
+          } catch (error: any) {
+            const message =
+              error?.message ?? "Cleanup diagnostics failed unexpectedly";
+            this.logger.error("Cleanup diagnostics command failed", {
+              error: message,
+            });
+            void vscode.window.showErrorMessage(
+              `VoicePilot cleanup diagnostics failed: ${message}`,
+            );
+            throw error;
+          }
+        },
+      ),
+    );
+
     this.controllerDisposables.push(...disposables);
   }
 
@@ -493,6 +672,33 @@ export class ExtensionController implements ServiceInitializable {
    */
   getPrivacyController(): PrivacyController {
     return this.privacyController;
+  }
+
+  private async runCleanupDiagnostics(): Promise<CleanupDiagnosticsResult> {
+    if (!this.disposalOrchestrator.isInitialized()) {
+      throw new Error("Cleanup diagnostics unavailable before initialization");
+    }
+
+    const report = await this.disposalOrchestrator.disposeAll(
+      "config-reload",
+      {
+        dryRun: true,
+        auditTrailId: `diagnostics:${Date.now()}`,
+      },
+    );
+
+    telemetryLogger.recordCleanupReport(report, { emitStepEvents: true });
+    const result = summarizeCleanupReport(report);
+    await presentCleanupDiagnostics(result);
+
+    this.logger.info("Cleanup diagnostics completed", {
+      dryRun: report.dryRun,
+      totalOrphans: result.summary.totalOrphans,
+      failures: result.summary.failures,
+      snapshot: result.summary.snapshot,
+    });
+
+    return result;
   }
 
   private registerRecoveryPlans(): void {

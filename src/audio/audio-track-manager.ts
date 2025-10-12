@@ -1,3 +1,4 @@
+import type { AudioResourceTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
@@ -36,6 +37,8 @@ export class AudioTrackManager implements ServiceInitializable {
   private initialized = false;
   private readonly logger: Logger;
   private readonly audioContextProvider: AudioContextProvider;
+  private resourceTracker?: AudioResourceTracker;
+  private readonly trackedResources = new Map<string, TrackedResourceEntry>();
 
   private audioConfiguration?: AudioConfiguration;
 
@@ -77,10 +80,15 @@ export class AudioTrackManager implements ServiceInitializable {
    * @param logger - Optional logger for emitting diagnostic messages.
    * @param audioContextProvider - Optional provider that supplies shared audio graph resources.
    */
-  constructor(logger?: Logger, audioContextProvider?: AudioContextProvider) {
+  constructor(
+    logger?: Logger,
+    audioContextProvider?: AudioContextProvider,
+    resourceTracker?: AudioResourceTracker,
+  ) {
     this.logger = logger || new Logger("AudioTrackManager");
     this.audioContextProvider =
       audioContextProvider ?? sharedAudioContextProvider;
+    this.resourceTracker = resourceTracker;
   }
 
   /**
@@ -142,6 +150,8 @@ export class AudioTrackManager implements ServiceInitializable {
     this.trackQualityHandlers.clear();
     this.trackStreams.clear();
 
+    this.clearTrackedResources();
+
     this.initialized = false;
     this.logger.info("AudioTrackManager disposed");
   }
@@ -188,9 +198,18 @@ export class AudioTrackManager implements ServiceInitializable {
         inputStream.getTracks().forEach((track) => track.stop());
         throw new Error("Failed to obtain audio track from microphone");
       }
+      const inputStreamId = inputStream.id;
+      this.registerTrackedResource(`media:input:${inputStreamId}`, (tracker) =>
+        tracker.trackMediaStream(inputStreamId),
+      );
 
       const processed = await this.createProcessedTrackForStream(inputStream);
       processedStream = processed.processedStream;
+      const processedStreamId = processedStream.id;
+      this.registerTrackedResource(
+        `media:processed:${processedStreamId}`,
+        (tracker) => tracker.trackMediaStream(processedStreamId),
+      );
       captureContext = {
         inputStream,
         inputTrack,
@@ -223,6 +242,12 @@ export class AudioTrackManager implements ServiceInitializable {
         this.disposePendingCaptureContext(captureContext, processedStream);
       } else if (inputStream) {
         inputStream.getTracks().forEach((track) => track.stop());
+      }
+      if (inputStream) {
+        this.releaseTrackedResource(`media:input:${inputStream.id}`);
+      }
+      if (processedStream) {
+        this.releaseTrackedResource(`media:processed:${processedStream.id}`);
       }
 
       if (error?.name === "NotAllowedError") {
@@ -411,6 +436,9 @@ export class AudioTrackManager implements ServiceInitializable {
   handleRemoteStream(stream: MediaStream, streamId?: string): void {
     const id = streamId ?? stream.id;
     this.remoteStreams.set(id, stream);
+    this.registerTrackedResource(`media:remote:${id}`, (tracker) =>
+      tracker.trackMediaStream(id),
+    );
     this.logger.debug("Remote stream registered", {
       streamId: id,
       trackCount: stream.getTracks().length,
@@ -1024,6 +1052,8 @@ export class AudioTrackManager implements ServiceInitializable {
       .getTracks()
       .forEach((processedTrack) => processedTrack.stop());
 
+    this.releaseTrackedResource(`media:input:${context.inputStream.id}`);
+    this.releaseTrackedResource(`media:processed:${processedStream.id}`);
     this.captureGraphs.delete(trackId);
   }
 
@@ -1063,6 +1093,8 @@ export class AudioTrackManager implements ServiceInitializable {
 
     context.inputStream.getTracks().forEach((track) => track.stop());
     processedStream.getTracks().forEach((track) => track.stop());
+    this.releaseTrackedResource(`media:input:${context.inputStream.id}`);
+    this.releaseTrackedResource(`media:processed:${processedStream.id}`);
   }
 
   /**
@@ -1083,6 +1115,7 @@ export class AudioTrackManager implements ServiceInitializable {
         this.remotePlaybackSources.delete(streamId);
       }
       stream.getTracks().forEach((track) => track.stop());
+      this.releaseTrackedResource(`media:remote:${streamId}`);
       this.logger.debug("Remote stream cleared", { streamId });
     }
     this.remoteStreams.clear();
@@ -1159,4 +1192,77 @@ export class AudioTrackManager implements ServiceInitializable {
         return 0.1;
     }
   }
+
+  setResourceTracker(resourceTracker?: AudioResourceTracker): void {
+    if (this.resourceTracker === resourceTracker) {
+      return;
+    }
+
+    const entries = Array.from(this.trackedResources.entries());
+    for (const [, entry] of entries) {
+      entry.cleanup();
+    }
+
+    this.resourceTracker = resourceTracker;
+
+    for (const [key, entry] of entries) {
+      if (!this.resourceTracker) {
+        this.trackedResources.set(key, {
+          factory: entry.factory,
+          cleanup: noop,
+        });
+        continue;
+      }
+      const cleanup = entry.factory(this.resourceTracker);
+      this.trackedResources.set(key, {
+        factory: entry.factory,
+        cleanup,
+      });
+    }
+  }
+
+  private registerTrackedResource(
+    key: string,
+    trackerFactory: (tracker: AudioResourceTracker) => () => void,
+  ): void {
+    const existing = this.trackedResources.get(key);
+    existing?.cleanup();
+
+    if (!this.resourceTracker) {
+      this.trackedResources.set(key, {
+        factory: trackerFactory,
+        cleanup: noop,
+      });
+      return;
+    }
+
+    const cleanup = trackerFactory(this.resourceTracker);
+    this.trackedResources.set(key, {
+      factory: trackerFactory,
+      cleanup,
+    });
+  }
+
+  private releaseTrackedResource(key: string): void {
+    const entry = this.trackedResources.get(key);
+    if (!entry) {
+      return;
+    }
+    entry.cleanup();
+    this.trackedResources.delete(key);
+  }
+
+  private clearTrackedResources(): void {
+    for (const entry of this.trackedResources.values()) {
+      entry.cleanup();
+    }
+    this.trackedResources.clear();
+  }
 }
+
+interface TrackedResourceEntry {
+  factory: (tracker: AudioResourceTracker) => () => void;
+  cleanup: () => void;
+}
+
+const noop = () => {};

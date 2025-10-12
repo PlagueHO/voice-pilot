@@ -17,6 +17,7 @@ import {
     MockAudioWorkletNode,
     MockGainNode,
     MockMediaStream,
+    MockMediaStreamAudioDestinationNode,
     MockMediaStreamAudioSourceNode,
     MockMediaStreamTrack,
 } from "./audio-mock-environment";
@@ -42,6 +43,7 @@ suite("Unit: AudioCapture performance diagnostics", () => {
     const gainNode = new MockGainNode(context);
     const analyserNode = new MockAnalyserNode(context);
     const workletNode = new MockAudioWorkletNode(context, "pcm-encoder") as unknown as AudioWorkletNode;
+    const destination = new MockMediaStreamAudioDestinationNode(context);
 
     return {
       context: context as unknown as AudioContext,
@@ -49,6 +51,7 @@ suite("Unit: AudioCapture performance diagnostics", () => {
       gainNode: gainNode as unknown as GainNode,
       analyserNode: analyserNode as unknown as AnalyserNode,
       workletNode,
+      destination: destination as unknown as MediaStreamAudioDestinationNode,
     };
   }
 

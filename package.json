@@ -60,6 +60,11 @@
         "command": "voicepilot.openSettings",
         "title": "VoicePilot: Open Settings",
         "icon": "$(gear)"
+      },
+      {
+        "command": "voicepilot.runCleanupDiagnostics",
+        "title": "VoicePilot: Run Cleanup Diagnostics",
+        "icon": "$(beaker)"
       }
     ],
     "configuration": {

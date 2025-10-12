@@ -1,28 +1,29 @@
+import type { AudioResourceTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
 import {
-  AudioMetrics,
-  AudioProcessingChain,
-  AudioProcessingConfig,
-  AudioProcessingGraph,
-  RenderQuantumTelemetry,
+    AudioMetrics,
+    AudioProcessingChain,
+    AudioProcessingConfig,
+    AudioProcessingGraph,
+    RenderQuantumTelemetry,
 } from "../types/audio-capture";
 import {
-  AudioContextProvider,
-  sharedAudioContextProvider,
+    AudioContextProvider,
+    sharedAudioContextProvider,
 } from "./audio-context-provider";
 import {
-  calculatePeak,
-  calculateRms,
-  computeBufferHealth,
-  createEmptyMetrics,
-  DEFAULT_EXPECTED_RENDER_QUANTUM,
-  estimateSnr,
-  getTimestampMs,
-  mergeMetrics,
+    calculatePeak,
+    calculateRms,
+    computeBufferHealth,
+    createEmptyMetrics,
+    DEFAULT_EXPECTED_RENDER_QUANTUM,
+    estimateSnr,
+    getTimestampMs,
+    mergeMetrics,
 } from "./audio-metrics";
 import {
-  ensurePcmEncoderWorklet,
-  PCM_ENCODER_WORKLET_NAME,
+    ensurePcmEncoderWorklet,
+    PCM_ENCODER_WORKLET_NAME,
 } from "./worklets/pcm-encoder-worklet";
 
 interface MetricsState {
@@ -42,6 +43,13 @@ interface MetricsState {
 
 const DEFAULT_ANALYSIS_INTERVAL_MS = 100;
 
+interface TrackedResourceEntry {
+  factory: (tracker: AudioResourceTracker) => () => void;
+  cleanup: () => void;
+}
+
+const NOOP_RELEASE = () => {};
+
 type RenderTelemetryListener = (telemetry: RenderQuantumTelemetry) => void;
 
 /**
@@ -54,6 +62,12 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
     AudioProcessingGraph,
     MetricsState
   >();
+  private resourceTracker?: AudioResourceTracker;
+  private readonly trackedGraphResources = new Map<
+    AudioProcessingGraph,
+    Map<string, TrackedResourceEntry>
+  >();
+  private graphResourceCounter = 0;
 
   /**
    * Constructs a processing chain with optional overrides for logging and audio context provisioning.
@@ -61,10 +75,15 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
    * @param logger - Logger instance used for diagnostics; defaults to a scoped logger when omitted.
    * @param audioContextProvider - Provider responsible for supplying shared audio contexts.
    */
-  constructor(logger?: Logger, audioContextProvider?: AudioContextProvider) {
+  constructor(
+    logger?: Logger,
+    audioContextProvider?: AudioContextProvider,
+    resourceTracker?: AudioResourceTracker,
+  ) {
     this.logger = logger || new Logger("WebAudioProcessingChain");
     this.audioContextProvider =
       audioContextProvider ?? sharedAudioContextProvider;
+    this.resourceTracker = resourceTracker;
   }
 
   /**
@@ -100,13 +119,17 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
         PCM_ENCODER_WORKLET_NAME,
         {
           numberOfInputs: 1,
-          numberOfOutputs: 0,
+          numberOfOutputs: 1,
           channelCountMode: "explicit",
           channelInterpretation: "speakers",
         },
       );
 
+      const destination = new MediaStreamAudioDestinationNode(context, {
+        channelCount: 1,
+      });
       analyserNode.connect(workletNode);
+      workletNode.connect(destination);
 
       const graph: AudioProcessingGraph = {
         context,
@@ -114,7 +137,10 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
         gainNode,
         analyserNode,
         workletNode,
+        destination,
       };
+
+      this.initializeGraphResourceTracking(graph, stream, destination);
 
       this.metricsState.set(graph, {
         totalFrames: 0,
@@ -318,6 +344,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       graph.gainNode.disconnect();
       graph.analyserNode.disconnect();
       graph.workletNode.disconnect();
+  graph.destination.disconnect();
       graph.workletNode.port.onmessage = null;
       graph.workletNode.port.onmessageerror = null;
       try {
@@ -333,6 +360,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       });
     }
 
+    this.releaseGraphResources(graph);
     const state = this.metricsState.get(graph);
     state?.telemetryListeners.clear();
     this.metricsState.delete(graph);
@@ -374,5 +402,133 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
         });
       }
     }
+  }
+
+  setResourceTracker(resourceTracker?: AudioResourceTracker): void {
+    if (this.resourceTracker === resourceTracker) {
+      return;
+    }
+
+    for (const [graph, entries] of this.trackedGraphResources.entries()) {
+      for (const [key, entry] of entries.entries()) {
+        try {
+          entry.cleanup();
+        } catch (error: any) {
+          this.logger.warn("Failed to release tracked audio resource", {
+            graphKey: key,
+            error: error?.message,
+          });
+        }
+
+        const cleanup = resourceTracker
+          ? entry.factory(resourceTracker)
+          : NOOP_RELEASE;
+        entries.set(key, {
+          factory: entry.factory,
+          cleanup,
+        });
+      }
+    }
+
+    this.resourceTracker = resourceTracker;
+  }
+
+  private initializeGraphResourceTracking(
+    graph: AudioProcessingGraph,
+    sourceStream: MediaStream,
+    destination: MediaStreamAudioDestinationNode,
+  ): void {
+    const resourcePrefix = this.buildGraphResourcePrefix(sourceStream.id);
+    const entries = new Map<string, TrackedResourceEntry>();
+    this.trackedGraphResources.set(graph, entries);
+
+    this.registerAudioNodeResource(graph, `${resourcePrefix}:source-node`);
+    this.registerAudioNodeResource(graph, `${resourcePrefix}:gain-node`);
+    this.registerAudioNodeResource(graph, `${resourcePrefix}:analyser-node`);
+    this.registerAudioNodeResource(graph, `${resourcePrefix}:worklet-node`);
+    this.registerAudioNodeResource(graph, `${resourcePrefix}:destination-node`);
+
+    const processedStreamId =
+      destination.stream?.id ?? `${resourcePrefix}:processed-stream`;
+    this.registerGraphResource(
+      graph,
+      `${resourcePrefix}:processed-stream`,
+      (tracker) => tracker.trackMediaStream(processedStreamId),
+    );
+
+    const sourceStreamId = sourceStream.id ?? `${resourcePrefix}:source-stream`;
+    this.registerGraphResource(
+      graph,
+      `${resourcePrefix}:source-stream`,
+      (tracker) => tracker.trackMediaStream(sourceStreamId),
+    );
+  }
+
+  private registerAudioNodeResource(
+    graph: AudioProcessingGraph,
+    key: string,
+  ): void {
+    this.registerGraphResource(graph, key, (tracker) =>
+      this.trackAudioNode(tracker, key),
+    );
+  }
+
+  private registerGraphResource(
+    graph: AudioProcessingGraph,
+    key: string,
+    factory: (tracker: AudioResourceTracker) => () => void,
+  ): void {
+    let entries = this.trackedGraphResources.get(graph);
+    if (!entries) {
+      entries = new Map<string, TrackedResourceEntry>();
+      this.trackedGraphResources.set(graph, entries);
+    }
+
+    const existing = entries.get(key);
+    existing?.cleanup();
+
+    const cleanup = this.resourceTracker
+      ? factory(this.resourceTracker)
+      : NOOP_RELEASE;
+    entries.set(key, { factory, cleanup });
+  }
+
+  private releaseGraphResources(graph: AudioProcessingGraph): void {
+    const entries = this.trackedGraphResources.get(graph);
+    if (!entries) {
+      return;
+    }
+
+    for (const [key, entry] of entries.entries()) {
+      try {
+        entry.cleanup();
+      } catch (error: any) {
+        this.logger.warn("Failed to finalize tracked audio resource", {
+          graphKey: key,
+          error: error?.message,
+        });
+      }
+    }
+
+    entries.clear();
+    this.trackedGraphResources.delete(graph);
+  }
+
+  private trackAudioNode(
+    tracker: AudioResourceTracker,
+    key: string,
+  ): () => void {
+    if (typeof tracker.trackAudioNode === "function") {
+      return tracker.trackAudioNode(key);
+    }
+    return tracker.trackDisposable(key);
+  }
+
+  private buildGraphResourcePrefix(streamId?: string): string {
+    this.graphResourceCounter += 1;
+    const suffix = this.graphResourceCounter.toString(36);
+    const normalizedStreamId =
+      streamId?.trim().length ? streamId.trim() : "unknown-stream";
+    return `audio-graph:${normalizedStreamId}:${suffix}`;
   }
 }

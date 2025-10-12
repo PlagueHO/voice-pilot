@@ -67,6 +67,7 @@ suite('Unit: SessionTimerManagerImpl', () => {
       async (id) => {
         heartbeatInvocations.push(id);
       },
+      undefined,
     );
   });
 
@@ -167,6 +168,7 @@ suite('Unit: SessionTimerManagerImpl', () => {
         throw new Error('timeout failure');
       },
       async () => {},
+      undefined,
     );
 
     manager.startTimeoutTimer(sessionId, 15);

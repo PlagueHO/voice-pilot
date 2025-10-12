@@ -1,3 +1,4 @@
+import type { TimerTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
 
 export interface TimerEventStatus {
@@ -35,12 +36,17 @@ export class SessionTimerManagerImpl {
   private heartbeatTimers = new Map<string, NodeJS.Timeout>();
   private pausedTimers = new Map<string, PausedStateRecord>();
   private timerMetadata = new Map<string, TimerMetadataRecord>();
+  private readonly trackerCleanup = new Map<
+    string,
+    Map<TimerType, () => void>
+  >();
 
   constructor(
     private readonly logger: Logger,
     private readonly onRenewalRequired: (sessionId: string) => Promise<void>,
     private readonly onTimeoutExpired: (sessionId: string) => Promise<void>,
     private readonly onHeartbeatCheck: (sessionId: string) => Promise<void>,
+    private resourceTracker?: TimerTracker,
   ) {}
 
   // Lifecycle ---------------------------------------------------------------
@@ -67,6 +73,7 @@ export class SessionTimerManagerImpl {
       scheduledAt,
       intervalMs: timeUntilRenewal,
     });
+    this.registerTimerTracker(sessionId, "renewal");
     this.logger.debug("Renewal timer started", {
       sessionId,
       scheduledAt: scheduledAt.toISOString(),
@@ -86,6 +93,7 @@ export class SessionTimerManagerImpl {
       scheduledAt,
       intervalMs: timeoutMs,
     });
+    this.registerTimerTracker(sessionId, "timeout");
     this.logger.debug("Timeout timer started", { sessionId, timeoutMs });
   }
 
@@ -101,6 +109,7 @@ export class SessionTimerManagerImpl {
       scheduledAt,
       intervalMs,
     });
+    this.registerTimerTracker(sessionId, "heartbeat");
     this.logger.debug("Heartbeat timer started", { sessionId, intervalMs });
   }
 
@@ -111,6 +120,7 @@ export class SessionTimerManagerImpl {
     this.clearHeartbeatTimer(sessionId);
     this.pausedTimers.delete(sessionId);
     this.timerMetadata.delete(sessionId);
+    this.trackerCleanup.delete(sessionId);
   }
 
   resetInactivityTimer(sessionId: string) {
@@ -128,6 +138,7 @@ export class SessionTimerManagerImpl {
     if (renewalMeta && renewalTimer) {
       clearTimeout(renewalTimer);
       this.renewalTimers.delete(sessionId);
+      this.releaseTimerTracker(sessionId, "renewal");
       paused.renewal = {
         remainingMs: Math.max(0, renewalMeta.scheduledAt.getTime() - now),
         originalScheduledAt: renewalMeta.scheduledAt,
@@ -138,6 +149,7 @@ export class SessionTimerManagerImpl {
     if (timeoutMeta && timeoutTimer) {
       clearTimeout(timeoutTimer);
       this.timeoutTimers.delete(sessionId);
+      this.releaseTimerTracker(sessionId, "timeout");
       paused.timeout = {
         remainingMs: Math.max(0, timeoutMeta.scheduledAt.getTime() - now),
         originalScheduledAt: timeoutMeta.scheduledAt,
@@ -299,6 +311,7 @@ export class SessionTimerManagerImpl {
     if (t) {
       clearTimeout(t);
       this.renewalTimers.delete(sessionId);
+      this.releaseTimerTracker(sessionId, "renewal");
     }
   }
   private clearTimeoutTimer(sessionId: string) {
@@ -306,6 +319,7 @@ export class SessionTimerManagerImpl {
     if (t) {
       clearTimeout(t);
       this.timeoutTimers.delete(sessionId);
+      this.releaseTimerTracker(sessionId, "timeout");
     }
   }
   private clearHeartbeatTimer(sessionId: string) {
@@ -313,12 +327,43 @@ export class SessionTimerManagerImpl {
     if (t) {
       clearInterval(t);
       this.heartbeatTimers.delete(sessionId);
+      this.releaseTimerTracker(sessionId, "heartbeat");
     }
   }
   private updateTimerMetadata(sessionId: string, type: TimerType, data: any) {
     const meta = this.timerMetadata.get(sessionId) || {};
     (meta as any)[type] = data;
     this.timerMetadata.set(sessionId, meta);
+  }
+
+  private registerTimerTracker(sessionId: string, type: TimerType): void {
+    if (!this.resourceTracker) {
+      return;
+    }
+    const resourceId = `${sessionId}:${type}`;
+    const cleanup = this.resourceTracker.trackTimer(resourceId);
+    let sessionMap = this.trackerCleanup.get(sessionId);
+    if (!sessionMap) {
+      sessionMap = new Map();
+      this.trackerCleanup.set(sessionId, sessionMap);
+    }
+    const existing = sessionMap.get(type);
+    if (existing) {
+      existing();
+    }
+    sessionMap.set(type, cleanup);
+  }
+
+  private releaseTimerTracker(sessionId: string, type: TimerType): void {
+    const sessionMap = this.trackerCleanup.get(sessionId);
+    const cleanup = sessionMap?.get(type);
+    if (cleanup) {
+      cleanup();
+      sessionMap?.delete(type);
+    }
+    if (sessionMap && sessionMap.size === 0) {
+      this.trackerCleanup.delete(sessionId);
+    }
   }
 
   dispose() {
@@ -336,5 +381,10 @@ export class SessionTimerManagerImpl {
     this.heartbeatTimers.clear();
     this.pausedTimers.clear();
     this.timerMetadata.clear();
+    this.trackerCleanup.clear();
+  }
+
+  setResourceTracker(tracker?: TimerTracker): void {
+    this.resourceTracker = tracker;
   }
 }

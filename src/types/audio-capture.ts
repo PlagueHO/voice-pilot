@@ -1,3 +1,4 @@
+import type { AudioResourceTracker } from "../core/disposal/resource-tracker";
 import { ServiceInitializable } from "../core/service-initializable";
 import type { AudioProcessingError } from "./audio-errors";
 
@@ -329,6 +330,7 @@ export interface AudioProcessingGraph {
   gainNode: GainNode;
   analyserNode: AnalyserNode;
   workletNode: AudioWorkletNode;
+  destination: MediaStreamAudioDestinationNode;
 }
 
 /**
@@ -358,6 +360,7 @@ export interface AudioProcessingChain {
     graph: AudioProcessingGraph,
     telemetry: RenderQuantumTelemetry,
   ): void;
+  setResourceTracker?(tracker?: AudioResourceTracker): void;
 }
 
 /**

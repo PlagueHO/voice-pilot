@@ -102,7 +102,10 @@ const BASE_SCHEMA_ID = "https://voicepilot/spec/envelope.schema.json";
 const CHUNK_TYPE = "transport.chunk";
 
 export class MessageValidationError extends Error {
-  constructor(message: string, readonly errors: string[] = []) {
+  constructor(
+    message: string,
+    readonly errors: string[] = [],
+  ) {
     super(message);
     this.name = "MessageValidationError";
   }
@@ -125,7 +128,7 @@ class MessageSchemaRegistry {
       allErrors: true,
       strict: false,
     });
-  addMetaSchema2020.call(this.ajv);
+    addMetaSchema2020.call(this.ajv);
     addFormats(this.ajv);
 
     this.ajv.addSchema(envelopeSchema, BASE_SCHEMA_ID);
@@ -372,14 +375,18 @@ export function reassembleChunks(
     return null;
   }
 
-  const sorted = [...chunks].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  const sorted = [...chunks].sort(
+    (a, b) => (a.sequence ?? 0) - (b.sequence ?? 0),
+  );
   const first = sorted[0];
   const total = first.payload.chunkCount;
   if (sorted.length !== total) {
     return null;
   }
 
-  const buffers = sorted.map((chunk) => Buffer.from(chunk.payload.data, "base64"));
+  const buffers = sorted.map((chunk) =>
+    Buffer.from(chunk.payload.data, "base64"),
+  );
   const serialized = Buffer.concat(buffers).toString("utf8");
 
   try {
@@ -389,10 +396,9 @@ export function reassembleChunks(
       allowUnknownType: false,
     });
   } catch (error: unknown) {
-    throw new MessageValidationError(
-      "Failed to reassemble chunked envelope",
-      [error instanceof Error ? error.message : String(error ?? "unknown")],
-    );
+    throw new MessageValidationError("Failed to reassemble chunked envelope", [
+      error instanceof Error ? error.message : String(error ?? "unknown"),
+    ]);
   }
 }
 

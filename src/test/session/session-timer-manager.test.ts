@@ -25,7 +25,8 @@ describe('SessionTimerManagerImpl', () => {
       new TestLogger(),
       async (id) => { renewal.push(id); },
       async (id) => { timeout.push(id); },
-      async (id) => { heartbeat.push(id); }
+      async (id) => { heartbeat.push(id); },
+      undefined,
     );
   });
 
