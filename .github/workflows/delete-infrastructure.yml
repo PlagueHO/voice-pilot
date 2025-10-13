@@ -49,7 +49,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ !inputs.retain_resources }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Azure login (OIDC)
         if: ${{ !inputs.retain_resources }}

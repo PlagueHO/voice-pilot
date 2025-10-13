@@ -56,7 +56,7 @@ jobs:
       azure_location: ${{ steps.bootstrap.outputs.azure_location }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Initialize location and environment variables
         id: bootstrap
