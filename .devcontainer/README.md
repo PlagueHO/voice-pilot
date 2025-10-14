@@ -1,325 +1,90 @@
 # VoicePilot Development Container
 
-This development container provides a complete, production-ready environment for developing the VoicePilot VS Code extension with all necessary tools, dependencies, and best practices pre-configured.
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PlagueHO/voice-pilot)
 
-## 🚀 What's Included
+This development container sets up the tooling needed to build and test the VoicePilot VS Code extension. The configuration reflects the files in `.devcontainer/devcontainer.json` and `.devcontainer/setup.sh` so you know exactly what is provisioned. This .devcontainer can also be used in GitHub Codespaces.
 
-### Base Environment
-- **Node.js 22 LTS** with TypeScript support and latest toolchain
-- **VS Code Extension Development** tools with debugging capabilities
-- **Audio development libraries** (ALSA, PortAudio, PulseAudio, SoX, FFmpeg)
-- **Azure CLI** with AI/ML extensions and dev tools
-- **GitHub CLI** for seamless repository management
-- **Docker-in-Docker** support for containerized workflows
+## What's Included
 
-### Essential VS Code Extensions
-- **GitHub Copilot & Copilot Chat** - AI-powered coding assistance
-- **TypeScript & JavaScript** - Full IntelliSense, debugging, and formatting
-- **Testing Suite** - Jest, Test Explorer, Coverage reporting
-- **Azure Development** - Functions, Storage, Cosmos DB, App Service, Static Web Apps
-- **Code Quality** - ESLint, Prettier, Spell checker, Security analysis
-- **Git & GitHub** - GitLens, PR management, GitHub Actions integration
-- **Documentation** - Markdown support, Mermaid diagrams, live preview
+### Base Image & Features
 
-### Pre-installed Global Packages
-- `@vscode/vsce` - VS Code Extension packaging and publishing
-- `typescript` - TypeScript compiler (latest)
-- `eslint` & `prettier` - Code quality and formatting
-- `jest` & `ts-jest` - Testing framework
-- `nodemon` & `concurrently` - Development utilities
+- Node.js 22.12.0 via the `typescript-node:1-22` devcontainer image and the `node` feature.
+- GitHub CLI and Azure CLI supplied by devcontainer features.
+- Desktop Lite feature with a lightweight Fluxbox desktop, exposed by noVNC (`6080`) and VNC (`5901`).
+- Forwarded ports: `9229` (Node debugger), `6080` (noVNC), `5901` (VNC).
 
-## 🛠 Quick Start
+### Post-create Setup (`setup.sh`)
 
-### GitHub Codespaces (Recommended)
-1. Click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
-2. Wait for the container to build (2-3 minutes)
-3. VS Code will open automatically with all extensions loaded
-4. Run `npm install` if dependencies aren't already installed
-5. Press **`F5`** to start debugging the extension
+- Installs required GUI/X11 libraries plus `xvfb` for headless VS Code extension testing.
+- Installs the Azure Developer CLI (`azd`) if missing and ensures the Azure CLI has the Bicep CLI available.
+- Runs `npm install` for repository dependencies and adds `glob`/`@types/glob` if they are not already present.
+- Installs global npm CLIs `@vscode/vsce` and `@github/copilot`.
+- Creates `src/test/index.ts` when absent to keep the Mocha harness functional.
+- Builds the project with `npm run compile` (non-blocking) and starts an `Xvfb` session on display `:99`.
+- Seeds a default git configuration on first run for convenience.
 
-### Local Development with Docker
-1. **Prerequisites:**
-   - [Docker Desktop](https://www.docker.com/products/docker-desktop) (latest version)
-   - [VS Code](https://code.visualstudio.com/) with [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+### VS Code Extensions
 
-2. **Setup:**
-   ```bash
-   git clone https://github.com/PlagueHO/voice-pilot.git
-   cd voice-pilot
-   code .
-   ```
+The container pre-installs the following extensions through `devcontainer.json`:
 
-3. **Open in Container:**
-   - Click **"Reopen in Container"** when prompted, or
-   - Press `Ctrl+Shift+P` → **"Dev Containers: Reopen in Container"**
+- `ms-vscode.extension-test-runner`
+- `ms-vscode.vscode-typescript-next`
+- `GitHub.copilot`
+- `GitHub.copilot-chat`
+- `esbenp.prettier-vscode`
+- `dbaeumer.vscode-eslint`
+- `ms-azuretools.vscode-azure-github-copilot`
+- `ms-azuretools.vscode-azureresourcegroups`
+- `ms-vscode.azure-repos`
+- `bradlc.vscode-tailwindcss`
+- `hbenl.vscode-test-explorer`
+- `ms-vscode.test-adapter-converter`
+- `ms-azuretools.azure-dev`
+- `DavidAnson.vscode-markdownlint`
+- `ms-azuretools.vscode-bicep`
+- `bierner.markdown-mermaid`
+- `github.vscode-github-actions`
 
-4. **Start Development:**
-   - Press **`F5`** to launch Extension Development Host
-   - Make changes and test in real-time
+### What Is Not Included
 
-## 🎯 Development Workflow
+- Audio toolchains such as ALSA, PulseAudio, PortAudio, SoX, or FFmpeg are **not** installed.
+- Docker-in-Docker services, extra forwarded ports (3000/5000/8080), and additional Azure CLI extensions are not configured by default.
+- Additional global npm utilities (for example `typescript`, `eslint`, `jest`, `nodemon`) remain project-local and are not installed globally by the setup script.
 
-### Extension Development
+## Getting Started
+
+1. Open the repository in VS Code and choose **Dev Containers: Reopen in Container** (or create a Codespace).
+2. Wait for the container build and the `postCreateCommand` to finish. The output in the terminal will confirm when setup completes.
+3. Run `npm run compile`, `npm run lint`, or `npm test` as needed—dependencies are already installed during setup.
+4. Launch the extension in the Extension Development Host with **F5**.
+
+## Helpful Commands
 
 ```bash
-# Install dependencies
+# Re-run dependency installation if needed
 npm install
 
-# Build the extension
+# Compile the extension
 npm run compile
 
-# Watch for changes during development
-npm run watch
-
-# Run tests
+# Execute the default test suite
 npm test
 
-# Run tests with coverage
-npm run test:coverage
+# Start the watch compiler
+npm run watch
 
-# Lint code
-npm run lint
-
-# Format code
-npm run format
-
-# Package extension for distribution
+# Package the extension (requires @vscode/vsce which is installed globally)
 vsce package
-
-# Publish to marketplace
-vsce publish
 ```
 
-### Debugging & Testing
+## Desktop Access
 
-1. **Extension Host Debugging:**
-   - Press **`F5`** to launch Extension Development Host
-   - Set breakpoints in TypeScript files
-   - Use VS Code's built-in debugger
+- Open `http://localhost:6080` for the web-based desktop supplied by the Desktop Lite feature. The default password is `vscode`.
+- Connect to `localhost:5901` with a VNC client if you prefer a native viewer.
 
-2. **Unit Testing:**
-   - Run `npm test` for Jest tests
-   - Use Test Explorer for interactive testing
-   - View coverage reports in `coverage/` directory
+## Maintenance Notes
 
-3. **Integration Testing:**
-   - Test with mock VS Code APIs
-   - Validate Azure service integrations
-   - Test audio features with different devices
+- If you need additional system packages (for example audio libraries), add them to `.devcontainer/setup.sh` so the README continues to reflect the actual environment.
+- When changing forwarded ports or VS Code extensions, update both `devcontainer.json` and this document to keep them in sync.
 
-### Audio Development
-
-The container includes comprehensive audio libraries:
-
-- **ALSA** - Advanced Linux Sound Architecture
-- **PortAudio** - Cross-platform audio I/O library
-- **PulseAudio** - Sound server for Linux
-- **SoX** - Sound processing toolkit
-- **FFmpeg** - Audio/video processing
-
-**Audio Testing Commands:**
-
-```bash
-# List audio devices
-aplay -l
-
-# Test audio system
-speaker-test -t wav -c 2
-
-# Record audio test
-arecord -d 5 -f cd test.wav && aplay test.wav
-```
-
-## ☁️ Azure Integration
-
-### Pre-configured Services
-
-**Azure CLI** with extensions for:
-
-- `azure-devops` - Azure DevOps integration
-- `ml` - Azure Machine Learning
-- `cognitiveservices` - Azure Cognitive Services
-- `azure-dev` - Azure Developer CLI
-
-### Authentication
-
-```bash
-# Login to Azure
-az login
-
-# Set subscription
-az account set --subscription <subscription-id>
-
-# Verify authentication
-az account show
-```
-
-### Azure OpenAI Integration
-
-```bash
-# Set environment variables for development
-export AZURE_OPENAI_ENDPOINT="your-endpoint"
-export AZURE_OPENAI_API_KEY="your-api-key"
-# Azure Speech environment variables removed; use Azure OpenAI Realtime configuration instead
-```
-
-## 🔧 Advanced Configuration
-
-### Port Forwarding
-
-- **3000** - Development server
-- **5000/5001** - Web application (HTTP/HTTPS)
-- **8080** - Alternative development server
-- **9229** - Node.js debugging port
-
-### Optional Services
-
-Start additional services using Docker Compose profiles:
-
-```bash
-# Start with database support
-docker-compose --profile database up
-
-# Start with caching support
-docker-compose --profile cache up
-
-# Start with reverse proxy
-docker-compose --profile proxy up
-
-# Start all services
-docker-compose --profile full up
-```
-
-### VS Code Settings
-
-The container includes optimized settings for:
-
-- TypeScript development with auto-imports
-- Automatic formatting on save
-- ESLint integration with auto-fix
-- GitHub Copilot configuration
-- Testing and debugging setup
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Extension Won't Load
-
-```bash
-# Check Extension Development Host console for errors
-# Verify package.json activation events
-npm run compile
-# Restart the Extension Development Host (F5)
-```
-
-#### Audio Issues
-
-```bash
-# Check audio permissions
-sudo usermod -a -G audio $USER
-
-# Restart audio service
-sudo systemctl restart pulseaudio
-
-# Test audio devices
-aplay -l && arecord -l
-```
-
-#### Azure Authentication
-
-```bash
-# Clear Azure CLI cache
-az account clear
-
-# Re-authenticate
-az login --use-device-code
-
-# Verify permissions
-az account list-locations
-```
-
-#### Build Failures
-
-```bash
-# Clean install
-rm -rf node_modules package-lock.json
-npm install
-
-# Clear TypeScript cache
-rm -rf out/
-npm run compile
-```
-
-#### Container Performance
-
-```bash
-# Check container resources
-docker stats
-
-# Prune unused resources
-docker system prune -f
-
-# Rebuild container
-docker-compose build --no-cache app
-```
-
-### Performance Optimization
-
-#### Node.js Memory Issues
-
-```bash
-# Increase Node.js memory limit
-export NODE_OPTIONS="--max-old-space-size=4096"
-```
-
-#### Docker Performance
-
-- Use named volumes for `node_modules`
-- Enable BuildKit for faster builds
-- Adjust memory limits in docker-compose.yml
-
-## 📚 Resources
-
-### VS Code Extension Development
-
-- [VS Code Extension API](https://code.visualstudio.com/api)
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-- [Publishing Extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
-
-### Azure Development
-
-- [Azure SDK for JavaScript](https://docs.microsoft.com/en-us/azure/developer/javascript/)
-- [Azure OpenAI Service](https://docs.microsoft.com/en-us/azure/cognitive-services/openai/)
-- [Azure Speech Services](https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/)
-
-### Audio Development
-
-- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-- [PortAudio Documentation](http://portaudio.com/docs.html)
-- [FFmpeg Documentation](https://ffmpeg.org/documentation.html)
-
-## 🔒 Security Considerations
-
-- **API Keys**: Use VS Code secret storage, never commit to source control
-- **Authentication**: Leverage VS Code's built-in GitHub auth when possible
-- **Audio Privacy**: Process audio locally, clear buffers after use
-- **Network Security**: All Azure calls use HTTPS with certificate validation
-- **Container Security**: Run as non-root user, use security profiles
-
-## 🆘 Support
-
-If you encounter issues:
-
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Review VS Code Extension Host logs
-3. Validate Azure service connectivity
-4. Create an issue in the repository with:
-   - Operating system and Docker version
-   - VS Code version and extensions installed
-   - Complete error messages and logs
-   - Steps to reproduce the issue
-
----
-
-**Happy coding with VoicePilot! 🎤✨**
+Happy building! 🎤✨
