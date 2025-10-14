@@ -18,7 +18,7 @@ post_date: 2025-10-09
 <!-- markdownlint-disable-next-line MD041 -->
 ## Overview
 
-The VoicePilot repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. The pipeline currently fans out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.12.0. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
+The VoicePilot repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. Matrixed jobs fan out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.12.0. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
 
 ## Workflow Triggers and Permissions
 
@@ -27,7 +27,7 @@ The VoicePilot repository ships a single GitHub Actions workflow, `continuous-in
 
 ## Matrix Configuration
 
-Each job runs twice—once per VS Code channel—using the following environment contract:
+Matrix-enabled jobs run twice—once per VS Code channel—using the following environment contract:
 
 - `matrix.node-version`: `22.12.0`
 - `matrix.vs_code_channel`: `stable`, `insiders`
@@ -50,6 +50,21 @@ Each job runs twice—once per VS Code channel—using the following environment
 6. Upload artifacts per VS Code channel via `actions/upload-artifact@v4` for later analysis.
 
 The job is marked critical; a failure blocks the rest of the pipeline for the affected matrix entry.
+
+### CodeQL Analysis (needs: none)
+
+**Purpose**: Run GitHub CodeQL queries against the TypeScript codebase to surface semantic security flaws.
+
+**Key steps**:
+
+1. Check out the repository.
+2. Provision Node.js 22.12.0 so TypeScript builds remain consistent with other jobs.
+3. Install dependencies via `npm ci` to hydrate the workspace.
+4. Initialize CodeQL for the `javascript-typescript` language pack using `github/codeql-action/init@v3`.
+5. Execute the `github/codeql-action/autobuild@v3` step, which compiles the extension and produces the analysis database.
+6. Run `github/codeql-action/analyze@v3` to generate and upload SARIF findings directly to GitHub code scanning alerts.
+
+This job runs independently of the VS Code channel matrix, allowing CodeQL to execute in parallel without doubling runtime.
 
 ### Lint & Publish Bicep (needs: none)
 
@@ -93,7 +108,7 @@ This job is guarded with `if: always()` so that telemetry is still published whe
 
 - `quality-gate-${vs_code_channel}`: Contains `quality-gate.json`, `coverage/lcov.info`, and `coverage/coverage-summary.json` for each channel.
 - `quality-gate-telemetry`: Aggregated telemetry emitted after both channels complete.
-- SARIF uploads: ESLint (`eslint-results.sarif`) and Trivy (`trivy-results.sarif`) files delivered directly to the GitHub Security tab rather than stored as downloadable artifacts.
+- SARIF uploads: CodeQL (`codeql-scan` run results), ESLint (`eslint-results.sarif`), and Trivy (`trivy-results.sarif`) files delivered directly to the GitHub Security tab rather than stored as downloadable artifacts.
 - `infrastructure_bicep`: Bicep source and compiled templates published by the reusable lint workflow.
 
 ## Reproducing the Quality Gate Locally
