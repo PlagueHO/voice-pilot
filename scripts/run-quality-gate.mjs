@@ -18,6 +18,7 @@ const runtimeBudgetMs = 15 * 60 * 1000; // 15 minutes
  * execution order because early failures short-circuit the remaining checks.
  */
 const tasks = [
+  { label: "Validate Threat Register", command: "npm", args: ["run", "validate:threats"] },
   { label: "Lint Extension", command: "npm", args: ["run", "lint"] },
   { label: "Test Unit", command: "npm", args: ["run", "test:unit"] },
   { label: "Test Extension", command: "npm", args: ["test"] },

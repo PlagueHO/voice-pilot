@@ -1,0 +1,143 @@
+{
+  "$schema": "./threat-register.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-18",
+  "threats": [
+    {
+      "threatId": "VP-THR-001",
+      "title": "Credential theft from extension host",
+      "stride": "S",
+      "asset": "CredentialManager",
+      "description": "Attacker obtains stored Azure API keys or GitHub tokens from the extension host or SecretStorage boundaries to impersonate the user.",
+      "dreadScore": 74,
+      "mitigations": [
+        {
+          "spec": "SP-003",
+          "control": "SEC-001",
+          "verification": "test:credential-manager-secret-scope"
+        },
+        {
+          "spec": "SP-004",
+          "control": "SEC-002",
+          "verification": "test:ephemeral-key-host-isolation"
+        }
+      ],
+      "residualRisk": "Low",
+      "status": "Mitigated",
+      "owner": "SecurityTeam",
+      "reviewCadence": "pre-release",
+      "references": [
+        "docs/design/FEATURE-PLAN.md#sp-003",
+        "spec/sp-003-spec-security-secret-storage.md"
+      ]
+    },
+    {
+      "threatId": "VP-THR-002",
+      "title": "Replay of expired ephemeral key",
+      "stride": "T",
+      "asset": "EphemeralKeyService",
+      "description": "Attacker captures an issued client_secret and reuses it after expiration to hijack realtime sessions.",
+      "dreadScore": 72,
+      "mitigations": [
+        {
+          "spec": "SP-004",
+          "control": "SEC-007",
+          "verification": "test:ephemeral-key-replay-block"
+        },
+        {
+          "spec": "SP-005",
+          "control": "REQ-002",
+          "verification": "test:session-renewal-block-replay"
+        }
+      ],
+      "residualRisk": "Low",
+      "status": "Mitigated",
+      "owner": "SecurityTeam",
+      "reviewCadence": "pre-release",
+      "references": [
+        "spec/sp-004-spec-architecture-ephemeral-key-service.md"
+      ]
+    },
+    {
+      "threatId": "VP-THR-003",
+      "title": "Cross-context message injection",
+      "stride": "T",
+      "asset": "MessageRouter",
+      "description": "Malicious webview script sends forged envelopes to escalate privileges or execute unintended commands in the extension host.",
+      "dreadScore": 65,
+      "mitigations": [
+        {
+          "spec": "SP-050",
+          "control": "SEC-001",
+          "verification": "test:envelope-origin-check"
+        },
+        {
+          "spec": "SP-027",
+          "control": "LOG-001",
+          "verification": "test:privacy-log-redaction"
+        }
+      ],
+      "residualRisk": "Medium",
+      "status": "Mitigated",
+      "owner": "PlatformTeam",
+      "reviewCadence": "pre-release",
+      "references": [
+        "spec/sp-050-spec-architecture-message-contracts.md"
+      ]
+    },
+    {
+      "threatId": "VP-THR-004",
+      "title": "DTLS downgrade during WebRTC negotiation",
+      "stride": "T",
+      "asset": "WebRTCTransport",
+      "description": "Attacker interferes with ICE/SDP exchange to force an insecure transport or injects hostile ICE candidates for man-in-the-middle positioning.",
+      "dreadScore": 68,
+      "mitigations": [
+        {
+          "spec": "SP-006",
+          "control": "SEC-004",
+          "verification": "test:webrtc-dtls-downgrade"
+        },
+        {
+          "spec": "SP-005",
+          "control": "ERR-001",
+          "verification": "test:session-recovery-ice-poison"
+        }
+      ],
+      "residualRisk": "Medium",
+      "status": "Mitigated",
+      "owner": "RealtimeTeam",
+      "reviewCadence": "pre-release",
+      "references": [
+        "spec/sp-006-spec-architecture-webrtc-audio.md"
+      ]
+    },
+    {
+      "threatId": "VP-THR-005",
+      "title": "Transcript privacy leakage",
+      "stride": "I",
+      "asset": "TranscriptAggregator",
+      "description": "Sensitive transcript content persists beyond retention windows or appears in logs, violating privacy guarantees.",
+      "dreadScore": 48,
+      "mitigations": [
+        {
+          "spec": "SP-027",
+          "control": "RET-001",
+          "verification": "test:transcript-retention-purge"
+        },
+        {
+          "spec": "SP-050",
+          "control": "REQ-009",
+          "verification": "test:privacy-tier-enforcement"
+        }
+      ],
+      "residualRisk": "Medium",
+      "status": "Open",
+      "owner": "PrivacyTeam",
+      "reviewCadence": "quarterly",
+      "references": [
+        "spec/sp-027-spec-security-privacy-data-handling.md"
+      ]
+    }
+  ]
+}

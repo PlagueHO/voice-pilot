@@ -1,0 +1,66 @@
+name: Threat Model Review Monitor
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  weekly-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate threat register
+        run: npm run validate:threats
+
+      - name: Inspect report
+        id: report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const reportPath = path.join(process.cwd(), 'spec', 'threat-register-report.json');
+            if (!fs.existsSync(reportPath)) {
+              core.setFailed('Threat register report not found.');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const openHighRisk = report.openHighRisk ?? [];
+            core.setOutput('openHighRiskCount', openHighRisk.length);
+            core.setOutput('openHighRiskList', openHighRisk.map(item => `${item.threatId} (${item.title})`).join(', '));
+
+      - name: Create issue for open high-risk threats
+        if: steps.report.outputs.openHighRiskCount != '0'
+        uses: actions/github-script@v7
+        env:
+          OPEN_HIGH_RISK_LIST: ${{ steps.report.outputs.openHighRiskList }}
+        with:
+          script: |
+            const list = process.env.OPEN_HIGH_RISK_LIST || 'None';
+            const title = `Open high-risk threats detected: ${new Date().toISOString().slice(0, 10)}`;
+            const body = [
+              '## High-Risk Threats Detected',
+              '',
+              `- ${list}`,
+              '',
+              'Please review the latest threat register report (`spec/threat-register-report.json`) and update mitigations or approvals as required.'
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['security', 'threat-model']
+            });
