@@ -31,10 +31,10 @@ This plan operationalizes specification `sp-056-spec-architecture-security-threa
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Create `spec/threat-register.schema.json` encoding the SP-056 field requirements with JSON Schema draft 2020-12. | Yes | 2025-10-18 |
-| TASK-002 | Author `spec/threat-register.json` seeded with baseline threats covering credentials, replay, injection, downgrade, and privacy categories. | Yes | 2025-10-18 |
-| TASK-003 | Implement `scripts/validate-threat-register.mjs` to load schema, validate every entry, enforce STRIDE/DREAD rules, and exit non-zero on violations. | Yes | 2025-10-18 |
-| TASK-004 | Add `npm run validate:threats` script in `package.json` invoking the validator with Node.js 22. | Yes | 2025-10-18 |
+| TASK-001 | Create `spec/threat-register.schema.json` encoding the SP-056 field requirements with JSON Schema draft 2020-12. | Complete | 2025-10-18 |
+| TASK-002 | Author `spec/threat-register.json` seeded with baseline threats covering credentials, replay, injection, downgrade, and privacy categories. | Complete | 2025-10-18 |
+| TASK-003 | Implement `scripts/validate-threat-register.mjs` to load schema, validate every entry, enforce STRIDE/DREAD rules, and exit non-zero on violations. | Complete | 2025-10-18 |
+| TASK-004 | Add `npm run validate:threats` script in `package.json` invoking the validator with Node.js 22. | Complete | 2025-10-18 |
 
 ### Implementation Phase 2
 
@@ -42,9 +42,9 @@ This plan operationalizes specification `sp-056-spec-architecture-security-threa
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-005 | Extend `scripts/validate-threat-register.mjs` to emit `spec/threat-register-report.json` summarizing open/high-risk threats and mitigation coverage. | Yes | 2025-10-18 |
-| TASK-006 | Update `.github/workflows/quality-gate.yml` (create if absent) to run `npm run validate:threats` before lint/test jobs; fail workflow on validation errors. | Yes | 2025-10-18 |
-| TASK-007 | Modify `scripts/run-quality-gate.mjs` to include threat validation (call `npm run validate:threats`) ensuring `Quality Gate Sequence` task blocks on failures. | Yes | 2025-10-18 |
+| TASK-005 | Extend `scripts/validate-threat-register.mjs` to emit `spec/threat-register-report.json` summarizing open/high-risk threats and mitigation coverage. | Complete | 2025-10-18 |
+| TASK-006 | Update `.github/workflows/quality-gate.yml` (create if absent) to run `npm run validate:threats` before lint/test jobs; fail workflow on validation errors. | Complete | 2025-10-18 |
+| TASK-007 | Modify `scripts/run-quality-gate.mjs` to include threat validation (call `npm run validate:threats`) ensuring `Quality Gate Sequence` task blocks on failures. | Complete | 2025-10-18 |
 
 ### Implementation Phase 3
 
@@ -52,9 +52,9 @@ This plan operationalizes specification `sp-056-spec-architecture-security-threa
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-008 | Create `spec/threat-models/webrtc-negotiation-attack-tree.md` documenting attack tree per SP-056 GUD-002. | Yes | 2025-10-18 |
-| TASK-009 | Produce `docs/process/threat-model-review.md` outlining pre-release review checklist referencing validator outputs. | Yes | 2025-10-18 |
-| TASK-010 | Configure GitHub Action workflow (e.g., `.github/workflows/threat-model-review.yml`) to run weekly and open issue if `spec/threat-register-report.json` lists High residual risks. | Yes | 2025-10-18 |
+| TASK-008 | Create `spec/threat-models/webrtc-negotiation-attack-tree.md` documenting attack tree per SP-056 GUD-002. | Complete | 2025-10-18 |
+| TASK-009 | Produce `docs/process/threat-model-review.md` outlining pre-release review checklist referencing validator outputs. | Complete | 2025-10-18 |
+| TASK-010 | Configure GitHub Action workflow (e.g., `.github/workflows/threat-model-review.yml`) to run weekly and open issue if `spec/threat-register-report.json` lists High residual risks. | Complete | 2025-10-18 |
 
 ## 3. Alternatives
 
