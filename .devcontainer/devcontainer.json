@@ -35,7 +35,8 @@
         "DavidAnson.vscode-markdownlint",
         "ms-azuretools.vscode-bicep",
         "bierner.markdown-mermaid",
-        "github.vscode-github-actions"
+        "github.vscode-github-actions",
+        "ms-playwright.playwright"
       ],
 
       "settings": {

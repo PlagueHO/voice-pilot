@@ -52,6 +52,23 @@ fi
 echo "📦 Installing Node.js dependencies..."
 npm install
 
+# Setup Playwright Test agents when definitions are absent.
+echo "🎭 Setting up Playwright Test Agents..."
+PLAYWRIGHT_AGENT_DIR=".github/playwright"
+if ! npx --yes playwright@latest --version >/dev/null 2>&1; then
+  echo "⚠️ Unable to download Playwright CLI; skipping agent generation."
+else
+  if [ ! -d "$PLAYWRIGHT_AGENT_DIR" ]; then
+    if npx --yes playwright@latest init-agents --loop=vscode; then
+      echo "✅ Playwright Test agent definitions generated."
+    else
+      echo "⚠️ Playwright agent generation failed; rerun 'npx playwright init-agents --loop=vscode' manually."
+    fi
+  else
+    echo "🎭 Playwright agent definitions already present; skipping generation."
+  fi
+fi
+
 # Install global packages
 echo "🌐 Installing global packages..."
 npm install -g @vscode/vsce
@@ -136,6 +153,7 @@ echo ""
 echo "📋 What was configured:"
 echo "  • GUI dependencies for VS Code extension testing"
 echo "  • Node.js packages and global tools (@vscode/vsce)"
+echo "  • Playwright Test agent definitions (planner, generator, healer)"
 echo "  • Test environment with Mocha and proper test index"
 echo "  • Virtual display (Xvfb) for headless testing"
 echo "  • Git configuration (if needed)"

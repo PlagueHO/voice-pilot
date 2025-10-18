@@ -69,7 +69,7 @@ var azureAiFoundryModelDeployments = [
 ]
 
 // The application resources that are deployed into the application resource group
-module rg 'br/public:avm/res/resources/resource-group:0.4.1' = {
+module rg 'br/public:avm/res/resources/resource-group:0.4.2' = {
   name: 'resource-group-deployment-${resourceToken}'
   params: {
     name: resourceGroupName
@@ -79,7 +79,7 @@ module rg 'br/public:avm/res/resources/resource-group:0.4.1' = {
 }
 
 // --------- DIAGNOSTICS WORKSPACE ---------
-module diagnosticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.4.1' = {
+module diagnosticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.12.0' = {
   name: 'diagnostics-workspace-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
