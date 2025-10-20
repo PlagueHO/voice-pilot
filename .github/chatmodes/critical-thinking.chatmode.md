@@ -1,6 +1,6 @@
 ---
 description: 'Challenge assumptions and encourage critical thinking to ensure the best possible solution and outcomes.'
-tools: ['search', 'usages', 'think', 'problems', 'changes', 'testFailure', 'fetch', 'githubRepo', 'extensions', 'todos', 'Microsoft Docs', 'search']
+tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'Microsoft Docs/*', 'extensions', 'todos', 'runTests', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
 ---
 # Critical Thinking Mode
 
