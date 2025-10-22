@@ -4,16 +4,17 @@ import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { presentCleanupDiagnostics, summarizeCleanupReport, type CleanupDiagnosticsResult } from "../commands/run-diagnostics";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-  StateChangeEvent as ConversationStateChangeEvent,
-  TurnContext as ConversationTurnContext,
-  TurnEvent as ConversationTurnEvent,
-  CopilotResponseEvent,
+    StateChangeEvent as ConversationStateChangeEvent,
+    TurnContext as ConversationTurnContext,
+    TurnEvent as ConversationTurnEvent,
+    CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
 import { createVoicePilotError } from "../helpers/error/envelope";
 import { sanitizeForLog } from "../helpers/error/redaction";
 import { AudioFeedbackServiceImpl } from "../services/audio-feedback/audio-feedback-service";
+import { ConversationStorageServiceImpl } from "../services/conversation/conversation-storage-service";
 import { ErrorEventBusImpl } from "../services/error/error-event-bus";
 import { RecoveryOrchestrator } from "../services/error/recovery-orchestrator";
 import { RecoveryRegistrationCenter } from "../services/error/recovery-registrar";
@@ -23,16 +24,16 @@ import { InterruptionEngineImpl } from "../session/interruption-engine";
 import { SessionManagerImpl } from "../session/session-manager";
 import { SessionTimerManagerImpl } from "../session/session-timer-manager";
 import {
-  lifecycleTelemetry,
-  type LifecyclePhase,
+    lifecycleTelemetry,
+    type LifecyclePhase,
 } from "../telemetry/lifecycle-telemetry";
 import { telemetryLogger } from "../telemetry/logger";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type { DisposalReason, DisposalReport } from "../types/disposal";
 import type {
-  RecoveryPlan,
-  VoicePilotError,
+    RecoveryPlan,
+    VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
@@ -42,8 +43,8 @@ import { OrphanDetector } from "./disposal/orphan-detector";
 import type { AggregatedResourceTracker } from "./disposal/orphan-resource-tracker";
 import { OrphanResourceTracker } from "./disposal/orphan-resource-tracker";
 import {
-  createServiceScope,
-  DisposableScope,
+    createServiceScope,
+    DisposableScope,
 } from "./disposal/scoped-disposable";
 import { Logger } from "./logger";
 import { RetryConfigurationProviderImpl } from "./retry/retry-configuration-provider";
@@ -84,6 +85,7 @@ export class ExtensionController implements ServiceInitializable {
   private readonly realtimeSttService: RealtimeSpeechToTextService;
   private readonly transcriptAggregator: TranscriptPrivacyAggregator;
   private readonly audioFeedbackService: AudioFeedbackServiceImpl;
+  private readonly conversationStorage: ConversationStorageServiceImpl;
   private readonly controllerDisposables: vscode.Disposable[] = [];
   private readonly dispatchedUserTurnIds = new Set<string>();
   private readonly errorEventBus: ErrorEventBusImpl;
@@ -132,6 +134,11 @@ export class ExtensionController implements ServiceInitializable {
     this.audioFeedbackService = new AudioFeedbackServiceImpl(
       this.configurationManager,
       this.voicePanel,
+      this.logger,
+    );
+    this.conversationStorage = new ConversationStorageServiceImpl(
+      this.context,
+      this.privacyController,
       this.logger,
     );
     this.errorEventBus = new ErrorEventBusImpl(this.logger);
@@ -241,6 +248,29 @@ export class ExtensionController implements ServiceInitializable {
         this.privacyController,
       );
 
+      await this.safeInit("conversation storage service", () =>
+        this.conversationStorage.initialize(),
+      );
+      this.registerServiceScope(
+        "conversationStorage",
+        DISPOSAL_PRIORITY.session,
+        this.conversationStorage,
+      );
+      const purgeDisposable = this.privacyController.onPurge((command) => {
+        if (command.target === "transcripts" || command.target === "all") {
+          void this.conversationStorage
+            .purgeAll(command.reason)
+            .catch((error: any) => {
+              this.logger.warn("Conversation storage purge failed", {
+                target: command.target,
+                reason: command.reason,
+                error: error?.message ?? error,
+              });
+            });
+        }
+      });
+      this.controllerDisposables.push(purgeDisposable);
+
       await this.safeInit("error event bus", () =>
         this.errorEventBus.initialize(),
       );
@@ -306,6 +336,7 @@ export class ExtensionController implements ServiceInitializable {
         }
       }
       this.sessionManager.setTimerResourceTracker(this.resourceTracker);
+      this.sessionManager.setConversationStorage(this.conversationStorage);
       await this.safeInit("session manager", () =>
         this.sessionManager.initialize(),
       );

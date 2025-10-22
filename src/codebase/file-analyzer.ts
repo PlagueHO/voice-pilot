@@ -1,3 +1,5 @@
+// Placeholder analyzer kept in src/codebase until SP-020..SP-023 graduate the
+// project-context utilities into their dedicated module.
 export class FileAnalyzer {
   private openFiles: string[];
 

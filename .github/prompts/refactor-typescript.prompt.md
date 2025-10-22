@@ -1,7 +1,7 @@
 ---
-mode: 'agent'
+agent: 'agent'
 description: 'Refactor Typescript file to meet Typescript 5.x and ES2022 best practices.'
-tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'extensions', 'todos', 'runTests', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'Microsoft Docs', 'search']
+tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'Microsoft Docs/*', 'context7/*', 'todos', 'runSubagent', 'usages', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
 ---
 # Refactor Typescript
 You are refactoring `${fileBasename}` to align with [TypeScript 5 / ES2022 best practices](../instructions/typescript-5-es2022.instructions.md). Operate on the selected file, pulling in nearby modules or tests only as supporting context.

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ServiceInitializable } from "../core/service-initializable";
+import type { ConversationStorageService } from "./conversation-storage";
 import { AuthenticationError, EphemeralKeyInfo } from "./ephemeral";
 
 /**
@@ -41,6 +42,9 @@ export interface SessionManager extends ServiceInitializable {
   /** Registers a handler for session state transitions. */
   onSessionStateChanged(handler: SessionStateHandler): vscode.Disposable;
 
+  /** Injects the conversation storage dependency for transcript persistence. */
+  setConversationStorage(storage: ConversationStorageService): void;
+
   /** Provides a snapshot of diagnostics for the targeted session. */
   getSessionDiagnostics(sessionId: string): SessionDiagnostics;
   /** Executes health checks and returns aggregated results. */
@@ -62,6 +66,7 @@ export interface SessionInfo {
   config: SessionConfig;
   statistics: SessionStatistics;
   connectionInfo: ConnectionInfo;
+  conversationId?: string;
 }
 
 /**

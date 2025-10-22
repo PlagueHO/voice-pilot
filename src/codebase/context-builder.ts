@@ -1,6 +1,10 @@
 import { FileAnalyzer } from "./file-analyzer";
 import { SearchService } from "./search-service";
 
+// Temporary context aggregation scaffold parked under src/codebase until
+// SP-020..SP-023 project-context tooling is implemented and the modules are
+// relocated into their permanent home.
+
 export class ContextBuilder {
   private fileAnalyzer: FileAnalyzer;
   private searchService: SearchService;

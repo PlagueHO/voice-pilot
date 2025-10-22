@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import * as vscode from "vscode";
 import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
@@ -7,38 +7,43 @@ import { Logger } from "../core/logger";
 import { createVoicePilotError, withRecovery } from "../helpers/error/envelope";
 import { PrivacyController } from "../services/privacy/privacy-controller";
 import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
+import type {
+    ConversationStorageService,
+    RecoverySnapshot,
+    MessageFrame as StoredMessageFrame,
+} from "../types/conversation-storage";
 import { EphemeralKeyInfo, EphemeralKeyResult } from "../types/ephemeral";
 import type {
-  RecoveryExecutionOptions,
-  RecoveryExecutor,
-  RecoveryPlan,
-  RecoveryRegistrar,
+    RecoveryExecutionOptions,
+    RecoveryExecutor,
+    RecoveryPlan,
+    RecoveryRegistrar,
 } from "../types/error/voice-pilot-error";
 import type { PurgeCommand, PurgeReason } from "../types/privacy";
 import { RealtimeEvent } from "../types/realtime-events";
 import {
-  HealthCheck,
-  RenewalResult,
-  SessionConfig,
-  SessionDiagnostics,
-  SessionError,
-  SessionErrorEvent,
-  SessionErrorHandler,
-  SessionEvent,
-  SessionEventHandler,
-  SessionHealthResult,
-  SessionInfo,
-  SessionManager,
-  SessionRenewalEvent,
-  SessionRenewalHandler,
-  SessionState,
-  SessionStateEvent,
-  SessionStateHandler,
-  SessionStatistics,
+    HealthCheck,
+    RenewalResult,
+    SessionConfig,
+    SessionDiagnostics,
+    SessionError,
+    SessionErrorEvent,
+    SessionErrorHandler,
+    SessionEvent,
+    SessionEventHandler,
+    SessionHealthResult,
+    SessionInfo,
+    SessionManager,
+    SessionRenewalEvent,
+    SessionRenewalHandler,
+    SessionState,
+    SessionStateEvent,
+    SessionStateHandler,
+    SessionStatistics,
 } from "../types/session";
 import {
-  TranscriptEvent,
-  TranscriptEventHandler,
+    TranscriptEvent,
+    TranscriptEventHandler,
 } from "../types/speech-to-text";
 import { SessionTimerManagerImpl } from "./session-timer-manager";
 
@@ -75,6 +80,10 @@ export class SessionManagerImpl implements SessionManager {
   private readonly realtimeTranscriptHandlers =
     new Set<TranscriptEventHandler>();
   private timerResourceTracker?: TimerTracker;
+  private conversationStorage?: ConversationStorageService;
+  private readonly sessionConversationMap = new Map<string, string>();
+  private readonly conversationSnapshots = new Map<string, RecoverySnapshot>();
+  private readonly conversationSequences = new Map<string, number>();
 
   constructor(
     keyService?: EphemeralKeyServiceImpl,
@@ -85,6 +94,7 @@ export class SessionManagerImpl implements SessionManager {
     recoveryExecutor?: RecoveryExecutor,
     recoveryPlan?: RecoveryPlan,
     timerResourceTracker?: TimerTracker,
+    conversationStorage?: ConversationStorageService,
   ) {
     if (keyService) {
       this.keyService = keyService;
@@ -109,6 +119,9 @@ export class SessionManagerImpl implements SessionManager {
     }
     if (timerResourceTracker) {
       this.timerResourceTracker = timerResourceTracker;
+    }
+    if (conversationStorage) {
+      this.conversationStorage = conversationStorage;
     }
   }
 
@@ -168,6 +181,10 @@ export class SessionManagerImpl implements SessionManager {
 
   setPrivacyController(controller: PrivacyController): void {
     this.privacyController = controller;
+  }
+
+  setConversationStorage(storage: ConversationStorageService): void {
+    this.conversationStorage = storage;
   }
 
   setRecoveryExecutor(executor: RecoveryExecutor, plan?: RecoveryPlan): void {
@@ -295,6 +312,9 @@ export class SessionManagerImpl implements SessionManager {
     this.realtimeTranscriptHandlers.clear();
     this.realtimeTranscriptionService?.clearActiveUtterances();
     this.realtimeTranscriptionService = undefined;
+    this.sessionConversationMap.clear();
+    this.conversationSnapshots.clear();
+    this.conversationSequences.clear();
 
     this.initialized = false;
     this.logger.info("SessionManager disposed");
@@ -406,6 +426,7 @@ export class SessionManagerImpl implements SessionManager {
         expiresAt: keyResult.expiresAt?.toISOString(),
       });
 
+      await this.initializeConversationRecord(sessionInfo);
       await this.prepareRealtimeTranscription(sessionInfo);
 
       await this.invokeConversationHook("onSessionReady", sessionInfo);
@@ -457,6 +478,8 @@ export class SessionManagerImpl implements SessionManager {
       session.statistics.totalDurationMs =
         Date.now() - session.startedAt.getTime();
 
+      await this.finalizeConversation(session, "user-requested");
+
       // Remove from active sessions
       this.sessions.delete(targetSessionId);
 
@@ -474,6 +497,7 @@ export class SessionManagerImpl implements SessionManager {
         sessionId: targetSessionId,
         error: error.message,
       });
+      await this.finalizeConversation(session, "error-recovery");
       throw error;
     } finally {
       await this.purgePrivacyData("session-timeout", "all");
@@ -1341,6 +1365,7 @@ export class SessionManagerImpl implements SessionManager {
         });
       }
     }
+    await this.handleTranscriptForConversationStorage(event);
   }
 
   private async prepareRealtimeTranscription(
@@ -1365,6 +1390,231 @@ export class SessionManagerImpl implements SessionManager {
     }
   }
 
+  private async initializeConversationRecord(session: SessionInfo): Promise<void> {
+    if (!this.conversationStorage) {
+      return;
+    }
+
+    const conversationId = randomUUID();
+    const createdAt = session.startedAt.toISOString();
+    const snapshot: RecoverySnapshot = {
+      conversationId,
+      sessionId: session.sessionId,
+      lastInteractionAt: createdAt,
+      pendingMessages: [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await this.conversationStorage.createRecord({
+        conversationId,
+        title: `VoicePilot session ${session.sessionId}`,
+        createdAt,
+        participants: [
+          { id: "user", role: "user", displayName: "User" },
+          {
+            id: "assistant.voicepilot",
+            role: "assistant",
+            displayName: "VoicePilot",
+          },
+        ],
+        messages: [],
+        metrics: {
+          userUtteranceCount: 0,
+          assistantUtteranceCount: 0,
+          durationMs: 0,
+          averageLatencyMs: 0,
+        },
+      });
+      await this.conversationStorage.commitSnapshot(snapshot);
+      session.conversationId = conversationId;
+      this.sessionConversationMap.set(session.sessionId, conversationId);
+      this.conversationSnapshots.set(conversationId, snapshot);
+      this.conversationSequences.set(conversationId, 0);
+    } catch (error: any) {
+      this.logger.warn("Failed to initialize conversation storage", {
+        sessionId: session.sessionId,
+        error: error?.message ?? error,
+      });
+      this.sessionConversationMap.delete(session.sessionId);
+      this.conversationSnapshots.delete(conversationId);
+      this.conversationSequences.delete(conversationId);
+      session.conversationId = undefined;
+    }
+  }
+
+  private ensureConversationSnapshot(
+    conversationId: string,
+    sessionId: string,
+  ): RecoverySnapshot {
+    const existing = this.conversationSnapshots.get(conversationId);
+    if (existing) {
+      existing.sessionId = sessionId;
+      return existing;
+    }
+    const snapshot: RecoverySnapshot = {
+      conversationId,
+      sessionId,
+      lastInteractionAt: new Date().toISOString(),
+      pendingMessages: [],
+      updatedAt: new Date().toISOString(),
+    };
+    this.conversationSnapshots.set(conversationId, snapshot);
+    if (!this.conversationSequences.has(conversationId)) {
+      this.conversationSequences.set(conversationId, 0);
+    }
+    return snapshot;
+  }
+
+  private buildMessagePrivacy(
+    metadata: Extract<TranscriptEvent, { type: "transcript-final" }>['metadata'],
+  ): StoredMessageFrame['privacy'] {
+    const matches = metadata?.redactionsApplied ?? [];
+    const redactionRulesApplied = matches.map((match) => match.ruleId);
+    const piiTokens = matches.length
+      ? matches.map((match) => this.hashRedactedToken(String(match.originalText)))
+      : undefined;
+    return {
+      containsSecrets: matches.length > 0,
+      redactionRulesApplied,
+      piiTokens,
+    };
+  }
+
+  private buildMessageFrame(
+    conversationId: string,
+    event: Extract<TranscriptEvent, { type: "transcript-final" }>,
+  ): StoredMessageFrame {
+    return {
+      frameId: event.utteranceId,
+      sequence: this.nextConversationSequence(conversationId),
+      role: "user",
+      content: event.content,
+      createdAt: event.timestamp ?? new Date().toISOString(),
+      privacy: this.buildMessagePrivacy(event.metadata),
+    };
+  }
+
+  private nextConversationSequence(conversationId: string): number {
+    const current = this.conversationSequences.get(conversationId) ?? 0;
+    const next = current + 1;
+    this.conversationSequences.set(conversationId, next);
+    return next;
+  }
+
+  private hashRedactedToken(value: string): string {
+    return createHash("sha256").update(value).digest("hex");
+  }
+
+  private async handleTranscriptForConversationStorage(
+    event: TranscriptEvent,
+  ): Promise<void> {
+    if (!this.conversationStorage) {
+      return;
+    }
+    const conversationId = this.sessionConversationMap.get(event.sessionId);
+    if (!conversationId) {
+      return;
+    }
+    const snapshot = this.ensureConversationSnapshot(
+      conversationId,
+      event.sessionId,
+    );
+
+    switch (event.type) {
+      case "transcript-final": {
+        const existingIndex = snapshot.pendingMessages.findIndex(
+          (frame) => frame.frameId === event.utteranceId,
+        );
+        if (existingIndex >= 0) {
+          const existing = snapshot.pendingMessages[existingIndex];
+          snapshot.pendingMessages.splice(existingIndex, 1, {
+            ...existing,
+            content: event.content,
+            createdAt: event.timestamp ?? existing.createdAt,
+            privacy: this.buildMessagePrivacy(event.metadata),
+          });
+        } else {
+          snapshot.pendingMessages.push(
+            this.buildMessageFrame(conversationId, event),
+          );
+        }
+        snapshot.pendingMessages.sort((a, b) => a.sequence - b.sequence);
+        snapshot.lastInteractionAt =
+          event.timestamp ?? snapshot.lastInteractionAt;
+        break;
+      }
+      case "transcript-redo": {
+        snapshot.pendingMessages = snapshot.pendingMessages.filter(
+          (frame) => frame.frameId !== event.utteranceId,
+        );
+        snapshot.lastInteractionAt = event.timestamp;
+        break;
+      }
+      case "transcript-cleared":
+        snapshot.pendingMessages = [];
+        snapshot.lastInteractionAt = event.clearedAt;
+        break;
+      case "transcript-delta":
+        snapshot.lastInteractionAt = event.timestamp;
+        break;
+      default:
+        break;
+    }
+
+    snapshot.updatedAt = new Date().toISOString();
+    snapshot.sessionId = event.sessionId;
+    this.conversationSnapshots.set(conversationId, snapshot);
+
+    try {
+      await this.conversationStorage.commitSnapshot(snapshot);
+    } catch (error: any) {
+      this.logger.debug("Conversation snapshot commit failed", {
+        conversationId,
+        error: error?.message ?? error,
+      });
+    }
+  }
+
+  private async finalizeConversation(
+    session: SessionInfo,
+    reason: PurgeReason,
+  ): Promise<void> {
+    if (!this.conversationStorage || !session.conversationId) {
+      return;
+    }
+
+    const conversationId = session.conversationId;
+    const snapshot = this.conversationSnapshots.get(conversationId);
+    const messages = snapshot?.pendingMessages ?? [];
+
+    const metrics = {
+      userUtteranceCount: messages.filter((msg) => msg.role === "user").length,
+      assistantUtteranceCount: messages.filter((msg) => msg.role === "assistant").length,
+      durationMs: session.statistics.totalDurationMs,
+      averageLatencyMs: session.statistics.averageRenewalLatencyMs,
+    };
+
+    try {
+      await this.conversationStorage.commitConversation(conversationId, {
+        appendMessages: messages.length ? messages : undefined,
+        metrics,
+      });
+    } catch (error: any) {
+      this.logger.warn("Failed to commit conversation transcript", {
+        conversationId,
+        sessionId: session.sessionId,
+        reason,
+        error: error?.message ?? error,
+      });
+    } finally {
+      this.conversationSnapshots.delete(conversationId);
+      this.conversationSequences.delete(conversationId);
+      this.sessionConversationMap.delete(session.sessionId);
+      session.conversationId = undefined;
+    }
+  }
+
   private endSessionSync(sessionId: string): void {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -1379,6 +1629,8 @@ export class SessionManagerImpl implements SessionManager {
     // Calculate final statistics
     session.statistics.totalDurationMs =
       Date.now() - session.startedAt.getTime();
+
+    void this.finalizeConversation(session, "error-recovery");
 
     // Remove from active sessions
     this.sessions.delete(sessionId);

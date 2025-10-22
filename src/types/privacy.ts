@@ -50,7 +50,11 @@ export type PurgeReason =
   | "user-requested"
   | "session-timeout"
   | "policy-update"
-  | "error-recovery";
+  | "error-recovery"
+  | "retention-expired"
+  | "privacy-policy-change"
+  | "workspace-reset"
+  | "corruption-detected";
 
 export interface PurgeCommand {
   type: "privacy.purge";
@@ -161,6 +165,10 @@ export function isPurgeCommand(value: unknown): value is PurgeCommand {
       "session-timeout",
       "policy-update",
       "error-recovery",
+      "retention-expired",
+      "privacy-policy-change",
+      "workspace-reset",
+      "corruption-detected",
     ].includes(candidate.reason) &&
     typeof candidate.issuedAt === "string"
   );

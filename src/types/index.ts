@@ -12,6 +12,7 @@ export * from "./audio-errors";
 export * from "./audio-feedback";
 export * from "./configuration";
 export * from "./conversation";
+export * from "./conversation-storage";
 export * from "./credentials";
 export * from "./ephemeral";
 export * from "./error/error-taxonomy";
@@ -27,10 +28,11 @@ export * from "./webrtc";
 
 // Service integration types - only non-conflicting exports
 export type {
-  AudioPipelineIntegration,
-  EphemeralKeyIntegration,
-  ServiceEventCoordinator,
-  ServiceLifecycleCoordinator,
-  SessionIntegration,
-  WebRTCServiceDependencies,
+    AudioPipelineIntegration,
+    EphemeralKeyIntegration,
+    ServiceEventCoordinator,
+    ServiceLifecycleCoordinator,
+    SessionIntegration,
+    WebRTCServiceDependencies
 } from "./service-integration";
+

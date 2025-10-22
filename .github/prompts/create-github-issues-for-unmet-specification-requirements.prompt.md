@@ -1,5 +1,5 @@
 ---
-mode: 'agent'
+agent: 'agent'
 description: 'Create GitHub Issues for unimplemented requirements from specification files using feature_request.yml template.'
 tools: ['search', 'Microsoft Docs/*', 'Azure MCP/search', 'context7/*', 'github/*']
 ---

@@ -1,3 +1,5 @@
+// Stub search service retained here as part of the interim project-context
+// spike; it will move alongside the SP-020..SP-023 implementation work.
 export class SearchService {
   private files: string[];
 
