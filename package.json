@@ -461,7 +461,7 @@
     "@vscode/test-electron": "^2.4.0",
     "clean-webpack-plugin": "^4.0.0",
     "copy-webpack-plugin": "^13.0.1",
-    "eslint": "^9.37.0",
+    "eslint": "^9.38.0",
     "glob": "^11.0.3",
     "ts-loader": "^9.5.0",
     "ts-node": "^10.9.2",
