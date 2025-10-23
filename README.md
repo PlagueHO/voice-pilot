@@ -1,7 +1,5 @@
 # VoicePilot: Hands/Eyes Free Planning and Specification Assistant for VS Code
 
-## Build Status
-
 [![Continuous Integration][ci-badge]][ci-url] [![Continuous Delivery][cd-badge]][cd-url]
 
 ## Project Overview
