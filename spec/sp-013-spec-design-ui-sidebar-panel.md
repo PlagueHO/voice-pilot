@@ -180,7 +180,7 @@ export interface UserFacingError {
 
 ### Technology Platform Dependencies
 
-- **PLT-001**: VS Code 1.104+ – Required for latest webview API capabilities and theme tokens.
+- **PLT-001**: VS Code 1.105+ – Required for latest webview API capabilities and theme tokens.
 - **PLT-002**: TypeScript 5+ – Required for strict typing of panel controller modules.
 
 ### Compliance Dependencies

@@ -52,6 +52,9 @@ function createSecrets(store: Map<string, string>): vscode.SecretStorage {
     async delete(key: string): Promise<void> {
       store.delete(key);
     },
+    async keys(): Promise<string[]> {
+      return Array.from(store.keys());
+    },
     onDidChange: () => ({ dispose() {} }),
   } as vscode.SecretStorage;
 }

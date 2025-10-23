@@ -172,7 +172,7 @@ This implementation plan details the development of the WebRTC Audio Transport L
 - **DEP-005**: Browser WebRTC APIs available in VS Code webview context
 - **DEP-006**: Azure OpenAI Realtime API for WebRTC endpoint negotiation
 - **DEP-007**: TypeScript 5.0+ with ES2022 target for modern JavaScript features
-- **DEP-008**: Node.js 22+ for VS Code 1.104+ compatibility
+- **DEP-008**: Node.js 22+ for VS Code 1.105+ compatibility
 
 ## 5. Files
 

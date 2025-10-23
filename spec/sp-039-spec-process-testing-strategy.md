@@ -111,7 +111,7 @@ VoicePilot depends on deterministic service orchestration; testing must verify l
 
 ### Technology Platform Dependencies
 
-- **PLT-001**: VS Code 1.104+ for extension host compatibility and modern API usage.
+- **PLT-001**: VS Code 1.105+ for extension host compatibility and modern API usage.
 - **PLT-002**: TypeScript 5.x compiler output targeting ES2022 per repository guidelines.
 
 ### Compliance Dependencies
