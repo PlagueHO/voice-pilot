@@ -113,7 +113,7 @@ VoicePilot relies on deterministic service initialization (SP-039) and Azure dia
 ### Technology Platform Dependencies
 
 - **PLT-001**: GitHub-hosted Ubuntu runners with Node.js 22.x and Bicep CLI ≥ 0.28.
-- **PLT-002**: VS Code 1.104+ extension host for integration tests executed via `@vscode/test-electron`.
+- **PLT-002**: VS Code 1.105+ extension host for integration tests executed via `@vscode/test-electron`.
 
 ### Compliance Dependencies
 

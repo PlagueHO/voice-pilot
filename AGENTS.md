@@ -18,7 +18,7 @@ VoicePilot is a VS Code extension that turns Azure OpenAI GPT Realtime into a fu
 
 ### Requirements
 
-- Node.js 22 or later, VS Code 1.104+, Azure CLI with Bicep, Git, PowerShell (for Bicep tasks)
+- Node.js 22 or later, VS Code 1.105+, Azure CLI with Bicep, Git, PowerShell (for Bicep tasks)
 
 ### Setup
 

@@ -251,7 +251,7 @@ if (!renewalResult.success) {
 
 | Dependency | Version Source | Purpose |
 |------------|----------------|---------|
-| `vscode` API | VS Code 1.104+ runtime | Disposable lifecycle, command context updates. |
+| `vscode` API | VS Code 1.105+ runtime | Disposable lifecycle, command context updates. |
 | `EphemeralKeyServiceImpl` | `src/auth/ephemeral-key-service.ts` | Azure OpenAI realtime authentication and key renewal. |
 | `SessionTimerManagerImpl` | `src/session/session-timer-manager.ts` | Renewal, heartbeat, and inactivity scheduling. |
 | `ConfigurationManager` | `src/config/configuration-manager.ts` | Provides validated settings for session policies. |

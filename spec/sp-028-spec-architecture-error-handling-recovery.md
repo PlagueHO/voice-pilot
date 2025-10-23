@@ -27,7 +27,7 @@ Intended audience: extension architects, reliability engineers, service owners, 
 Assumptions:
 
 - Dependent services satisfy their own specifications (SP-004, SP-005, SP-006, SP-007) and expose typed error objects.
-- VS Code 1.104+ runtime with SecretStorage, Webview, and task infrastructure available.
+- VS Code 1.105+ runtime with SecretStorage, Webview, and task infrastructure available.
 - Azure OpenAI Realtime API endpoints reachable with authenticated sessions.
 - GitHub Copilot Chat extension presence is detectable via context keys but optional for base voice resilience.
 

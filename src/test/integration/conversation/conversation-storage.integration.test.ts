@@ -28,6 +28,10 @@ class TestSecretStorage implements vscode.SecretStorage {
     this.secrets.delete(key);
     this.emitter.fire({ key });
   }
+
+  async keys(): Promise<string[]> {
+    return Array.from(this.secrets.keys());
+  }
 }
 
 class PrivacyControllerStub {
