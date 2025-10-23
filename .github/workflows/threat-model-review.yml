@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -26,7 +26,7 @@ jobs:
 
       - name: Inspect report
         id: report
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -43,7 +43,7 @@ jobs:
 
       - name: Create issue for open high-risk threats
         if: steps.report.outputs.openHighRiskCount != '0'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           OPEN_HIGH_RISK_LIST: ${{ steps.report.outputs.openHighRiskList }}
         with:
