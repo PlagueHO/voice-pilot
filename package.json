@@ -35,7 +35,6 @@
     "test:perf": "node -e \"console.log(JSON.stringify({timestamp: new Date().toISOString(), testDuration: Math.random() * 1000 + 500}))\"",
     "test:unit": "npm run compile && mocha --ui bdd --require ./out/test/unit-test-setup.js \"out/test/unit/**/*.js\" --timeout 3000",
     "test:all": "npm run test:unit && npm test",
-    "validate:threats": "node ./scripts/validate-threat-register.mjs",
     "security:audit": "npm audit --audit-level=moderate",
     "security:check": "npm run security:audit && echo 'Security check completed'",
     "validate:threats": "node ./scripts/validate-threat-register.mjs",
