@@ -42,6 +42,10 @@ class TestSecretStorage implements vscode.SecretStorage {
   store(key: string, value: string): Thenable<void> {
     return this.storeSecret(key, value);
   }
+
+  async keys(): Promise<string[]> {
+    return Array.from(this.secrets.keys());
+  }
 }
 
 class PrivacyControllerStub {
