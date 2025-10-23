@@ -1,5 +1,9 @@
 # VoicePilot: Hands/Eyes Free Planning and Specification Assistant for VS Code
 
+## Build Status
+
+[![Continuous Integration][ci-badge]][ci-url] [![Continuous Delivery][cd-badge]][cd-url]
+
 ## Project Overview
 
 VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management. It enables natural conversation for ideation, feature scoping, architecture planning, and GitHub issue creation through speech-to-text and text-to-speech. The tool serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or when maintaining conversational flow is more important than precise code editing).
@@ -136,3 +140,8 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - [Azure AI Services](https://learn.microsoft.com/en-us/azure/ai-services/)
 - [VS Code API](https://code.visualstudio.com/api)
 - [Octokit.js](https://github.com/octokit/octokit.js)
+
+[ci-badge]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-integration.yml/badge.svg
+[ci-url]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-integration.yml
+[cd-badge]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-delivery.yml/badge.svg
+[cd-url]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-delivery.yml
