@@ -263,15 +263,19 @@ export class ConversationStorageServiceImpl
   ): Promise<ListResult<ConversationRecordSummary>> {
     this.ensureInitialized();
     const { limit = 20, cursor, includeExpired = false } = options;
-    const summaries = Array.from(this.index.values()).filter((entry) => {
+    
+    // Optimization: Iterate directly instead of creating intermediate array
+    const summaries: ConversationRecordSummary[] = [];
+    const now = Date.now();
+    for (const entry of this.index.values()) {
       if (includeExpired) {
-        return true;
+        summaries.push(entry);
+      } else if (entry.retention.manualHold) {
+        summaries.push(entry);
+      } else if (new Date(entry.retention.retentionExpiresAt).getTime() > now) {
+        summaries.push(entry);
       }
-      if (entry.retention.manualHold) {
-        return true;
-      }
-      return new Date(entry.retention.retentionExpiresAt).getTime() > Date.now();
-    });
+    }
 
     summaries.sort((a, b) =>
       new Date(b.lastInteractionAt).getTime() -
@@ -729,12 +733,15 @@ export class ConversationStorageServiceImpl
 
   private async performRetentionSweep(): Promise<void> {
     const now = Date.now();
-    const expired = Array.from(this.index.values()).filter((summary) => {
-      if (summary.retention.manualHold) {
-        return false;
+    // Optimization: Collect expired entries directly without intermediate array
+    const expired: ConversationRecordSummary[] = [];
+    for (const summary of this.index.values()) {
+      if (!summary.retention.manualHold && 
+          new Date(summary.retention.retentionExpiresAt).getTime() <= now) {
+        expired.push(summary);
       }
-      return new Date(summary.retention.retentionExpiresAt).getTime() <= now;
-    });
+    }
+    
     for (const summary of expired) {
       try {
         await this.deleteRecord(summary.conversationId, 'retention-expired');

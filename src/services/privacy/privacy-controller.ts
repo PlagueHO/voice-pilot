@@ -253,10 +253,17 @@ export class PrivacyController implements ServiceInitializable {
   }
 
   private selectEntries(target: PurgeCommand['target']): RetentionEntry[] {
+    // Optimization: Iterate directly and collect entries without intermediate array
     if (target === 'all') {
       return Array.from(this.retentionEntries.values());
     }
-    return Array.from(this.retentionEntries.values()).filter(entry => entry.target === target);
+    const filtered: RetentionEntry[] = [];
+    for (const entry of this.retentionEntries.values()) {
+      if (entry.target === target) {
+        filtered.push(entry);
+      }
+    }
+    return filtered;
   }
 
   private async executePurgeGroup(entries: RetentionEntry[], reason: PurgeReason, target: PurgeCommand['target']): Promise<PurgeResult> {
