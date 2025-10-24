@@ -843,11 +843,12 @@ export class VoiceControlPanel
   private createNonce(): string {
     const characters =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let nonce = "";
+    // Optimization: Use array and join instead of string concatenation in loop
+    const chars: string[] = [];
     for (let i = 0; i < 32; i += 1) {
-      nonce += characters.charAt(Math.floor(Math.random() * characters.length));
+      chars.push(characters.charAt(Math.floor(Math.random() * characters.length)));
     }
-    return nonce;
+    return chars.join("");
   }
 
   private trackDisposable(id: string, disposable?: vscode.Disposable): void {
