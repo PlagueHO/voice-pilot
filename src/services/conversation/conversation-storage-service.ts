@@ -736,8 +736,9 @@ export class ConversationStorageServiceImpl
     // Optimization: Collect expired entries directly without intermediate array
     const expired: ConversationRecordSummary[] = [];
     for (const summary of this.index.values()) {
-      if (!summary.retention.manualHold && 
-          new Date(summary.retention.retentionExpiresAt).getTime() <= now) {
+      const isExpired = !summary.retention.manualHold && 
+                        new Date(summary.retention.retentionExpiresAt).getTime() <= now;
+      if (isExpired) {
         expired.push(summary);
       }
     }
