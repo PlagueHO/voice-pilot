@@ -84,11 +84,15 @@ function buildUtteranceId(
 
 /**
  * Creates a defensive copy of utterance metadata so callers cannot mutate shared state.
- *
+ * 
  * @param metadata - Metadata associated with the utterance.
- * @returns A shallow clone of the provided metadata object.
+ * @param overrides - Optional properties to override in the cloned metadata.
+ * @returns A shallow clone of the provided metadata object with optional overrides.
  */
-function cloneMetadata(metadata: UtteranceMetadata): UtteranceMetadata {
+function cloneMetadata(
+  metadata: UtteranceMetadata, 
+  overrides?: Partial<UtteranceMetadata>
+): UtteranceMetadata {
   return {
     startOffsetMs: metadata.startOffsetMs,
     endOffsetMs: metadata.endOffsetMs,
@@ -97,6 +101,7 @@ function cloneMetadata(metadata: UtteranceMetadata): UtteranceMetadata {
     clientVad: metadata.clientVad,
     redactionsApplied: metadata.redactionsApplied,
     chunkCount: metadata.chunkCount,
+    ...overrides,
   };
 }
 
@@ -231,17 +236,22 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
    * @returns Array of utterance snapshots describing partial transcript state.
    */
   getActiveUtterances(): UtteranceSnapshot[] {
-    return Array.from(this.activeUtterances.values()).map((state) => ({
-      utteranceId: state.utteranceId,
-      sessionId: state.sessionId,
-      speaker: "user",
-      content: state.content,
-      confidence: state.confidence,
-      createdAt: new Date(state.startTimestamp).toISOString(),
-      updatedAt: new Date(state.lastUpdated).toISOString(),
-      status: "partial",
-      metadata: cloneMetadata(state.metadata),
-    }));
+    // Optimization: Use direct iteration and push instead of map
+    const snapshots: UtteranceSnapshot[] = [];
+    for (const state of this.activeUtterances.values()) {
+      snapshots.push({
+        utteranceId: state.utteranceId,
+        sessionId: state.sessionId,
+        speaker: "user",
+        content: state.content,
+        confidence: state.confidence,
+        createdAt: new Date(state.startTimestamp).toISOString(),
+        updatedAt: new Date(state.lastUpdated).toISOString(),
+        status: "partial",
+        metadata: cloneMetadata(state.metadata),
+      });
+    }
+    return snapshots;
   }
 
   /**
@@ -320,16 +330,20 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
     }
 
     const responseId = event.response.id;
-    const utterances = Array.from(this.activeUtterances.values()).filter(
-      (state) => state.responseId === responseId,
-    );
+    // Optimization: Iterate directly and collect matches instead of filter+iterate
+    const matchingStates: UtteranceState[] = [];
+    for (const state of this.activeUtterances.values()) {
+      if (state.responseId === responseId) {
+        matchingStates.push(state);
+      }
+    }
 
-    if (utterances.length === 0) {
+    if (matchingStates.length === 0) {
       this.logger.debug("No active utterances for response", { responseId });
       return;
     }
 
-    for (const state of utterances) {
+    for (const state of matchingStates) {
       this.emitFinalEvent(state);
       this.activeUtterances.delete(state.utteranceId);
     }
@@ -380,8 +394,7 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
    */
   private emitFinalEvent(state: UtteranceState): void {
     const completedAt = now();
-    const metadata = cloneMetadata(state.metadata);
-    metadata.endOffsetMs = Math.max(1, completedAt - state.startTimestamp);
+    const endOffsetMs = Math.max(1, completedAt - state.startTimestamp);
 
     const finalEvent: TranscriptFinalEvent = {
       type: "transcript-final",
@@ -390,7 +403,7 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
       content: state.content,
       confidence: state.confidence,
       timestamp: new Date(completedAt).toISOString(),
-      metadata,
+      metadata: cloneMetadata(state.metadata, { endOffsetMs }),
     };
 
     this.dispatch(finalEvent);
@@ -469,7 +482,8 @@ export class RealtimeSpeechToTextService implements ServiceInitializable {
    * @param event - Transcript event to deliver.
    */
   private dispatch(event: TranscriptEvent): void {
-    for (const subscriber of Array.from(this.subscribers)) {
+    // Optimization: Iterate directly over Set instead of creating array copy
+    for (const subscriber of this.subscribers) {
       try {
         const result = subscriber(event);
         if (result && typeof (result as Promise<void>).then === "function") {

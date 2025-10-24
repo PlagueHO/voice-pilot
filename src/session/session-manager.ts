@@ -284,19 +284,20 @@ export class SessionManagerImpl implements SessionManager {
     this.logger.info("Disposing SessionManager");
 
     // End all active sessions gracefully
-    const activeSessions = Array.from(this.sessions.values()).filter(
-      (s) =>
-        s.state === SessionState.Active || s.state === SessionState.Renewing,
-    );
-
-    for (const session of activeSessions) {
-      try {
-        this.endSessionSync(session.sessionId);
-      } catch (error: any) {
-        this.logger.warn("Failed to end session during disposal", {
-          sessionId: session.sessionId,
-          error: error.message,
-        });
+    // Optimization: Iterate directly over Map values instead of creating intermediate array
+    for (const session of this.sessions.values()) {
+      if (
+        session.state === SessionState.Active ||
+        session.state === SessionState.Renewing
+      ) {
+        try {
+          this.endSessionSync(session.sessionId);
+        } catch (error: any) {
+          this.logger.warn("Failed to end session during disposal", {
+            sessionId: session.sessionId,
+            error: error.message,
+          });
+        }
       }
     }
 
@@ -328,12 +329,18 @@ export class SessionManagerImpl implements SessionManager {
     this.ensureInitialized();
 
     // Check concurrent session limits
-    const activeSessions = Array.from(this.sessions.values()).filter(
-      (s) =>
-        s.state === SessionState.Active || s.state === SessionState.Starting,
-    );
+    // Optimization: Count active sessions directly instead of creating intermediate array
+    let activeCount = 0;
+    for (const session of this.sessions.values()) {
+      if (
+        session.state === SessionState.Active ||
+        session.state === SessionState.Starting
+      ) {
+        activeCount++;
+      }
+    }
 
-    if (activeSessions.length >= this.getMaxConcurrentSessions()) {
+    if (activeCount >= this.getMaxConcurrentSessions()) {
       throw new Error(
         `Maximum concurrent sessions (${this.getMaxConcurrentSessions()}) exceeded`,
       );
@@ -385,7 +392,7 @@ export class SessionManagerImpl implements SessionManager {
           operation: "startSession:requestEphemeralKey",
           metadata: {
             sessionId,
-            activeSessions: activeSessions.length,
+            activeSessions: activeCount,
           },
           retry: {
             policy: "exponential",
@@ -715,11 +722,21 @@ export class SessionManagerImpl implements SessionManager {
 
   getCurrentSession(): SessionInfo | undefined {
     // Return most recently active session
-    const activeSessions = Array.from(this.sessions.values())
-      .filter((s) => s.state === SessionState.Active)
-      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
+    // Optimization: Find max directly instead of sorting entire array
+    let mostRecent: SessionInfo | undefined;
+    let mostRecentTime = 0;
+    
+    for (const session of this.sessions.values()) {
+      if (session.state === SessionState.Active) {
+        const activityTime = session.lastActivity.getTime();
+        if (activityTime > mostRecentTime) {
+          mostRecentTime = activityTime;
+          mostRecent = session;
+        }
+      }
+    }
 
-    return activeSessions[0];
+    return mostRecent;
   }
 
   getAllSessions(): SessionInfo[] {
@@ -1352,7 +1369,8 @@ export class SessionManagerImpl implements SessionManager {
   private async emitRealtimeTranscriptEvent(
     event: TranscriptEvent,
   ): Promise<void> {
-    for (const handler of Array.from(this.realtimeTranscriptHandlers)) {
+    // Optimization: Iterate directly over Set instead of creating array copy
+    for (const handler of this.realtimeTranscriptHandlers) {
       try {
         const result = handler(event);
         if (result && typeof (result as Promise<void>).then === "function") {

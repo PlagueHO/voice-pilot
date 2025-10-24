@@ -234,10 +234,8 @@ export class ConfigurationManager implements ServiceInitializable {
     const after = { ...Object.fromEntries(this.cache.entries()) };
     const diffs: ConfigurationChange[] = [];
     for (const section of Object.keys(after)) {
-      if (
-        JSON.stringify((before as any)[section]) !==
-        JSON.stringify((after as any)[section])
-      ) {
+      // Optimization: Only perform deep comparison if sections are different references
+      if ((before as any)[section] !== (after as any)[section]) {
         diffs.push(
           ...this.diffSection(
             section,
@@ -291,12 +289,22 @@ export class ConfigurationManager implements ServiceInitializable {
     const changes: ConfigurationChange[] = [];
     for (const k of keys) {
       const fullKey = `${section}.${k}`;
-      if (JSON.stringify(oldVal[k]) !== JSON.stringify(newVal[k])) {
+      // Optimization: Use fast equality check for primitives, fallback to JSON for objects
+      const oldValue = oldVal[k];
+      const newValue = newVal[k];
+      let hasChanged = oldValue !== newValue;
+      
+      // For non-primitive values, perform deep comparison only when references differ
+      if (hasChanged && typeof oldValue === 'object' && typeof newValue === 'object') {
+        hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
+      }
+      
+      if (hasChanged) {
         changes.push({
           section,
           key: k,
-          oldValue: oldVal[k],
-          newValue: newVal[k],
+          oldValue,
+          newValue,
           affectedServices: this.mapAffectedServices(
             section,
             k,

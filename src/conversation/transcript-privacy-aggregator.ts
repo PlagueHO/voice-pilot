@@ -75,6 +75,8 @@ function deriveIndicators(
 
 export class TranscriptPrivacyAggregator {
   private readonly transcripts = new Map<string, AggregatedTranscriptState>();
+  private cachedRules?: RedactionRule[];
+  private cachedProfanityLevel?: string;
 
   constructor(
     private readonly voicePanel: VoiceControlPanel,
@@ -107,6 +109,8 @@ export class TranscriptPrivacyAggregator {
       entry.retentionDisposable?.dispose();
     }
     this.transcripts.clear();
+    this.cachedRules = undefined;
+    this.cachedProfanityLevel = undefined;
   }
 
   private handleDelta(event: TranscriptDeltaEvent): void {
@@ -299,13 +303,23 @@ export class TranscriptPrivacyAggregator {
   private composeRedactionRules(
     policy: PrivacyPolicySnapshot,
   ): RedactionRule[] {
+    // Optimization: Cache composed rules to avoid allocating new arrays on every event
+    if (this.cachedRules && this.cachedProfanityLevel === policy.profanityFilter) {
+      return this.cachedRules;
+    }
+
+    let rules: RedactionRule[];
     if (policy.profanityFilter === "high") {
-      return [...policy.redactionRules, ...PROFANITY_RULES];
+      rules = [...policy.redactionRules, ...PROFANITY_RULES];
+    } else if (policy.profanityFilter === "medium") {
+      rules = [...policy.redactionRules, PROFANITY_RULES[0]];
+    } else {
+      rules = policy.redactionRules;
     }
-    if (policy.profanityFilter === "medium") {
-      return [...policy.redactionRules, PROFANITY_RULES[0]];
-    }
-    return policy.redactionRules;
+
+    this.cachedRules = rules;
+    this.cachedProfanityLevel = policy.profanityFilter;
+    return rules;
   }
 
   private executePurge(
