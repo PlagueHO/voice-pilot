@@ -54,7 +54,7 @@ This plan converts `spec/sp-053-spec-design-resource-cleanup.md` into executable
 |------|-------------|-----------|------|
 | TASK-007 | Extend telemetry schema in `src/telemetry/events.ts` and `src/telemetry/logger.ts` to emit `voicepilot.cleanup.*` events carrying `DisposalReport` payloads. | Completed | 2025-10-13 |
 | TASK-008 | Add automated diagnostics command in `src/commands/run-diagnostics.ts` (or existing diagnostics module) to invoke `disposeAll('config-reload')` in dry-run mode and report orphan snapshots. | Completed | 2025-10-13 |
-| TASK-009 | Implement unit tests in `src/test/unit/core/disposal-orchestrator.unit.test.ts` and integration tests in `src/test/integration/disposal/cleanup-telemetry.integration.test.ts` covering acceptance criteria AC-001..AC-005. | Completed | 2025-10-13 |
+| TASK-009 | Implement unit tests in `test/unit/core/disposal-orchestrator.unit.test.ts` and integration tests in `test/integration/disposal/cleanup-telemetry.integration.test.ts` covering acceptance criteria AC-001..AC-005. | Completed | 2025-10-13 |
 
 ## 3. Alternatives
 
@@ -72,7 +72,7 @@ This plan converts `spec/sp-053-spec-design-resource-cleanup.md` into executable
 - **FILE-002**: `src/core/extension-controller.ts` (update) – orchestrator lifecycle wiring.
 - **FILE-003**: `src/session/session-manager.ts`, `src/audio/webrtc/webrtc-audio-service.ts`, `src/ui/voice-control-panel.ts` (updates) – register scoped disposables.
 - **FILE-004**: `src/telemetry/events.ts`, `src/telemetry/logger.ts` (updates) – cleanup telemetry emission.
-- **FILE-005**: `src/test/unit/core/disposal-orchestrator.test.ts`, `src/test/integration/disposal/disposal-flow.test.ts` (new) – automated validation.
+- **FILE-005**: `test/unit/core/disposal-orchestrator.test.ts`, `test/integration/disposal/disposal-flow.test.ts` (new) – automated validation.
 
 ## 6. Testing
 

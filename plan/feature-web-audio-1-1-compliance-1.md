@@ -44,7 +44,7 @@ This implementation plan schedules the VoicePilot runtime updates required to sa
 |------|-------------|-----------|------|
 | TASK-004 | Create `src/services/realtime-speech-to-text-service.ts` exposing `ingestRealtimeEvent` and `subscribeTranscript` APIs that transform Azure deltas into `TranscriptEvent` structures with utterance IDs, timestamps, and finalization markers. | ✅ | 2025-09-30 |
 | TASK-005 | Wire the new service into `src/session/session-manager.ts` and `src/conversation/conversation-state-machine.ts`, ensuring transcript updates propagate to UI components and privacy filters. | ✅ | 2025-09-30 |
-| TASK-006 | Add targeted unit tests under `src/test/services/realtime-speech-to-text-service.test.ts` covering delta aggregation, finalization on `response.done`, and error handling for malformed events. | ✅ | 2025-09-30 |
+| TASK-006 | Add targeted unit tests under `test/services/realtime-speech-to-text-service.test.ts` covering delta aggregation, finalization on `response.done`, and error handling for malformed events. | ✅ | 2025-09-30 |
 
 ### Implementation Phase 3
 
@@ -54,7 +54,7 @@ This implementation plan schedules the VoicePilot runtime updates required to sa
 |------|-------------|-----------|------|
 | TASK-007 | Update `src/audio/audio-processing-chain.ts` and the PCM worklet (`src/audio/worklets/pcm-encoder-worklet.ts`) to validate 128-frame render quantums, log underruns, and expose an observable metric channel. | ✅ | 2025-09-30 |
 | TASK-008 | Enhance `src/audio/audio-metrics.ts` to aggregate render-quantum health, latency, and CPU sampling, emitting structured telemetry for diagnostics dashboards. | ✅ | 2025-09-30 |
-| TASK-009 | Build audio telemetry unit tests in `src/test/unit/audio/audio-processing-chain.render.unit.test.ts` (and extend metrics coverage) verifying underrun detection, metric emission, and fallback behaviour. | ✅ | 2025-09-30 |
+| TASK-009 | Build audio telemetry unit tests in `test/unit/audio/audio-processing-chain.render.unit.test.ts` (and extend metrics coverage) verifying underrun detection, metric emission, and fallback behaviour. | ✅ | 2025-09-30 |
 
 ### Implementation Phase 4
 

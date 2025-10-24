@@ -81,7 +81,7 @@ The purpose of this specification is to standardize testing practices, tooling, 
 
 - **Test Levels**: Unit (Node-only, stubbed `vscode`), Integration (Extension Host via `@vscode/test-electron`), End-to-End (interactive flows including webview messaging), Performance (latency probes), Regression (activation failure and recovery scenarios).
 - **Frameworks**: Mocha, Chai, Sinon, `@vscode/test-electron`, NYC for coverage, ts-node for dynamic fixtures.
-- **Test Data Management**: Use immutable fixture workspaces under `src/test/fixtures`; generate transient credentials via mock services; clean temporary files upon suite completion.
+- **Test Data Management**: Use immutable fixture workspaces under `test/fixtures`; generate transient credentials via mock services; clean temporary files upon suite completion.
 - **CI/CD Integration**: GitHub Actions pipeline triggers Gate Task sequence on push and pull request events; publish coverage to `coverage/` artefacts; notify via status checks.
 - **Coverage Requirements**: ≥ 90% statements for activation lifecycle modules, ≥ 85% branches for error handling, ≥ 80% overall project average.
 - **Performance Testing**: `npm run test:perf` measures activation latency, audio pipeline warm-up, and telemetry emission intervals; regressions >10% require investigation.
@@ -107,7 +107,7 @@ VoicePilot depends on deterministic service orchestration; testing must verify l
 
 ### Data Dependencies
 
-- **DAT-001**: Fixture workspaces stored under `src/test/fixtures` containing synthetic documents and settings.
+- **DAT-001**: Fixture workspaces stored under `test/fixtures` containing synthetic documents and settings.
 
 ### Technology Platform Dependencies
 

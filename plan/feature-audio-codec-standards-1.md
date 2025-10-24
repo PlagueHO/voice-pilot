@@ -63,9 +63,9 @@ This plan operationalizes specification `sp-035-spec-design-audio-codec-standard
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-010 | Add unit tests under `src/test/unit/audio/codec` validating factory outputs, strategy decisions, and resample flags using deterministic telemetry fixtures. | Yes | 2025-10-05 |
-| TASK-011 | Extend `src/test/unit/audio/audio-context-provider.unit.test.ts` and `audio-processing-chain.render.unit.test.ts` to cover sample rate reconfiguration and mono enforcement. | Yes | 2025-10-05 |
-| TASK-012 | Create integration test `src/test/integration/webrtc/webrtc-codec-negotiation.integration.test.ts` simulating SDP negotiation to assert `ptime`, `maxptime`, and fallback behavior, using Playwright/WebRTC mocks. | Yes | 2025-10-05 |
+| TASK-010 | Add unit tests under `test/unit/audio/codec` validating factory outputs, strategy decisions, and resample flags using deterministic telemetry fixtures. | Yes | 2025-10-05 |
+| TASK-011 | Extend `test/unit/audio/audio-context-provider.unit.test.ts` and `audio-processing-chain.render.unit.test.ts` to cover sample rate reconfiguration and mono enforcement. | Yes | 2025-10-05 |
+| TASK-012 | Create integration test `test/integration/webrtc/webrtc-codec-negotiation.integration.test.ts` simulating SDP negotiation to assert `ptime`, `maxptime`, and fallback behavior, using Playwright/WebRTC mocks. | Yes | 2025-10-05 |
 
 ## 3. Alternatives
 
@@ -82,8 +82,8 @@ This plan operationalizes specification `sp-035-spec-design-audio-codec-standard
 - **FILE-001**: `src/audio/codec/audio-codec-profile.ts` — new domain interfaces and helpers.
 - **FILE-002**: `src/audio/audio-capture.ts` — capture pipeline integration with codec negotiation and events.
 - **FILE-003**: `src/audio/webrtc-transport.ts` — SDP negotiation, packet validation, and telemetry hooks.
-- **FILE-004**: `src/test/unit/audio/codec/*.unit.test.ts` — new unit test coverage for codec logic.
-- **FILE-005**: `src/test/integration/webrtc/webrtc-codec-negotiation.integration.test.ts` — end-to-end negotiation validation.
+- **FILE-004**: `test/unit/audio/codec/*.unit.test.ts` — new unit test coverage for codec logic.
+- **FILE-005**: `test/integration/webrtc/webrtc-codec-negotiation.integration.test.ts` — end-to-end negotiation validation.
 
 ## 6. Testing
 

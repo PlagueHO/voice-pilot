@@ -45,8 +45,8 @@ voice-pilot/
 │   ├── copilot/                         # Copilot Chat bridge + prompt flow
 │   ├── session/                         # Session manager, timers, interruption engine
 │   ├── telemetry/                       # Lifecycle + metrics logging
-│   ├── ui/                              # Voice control panel, status bar, error presenter
-│   └── test/                            # Unit + integration specs and fixtures
+│   └── ui/                              # Voice control panel, status bar, error presenter
+├── test/                                # Unit + integration specs and fixtures
 ├── docs/                                # Design references and technical indices
 ├── infra/                               # Azure Bicep templates and scripts
 ├── media/                               # Webview assets (JS/CSS/worklets)
@@ -115,12 +115,12 @@ voice-pilot/
 
 ## Testing and Quality Assurance
 
-- Unit tests (`src/test/unit/**/*.ts`) target Node-only services using stubbed VS Code APIs. Run via `Test Unit` task or `npm run test:unit`.
+- Unit tests (`test/unit/**/*.ts`) target Node-only services using stubbed VS Code APIs. Run via `Test Unit` task or `npm run test:unit`.
 - Integration tests (`@vscode/test-electron`) verify activation, command wiring, and webview interactions. Run via `Test Extension` or `npm test`.
 - `npm run test:all` executes unit then integration; use before commits.
 - Coverage is enforced by NYC thresholds (90/85/90/90). Run `npm run test:coverage` if instrumentation is needed.
 - For performance probes, use `npm run test:perf` (outputs JSON payload for telemetry analysis).
-- The repository uses Mocha as the test runner. Wrap specs with `suite` from `src/test/mocha-globals`, prefixing names with `Unit:` or `Integration:` as appropriate, and define scenarios with `test`. Chai is the assertion library; always import `{ expect }` (plus `chai-as-promised` helpers when dealing with async flows) and express checks in BDD style—never fall back to Node's `assert`/`should`. Keep shared setup in `before`/`after` hooks, reset mutable state in `afterEach`, and isolate side effects with fakes so every run is deterministic.
+- The repository uses Mocha as the test runner. Wrap specs with `suite` from `test/mocha-globals`, prefixing names with `Unit:` or `Integration:` as appropriate, and define scenarios with `test`. Chai is the assertion library; always import `{ expect }` (plus `chai-as-promised` helpers when dealing with async flows) and express checks in BDD style—never fall back to Node's `assert`/`should`. Keep shared setup in `before`/`after` hooks, reset mutable state in `afterEach`, and isolate side effects with fakes so every run is deterministic.
 
 ## VS Code Tasks Workflow
 

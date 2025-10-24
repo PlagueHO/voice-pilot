@@ -60,7 +60,7 @@ This plan closes the newly identified SP-007 Audio Capture Pipeline compliance g
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-008 | Add latency and CPU sampling hooks (e.g., in `src/audio/audio-metrics.ts`) to validate AUD-004, PERF-001/002/004 budgets with structured logs | ✅ | 2025-09-29 |
-| TASK-009 | Create unit and integration tests under `src/test/audio/` to validate sample-rate negotiation, permission event emission, and buffer recovery paths | ✅ | 2025-09-29 |
+| TASK-009 | Create unit and integration tests under `test/audio/` to validate sample-rate negotiation, permission event emission, and buffer recovery paths | ✅ | 2025-09-29 |
 | TASK-010 | Update developer documentation (`docs/` audio pipeline section) summarizing new configuration options and remediation behaviours | ✅ | 2025-09-29 |
 
 ## 3. Alternatives

@@ -139,7 +139,7 @@ This implementation plan details the development of the Ephemeral Key Service (S
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-034 | Create src/test/auth/ephemeralKeyService.test.ts with unit tests | |  |
+| TASK-034 | Create test/auth/ephemeralKeyService.test.ts with unit tests | |  |
 | TASK-035 | Add tests for key lifecycle: request, renewal, expiration, revocation | |  |
 | TASK-036 | Add tests for error handling: network failures, Azure API errors, invalid credentials | |  |
 | TASK-037 | Add tests for event system: registration, notification, disposal | |  |
@@ -170,7 +170,7 @@ This implementation plan details the development of the Ephemeral Key Service (S
 - **FILE-003**: src/types/index.ts - Update to export new ephemeral key types
 - **FILE-004**: src/types/configuration.ts - Update AzureOpenAIConfig interface to add apiVersion field
 - **FILE-005**: src/core/ExtensionController.ts - Update to integrate EphemeralKeyService in initialization sequence
-- **FILE-006**: src/test/auth/ephemeralKeyService.test.ts - New test file for comprehensive service testing
+- **FILE-006**: test/auth/ephemeralKeyService.test.ts - New test file for comprehensive service testing
 - **FILE-007**: src/auth/constants.ts - May need updates for Azure API endpoints and timeouts
 
 ## 6. Testing

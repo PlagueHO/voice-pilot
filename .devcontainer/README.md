@@ -20,7 +20,7 @@ This development container sets up the tooling needed to build and test the Voic
 - Runs `npm install` for repository dependencies and adds `glob`/`@types/glob` if they are not already present.
 - Generates Playwright Test Agent definitions (`npx playwright init-agents --loop=vscode`) when missing so AI-driven test workflows are ready immediately.
 - Installs global npm CLIs `@vscode/vsce` and `@github/copilot`.
-- Creates `src/test/index.ts` when absent to keep the Mocha harness functional.
+- Creates `test/index.ts` when absent to keep the Mocha harness functional.
 - Builds the project with `npm run compile` (non-blocking) and starts an `Xvfb` session on display `:99`.
 - Seeds a default git configuration on first run for convenience.
 

@@ -63,9 +63,9 @@ This plan operationalizes specification `sp-010-spec-tool-text-to-speech.md` to 
 | TASK-010 | Update `src/ui/VoiceControlPanel.ts` and associated webview messaging modules to handle `tts.speak`, `tts.control`, and `tts.event` payloads defined in SP-010 §4, wiring UI state to speaking indicators. |  |  |
 | TASK-011 | Implement webview playback pipeline (Web Audio API) in `src/ui/webview/tts-playback.ts` (new file) supporting chunk enqueue, fade-out, and metrics reporting to host. |  |  |
 | TASK-012 | Add accessibility caption handling and transcript synchronization in `src/ui/transcriptView.ts` leveraging `response.output_audio_transcript.delta` events. |  |  |
-| TASK-013 | Create unit tests under `src/test/audio/tts-service.test.ts` covering state transitions, circuit breaker, and voice-change session restarts. |  |  |
-| TASK-014 | Extend integration tests in `src/test/session/` or new `src/test/integration/tts-playback.test.ts` with mocked Azure realtime server verifying UI speaks/interrupts as per AC-001/002/004. |  |  |
-| TASK-015 | Add performance probe in `src/test/perf/tts-latency.test.ts` to assert average synthesis-to-playback latency <350 ms. |  |  |
+| TASK-013 | Create unit tests under `test/audio/tts-service.test.ts` covering state transitions, circuit breaker, and voice-change session restarts. |  |  |
+| TASK-014 | Extend integration tests in `test/session/` or new `test/integration/tts-playback.test.ts` with mocked Azure realtime server verifying UI speaks/interrupts as per AC-001/002/004. |  |  |
+| TASK-015 | Add performance probe in `test/perf/tts-latency.test.ts` to assert average synthesis-to-playback latency <350 ms. |  |  |
 
 ## 3. Alternatives
 
@@ -84,15 +84,15 @@ This plan operationalizes specification `sp-010-spec-tool-text-to-speech.md` to 
 - **FILE-002**: `src/audio/tts-service.ts` — core service implementation aligned with SP-010.
 - **FILE-003**: `src/ui/webview/tts-playback.ts` — webview playback pipeline using Web Audio API.
 - **FILE-004**: `src/config/sections/audio-config-section.ts` — user configuration and validation.
-- **FILE-005**: `src/test/audio/tts-service.test.ts` — unit test coverage.
+- **FILE-005**: `test/audio/tts-service.test.ts` — unit test coverage.
 - **FILE-006**: `docs/design/UI.md` — documentation of speaking state UX updates.
 
 ## 6. Testing
 
-- **TEST-001**: Unit tests for TTS service state machine, buffer handling, and voice profile updates (`src/test/audio/tts-service.test.ts`).
-- **TEST-002**: Integration tests simulating realtime playback and interruption with mocked Azure server (`src/test/integration/tts-playback.test.ts`).
-- **TEST-003**: Performance probe measuring synthesis-to-playback latency budget (`src/test/perf/tts-latency.test.ts`).
-- **TEST-004**: Accessibility verification ensuring caption events fire and UI contexts update (`src/test/ui/accessibility-tts.test.ts`).
+- **TEST-001**: Unit tests for TTS service state machine, buffer handling, and voice profile updates (`test/audio/tts-service.test.ts`).
+- **TEST-002**: Integration tests simulating realtime playback and interruption with mocked Azure server (`test/integration/tts-playback.test.ts`).
+- **TEST-003**: Performance probe measuring synthesis-to-playback latency budget (`test/perf/tts-latency.test.ts`).
+- **TEST-004**: Accessibility verification ensuring caption events fire and UI contexts update (`test/ui/accessibility-tts.test.ts`).
 
 ## 7. Risks & Assumptions
 

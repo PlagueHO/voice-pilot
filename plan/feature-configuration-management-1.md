@@ -108,9 +108,9 @@ This implementation plan executes the SP-002 Configuration & Settings Management
 - **FILE-008**: src/config/sections/GitHubConfigSection.ts - GitHub integration configuration section class
 - **FILE-009**: src/config/validators/ConfigurationValidator.ts - Configuration validation logic and rules
 - **FILE-010**: src/config/validators/ValidationRules.ts - Individual validation rule implementations
-- **FILE-011**: src/test/config/ConfigurationManager.test.ts - Unit tests for configuration manager
-- **FILE-012**: src/test/config/ConfigurationValidator.test.ts - Unit tests for validation logic
-- **FILE-013**: src/test/config/sections/*.test.ts - Unit tests for configuration sections
+- **FILE-011**: test/config/ConfigurationManager.test.ts - Unit tests for configuration manager
+- **FILE-012**: test/config/ConfigurationValidator.test.ts - Unit tests for validation logic
+- **FILE-013**: test/config/sections/*.test.ts - Unit tests for configuration sections
 
 ## 6. Testing
 

@@ -78,7 +78,7 @@ The purpose of this specification is to prescribe the end-to-end CI/CD process f
 
 - **Test Levels**: Unit, Integration, Extension Host, Performance, Smoke (post-deploy).
 - **Frameworks**: Mocha, Chai, Sinon, `@vscode/test-electron`, NYC (coverage), `azd` tooling for infrastructure smoke tests.
-- **Test Data Management**: Use isolated fixture workspaces under `src/test/fixtures`; destroy temporary Azure resources via `delete-infrastructure.yml` unless retention is explicitly enabled.
+- **Test Data Management**: Use isolated fixture workspaces under `test/fixtures`; destroy temporary Azure resources via `delete-infrastructure.yml` unless retention is explicitly enabled.
 - **CI/CD Integration**: Gate Tasks executed through npm scripts within GitHub Actions; smoke tests run after deployment using `azd up` outputs and WebRTC test harness stubs.
 - **Coverage Requirements**: ≥ 90% statement coverage for activation and disposal code paths, ≥ 80% overall project coverage, with thresholds enforced via NYC configuration per SP-039.
 - **Performance Testing**: Execute `npm run test:perf` in CI weekly and on demand; flag regressions exceeding 10% increase in activation latency.

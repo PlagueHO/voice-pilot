@@ -126,7 +126,7 @@ export interface AudioCueMetrics {
 
 - **Test Levels**: Unit tests for cue scheduling logic and ducking strategies; integration tests within the webview harness validating host↔webview messaging; end-to-end extension tests verifying UI state transitions and degraded mode handling.
 - **Frameworks**: Mocha with Web Audio API mocks for unit tests; Playwright-based webview automation for integration; `@vscode/test-electron` for extension-level scenarios.
-- **Test Data Management**: Use PCM16 fixture files under `src/test/fixtures/audio-feedback`, including clipped and silent samples for edge-case validation.
+- **Test Data Management**: Use PCM16 fixture files under `test/fixtures/audio-feedback`, including clipped and silent samples for edge-case validation.
 - **CI/CD Integration**: Extend the `Test Extension` task with environment variable `AUDIO_FEEDBACK_MOCK=1` to route cue playback to deterministic stubs; collect telemetry artifacts for regression detection.
 - **Coverage Requirements**: Achieve ≥90% branch coverage on cue scheduler state machine and 100% coverage on Circuit Breaker fallback paths.
 - **Performance Testing**: Introduce a `npm run test:perf:cues` script measuring cue latency and ducking recovery time; fail if average cue latency exceeds 180 ms or ducking recovery surpasses 300 ms.

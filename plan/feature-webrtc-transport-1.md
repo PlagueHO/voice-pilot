@@ -185,9 +185,9 @@ This implementation plan details the development of the WebRTC Audio Transport L
 - **FILE-007**: `src/audio/connection-recovery-manager.ts` - Connection recovery logic
 - **FILE-008**: `src/audio/webrtc-error-handler.ts` - Error classification and handling
 - **FILE-009**: `src/audio/realtime-audio-service.ts` - High-level audio service coordination
-- **FILE-010**: `src/test/audio/webrtc-transport.test.ts` - WebRTC transport unit tests
-- **FILE-011**: `src/test/audio/audio-integration.test.ts` - Audio integration tests
-- **FILE-012**: `src/test/audio/connection-recovery.test.ts` - Connection recovery tests
+- **FILE-010**: `test/audio/webrtc-transport.test.ts` - WebRTC transport unit tests
+- **FILE-011**: `test/audio/audio-integration.test.ts` - Audio integration tests
+- **FILE-012**: `test/audio/connection-recovery.test.ts` - Connection recovery tests
 
 ## 6. Testing
 

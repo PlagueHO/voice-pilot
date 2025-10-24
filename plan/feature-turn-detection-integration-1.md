@@ -71,9 +71,9 @@ Implement server-managed turn detection using Azure GPT Realtime API signals, al
 
 ## 6. Testing
 
-- **TEST-001**: Unit tests for `TurnDetectionCoordinator` covering mode switching, event propagation, and fallback activation (e.g., `src/test/unit/audio/turn-detection-coordinator.test.ts`). — ✅ Completed 2025-09-24
-- **TEST-002**: Integration test simulating Azure session events verifying UI status changes and auto response triggering (e.g., `src/test/integration/session/turn-detection.integration.test.ts`). — ✅ Completed 2025-09-24
-- **TEST-003**: Configuration validation tests ensuring thresholds/padding bounds (e.g., `src/test/unit/config/audio-section.test.ts`). — ✅ Completed 2025-09-24
+- **TEST-001**: Unit tests for `TurnDetectionCoordinator` covering mode switching, event propagation, and fallback activation (e.g., `test/unit/audio/turn-detection-coordinator.test.ts`). — ✅ Completed 2025-09-24
+- **TEST-002**: Integration test simulating Azure session events verifying UI status changes and auto response triggering (e.g., `test/integration/session/turn-detection.integration.test.ts`). — ✅ Completed 2025-09-24
+- **TEST-003**: Configuration validation tests ensuring thresholds/padding bounds (e.g., `test/unit/config/audio-section.test.ts`). — ✅ Completed 2025-09-24
 
 ## 7. Risks & Assumptions
 

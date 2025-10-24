@@ -76,9 +76,9 @@ npm install -g @github/copilot
 
 # Create test index file if missing
 echo "🧪 Setting up test environment..."
-if [ ! -f "src/test/index.ts" ]; then
+if [ ! -f "test/index.ts" ]; then
     echo "Creating missing test index file..."
-    cat > src/test/index.ts << 'EOF'
+    cat > test/index.ts << 'EOF'
 import * as path from 'path';
 import * as Mocha from 'mocha';
 import * as glob from 'glob';

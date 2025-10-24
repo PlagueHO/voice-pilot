@@ -75,8 +75,8 @@ This implementation plan defines the deterministic steps required to deliver the
 
 ## 6. Testing
 
-- **TEST-001**: Add unit tests under `src/test/ui/voice-control-state.test.ts` covering reducer transitions for all status updates and transcript commits.
-- **TEST-002**: Add integration test in `src/test/ui/voice-control-panel.integration.test.ts` using VS Code test harness to validate message flow and ARIA attributes.
+- **TEST-001**: Add unit tests under `test/ui/voice-control-state.test.ts` covering reducer transitions for all status updates and transcript commits.
+- **TEST-002**: Add integration test in `test/ui/voice-control-panel.integration.test.ts` using VS Code test harness to validate message flow and ARIA attributes.
 - **TEST-003**: Add Playwright-based smoke test script `tests/e2e/voice-control-panel.spec.ts` verifying initial load performance and Copilot degraded banner behavior.
 
 ## 7. Risks & Assumptions

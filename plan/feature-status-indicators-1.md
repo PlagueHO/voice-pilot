@@ -54,8 +54,8 @@ This plan delivers the implementation defined in `spec/sp-014-spec-design-status
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-008 | Add unit tests under `src/test/unit/services/presence-indicator-service.test.ts` covering state mapping, batching, latency measurement, and Copilot availability handling. Use Sinon fake timers to assert the ≤150 ms emission rule. |  |  |
-| TASK-009 | Extend `src/test/extension.lifecycle.test.ts` (or add a new integration test) to verify context keys `voicepilot.state`/`voicepilot.copilotAvailable` and status bar text changes when simulated session/conversation events are emitted. |  |  |
+| TASK-008 | Add unit tests under `test/unit/services/presence-indicator-service.test.ts` covering state mapping, batching, latency measurement, and Copilot availability handling. Use Sinon fake timers to assert the ≤150 ms emission rule. |  |  |
+| TASK-009 | Extend `test/extension.lifecycle.test.ts` (or add a new integration test) to verify context keys `voicepilot.state`/`voicepilot.copilotAvailable` and status bar text changes when simulated session/conversation events are emitted. |  |  |
 | TASK-010 | Document the new indicator behaviour in `CHANGELOG.md` and ensure `README.md` (usage section) references status feedback. Include instructions for running `npm run lint`, `npm run test:unit`, and `npm run test` as validation criteria. |  |  |
 
 ## 3. Alternatives
@@ -76,7 +76,7 @@ This plan delivers the implementation defined in `spec/sp-014-spec-design-status
 - **FILE-003**: `src/core/extension-controller.ts` — bootstrap wiring for presence service, context keys, disposables.
 - **FILE-004**: `src/ui/status-bar.ts` — status bar presenter updated to consume `PresenceUpdate`.
 - **FILE-005**: `src/ui/voice-control-state.ts`, `src/ui/voice-control-panel.ts`, `src/ui/templates/voice-control-panel.html.ts`, `media/voice-control-panel.js` — sidebar UI updates for presence semantics.
-- **FILE-006**: `src/test/unit/services/presence-indicator-service.test.ts`, `src/test/extension.lifecycle.test.ts` — automated coverage for presence behaviour.
+- **FILE-006**: `test/unit/services/presence-indicator-service.test.ts`, `test/extension.lifecycle.test.ts` — automated coverage for presence behaviour.
 
 ## 6. Testing
 

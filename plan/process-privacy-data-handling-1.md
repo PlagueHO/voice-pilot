@@ -37,7 +37,7 @@ This plan delivers the end-to-end implementation of the Privacy & Data Handling 
 | TASK-002 | Add `privacyPolicy` configuration schema to `src/config/sections/privacy-policy-section.ts` with defaults matching retention windows and redaction options; register with `ConfigurationManager`. | ✅ | 2025-10-05 |
 | TASK-003 | Implement `PrivacyController` service in `src/services/privacy/privacy-controller.ts` handling retention scheduler, purge orchestration, and configuration hydration; expose via dependency container. | ✅ | 2025-10-05 |
 | TASK-004 | Wire `PrivacyController.initialize()` into `ExtensionController` lifecycle ensuring purge-on-start before other services, referencing SP-003 for secret boundaries. | ✅ | 2025-10-05 |
-| TASK-005 | Create unit tests in `src/test/privacy/privacy-controller.test.ts` covering retention timers, purge outcomes, and configuration overrides. | ✅ | 2025-10-05 |
+| TASK-005 | Create unit tests in `test/privacy/privacy-controller.test.ts` covering retention timers, purge outcomes, and configuration overrides. | ✅ | 2025-10-05 |
 
 ### Implementation Phase 2
 
@@ -49,7 +49,7 @@ This plan delivers the end-to-end implementation of the Privacy & Data Handling 
 | TASK-007 | Modify `src/session/SessionManager.ts` to invoke `PrivacyController.issuePurge()` on session end, reconnect, and manual clear commands; ensure events propagate via Observer pattern. | ✅ | 2025-10-05 |
 | TASK-008 | Extend `src/copilot/chatIntegration.ts` to block or redact prompts flagged `containsSecrets`/`containsPII`, logging sanitized metadata only. | ✅ | 2025-10-05 |
 | TASK-009 | Introduce privacy-aware messaging channel changes in `src/ui/VoiceControlPanel.ts` and `src/ui/transcriptView.ts` so only redacted transcripts render, along with purge triggers. | ✅ | 2025-10-05 |
-| TASK-010 | Add integration tests in `src/test/integration/privacy-session.test.ts` simulating transcript flows, purge events, and Copilot prompt rejection paths. | ✅ | 2025-10-05 |
+| TASK-010 | Add integration tests in `test/integration/privacy-session.test.ts` simulating transcript flows, purge events, and Copilot prompt rejection paths. | ✅ | 2025-10-05 |
 
 ### Implementation Phase 3
 

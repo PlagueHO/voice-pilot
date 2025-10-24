@@ -56,8 +56,8 @@ This plan defines the deterministic implementation steps required to deliver the
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-007 | Implement structured metrics emission in `src/audio/audio-metrics.ts` (or new module) to record interruption latency and degraded mode counters sourced from the engine diagnostics. | ✅ | 2025-09-26 |
-| TASK-008 | Add unit tests under `src/test/session/interruption-engine.test.ts` covering state transitions, policy validation, and cooldown logic using Mocha/Sinon per SP-011 Section 6. |  |  |
-| TASK-009 | Create integration test scenario in `src/test/integration/conversation-flow.test.ts` simulating Azure event sequences to verify UI context updates and barge-in cancellation, leveraging fixtures defined for SP-011 TASK-008. |  |  |
+| TASK-008 | Add unit tests under `test/session/interruption-engine.test.ts` covering state transitions, policy validation, and cooldown logic using Mocha/Sinon per SP-011 Section 6. |  |  |
+| TASK-009 | Create integration test scenario in `test/integration/conversation-flow.test.ts` simulating Azure event sequences to verify UI context updates and barge-in cancellation, leveraging fixtures defined for SP-011 TASK-008. |  |  |
 
 ## 3. Alternatives
 
@@ -75,12 +75,12 @@ This plan defines the deterministic implementation steps required to deliver the
 - **FILE-002**: `src/config/sections/conversation-section.ts` — configuration definition for policy profiles and budgets.
 - **FILE-003**: `src/ui/voice-control-panel.ts` — UI bindings for conversation state updates.
 - **FILE-004**: `src/audio/tts-service.ts` — playback cancellation integration.
-- **FILE-005**: `src/test/session/interruption-engine.test.ts` — unit test coverage for state transitions.
+- **FILE-005**: `test/session/interruption-engine.test.ts` — unit test coverage for state transitions.
 
 ## 6. Testing
 
-- **TEST-001**: Unit tests verifying state machine transitions, policy validation, and interruption budgets in `src/test/session/interruption-engine.test.ts`.
-- **TEST-002**: Integration test simulating Azure VAD and TTS events to validate UI state/context updates in `src/test/integration/conversation-flow.test.ts` executed via `npm run test`.
+- **TEST-001**: Unit tests verifying state machine transitions, policy validation, and interruption budgets in `test/session/interruption-engine.test.ts`.
+- **TEST-002**: Integration test simulating Azure VAD and TTS events to validate UI state/context updates in `test/integration/conversation-flow.test.ts` executed via `npm run test`.
 - **TEST-003**: Performance probe added to `npm run test:perf` measuring average interruption latency using synthetic timestamps emitted by the engine.
 
 ## 7. Risks & Assumptions

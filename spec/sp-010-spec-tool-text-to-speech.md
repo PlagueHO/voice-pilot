@@ -255,7 +255,7 @@ export interface PlaybackState {
   - Integration: Stub Azure Realtime endpoints with WebSocket fixtures to verify streaming playback inside a headless browser (Playwright).
   - End-to-End: Launch VS Code extension host tests validating UI state transitions (`voicepilot.speakingState`) via `@vscode/test-electron`.
 - **Frameworks**: Mocha + ts-sinon for extension logic, Playwright for webview audio harness, jest-worker (or vitest) for web audio pipeline simulations.
-- **Test Data Management**: Use deterministic PCM fixtures (short tone, speech sample) and transcript JSON fixtures stored under `src/test/fixtures/tts`.
+- **Test Data Management**: Use deterministic PCM fixtures (short tone, speech sample) and transcript JSON fixtures stored under `test/fixtures/tts`.
 - **CI/CD Integration**: Extend `Test Extension` task with optional `TTS_STUB_ENDPOINT` environment variable pointing to mocked Azure Realtime server.
 - **Coverage Requirements**: ≥90% branch coverage on playback state machine, 100% coverage on interruption handling paths.
 - **Performance Testing**: Add `npm run test:perf` probe measuring synthesis-to-playback latency using synthetic responses; fail build if average latency exceeds 350 ms.

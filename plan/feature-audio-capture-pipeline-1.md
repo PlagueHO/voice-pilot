@@ -178,10 +178,10 @@ This implementation plan executes the SP-007 Audio Capture Pipeline Architecture
 - **FILE-006**: src/types/audio-errors.ts - New file for AudioProcessingError and error handling types
 - **FILE-007**: src/audio/audio-metrics.ts - New file for AudioMetrics calculation and monitoring
 - **FILE-008**: src/audio/device-validator.ts - New file for audio device validation functionality
-- **FILE-009**: src/test/audio/audio-capture-pipeline.test.ts - New unit tests for audio capture pipeline
-- **FILE-010**: src/test/audio/audio-processing-chain.test.ts - New unit tests for audio processing chain
-- **FILE-011**: src/test/audio/audio-track-manager.test.ts - Enhanced tests for audio track manager
-- **FILE-012**: src/test/audio/audio-performance.test.ts - New performance tests for latency and CPU usage
+- **FILE-009**: test/audio/audio-capture-pipeline.test.ts - New unit tests for audio capture pipeline
+- **FILE-010**: test/audio/audio-processing-chain.test.ts - New unit tests for audio processing chain
+- **FILE-011**: test/audio/audio-track-manager.test.ts - Enhanced tests for audio track manager
+- **FILE-012**: test/audio/audio-performance.test.ts - New performance tests for latency and CPU usage
 
 ## 6. Testing
 

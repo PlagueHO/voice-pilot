@@ -151,10 +151,10 @@ This implementation plan executes the SP-003 Secret Storage & Credential Handlin
 
 ### Test Files
 
-- **FILE-011**: `src/test/auth/credentialManager.test.ts` - Unit tests for credential operations
-- **FILE-012**: `src/test/auth/credentialValidator.test.ts` - Unit tests for validation logic
-- **FILE-013**: `src/test/integration/secretStorage.test.ts` - Integration tests with mocked Secret Storage
-- **FILE-014**: `src/test/e2e/credentialWorkflow.test.ts` - End-to-end credential management tests
+- **FILE-011**: `test/auth/credentialManager.test.ts` - Unit tests for credential operations
+- **FILE-012**: `test/auth/credentialValidator.test.ts` - Unit tests for validation logic
+- **FILE-013**: `test/integration/secretStorage.test.ts` - Integration tests with mocked Secret Storage
+- **FILE-014**: `test/e2e/credentialWorkflow.test.ts` - End-to-end credential management tests
 
 ## 6. Testing
 

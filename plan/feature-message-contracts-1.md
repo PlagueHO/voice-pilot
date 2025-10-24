@@ -36,7 +36,7 @@ This plan operationalizes specification `spec/sp-050-spec-architecture-message-c
 |------|-------------|-----------|------|
 | TASK-001 | Create `/spec/schemas/envelope.schema.json` and message-type schemas (`ui.session.state.schema.json`, etc.) per SP-050 definitions with examples. | Yes | 2025-10-11 |
 | TASK-002 | Implement `createEnvelope`, `validateEnvelope`, and `chunkEnvelopePayload` helpers in `src/core/message-envelope.ts` using `ajv` with draft 2020-12 support. | Yes | 2025-10-11 |
-| TASK-003 | Add unit tests in `src/test/unit/core/message-envelope.test.ts` validating schema loading, correlation handling, and chunking behavior. | Yes | 2025-10-11 |
+| TASK-003 | Add unit tests in `test/unit/core/message-envelope.test.ts` validating schema loading, correlation handling, and chunking behavior. | Yes | 2025-10-11 |
 
 ### Implementation Phase 2
 
@@ -46,7 +46,7 @@ This plan operationalizes specification `spec/sp-050-spec-architecture-message-c
 |------|-------------|-----------|------|
 | TASK-004 | Refactor `src/ui/voice-control-panel.ts` to use `createEnvelope` for outbound messages and validate inbound messages before processing. | Yes | 2025-10-11 |
 | TASK-005 | Update `media/voice-control-panel.js` webview runtime to validate envelopes via generated schema bundle and route commands using correlation IDs. | Yes | 2025-10-11 |
-| TASK-006 | Extend integration tests in `src/test/integration/ui/voice-control-panel.integration.test.ts` to assert schema validation and 256 KiB chunking behavior. | Yes | 2025-10-11 |
+| TASK-006 | Extend integration tests in `test/integration/ui/voice-control-panel.integration.test.ts` to assert schema validation and 256 KiB chunking behavior. | Yes | 2025-10-11 |
 
 ### Implementation Phase 3
 
@@ -81,7 +81,7 @@ This plan operationalizes specification `spec/sp-050-spec-architecture-message-c
 
 - **TEST-001**: `npm run test:unit` must cover new unit tests validating envelope helpers and schema loading.
 - **TEST-002**: `npm run test:integration` (or `npm test`) must exercise host ↔ webview messaging with schema enforcement and chunking scenarios.
-- **TEST-003**: Add performance micro-benchmarks under `src/test/perf/messaging-envelope.perf.test.ts` to confirm ≤ 2 ms validation latency.
+- **TEST-003**: Add performance micro-benchmarks under `test/perf/messaging-envelope.perf.test.ts` to confirm ≤ 2 ms validation latency.
 
 ## 7. Risks & Assumptions
 

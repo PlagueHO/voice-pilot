@@ -242,7 +242,7 @@ if (!renewalResult.success) {
 - **QUA-001 Security**: Ephemeral keys are fetched through `EphemeralKeyServiceImpl`; credentials are never stored long-term, and privacy purges can eliminate sensitive transcripts. Authentication errors propagate with structured remediation messaging.
 - **QUA-002 Performance**: Timer scheduling avoids polling; renewal latency is tracked to maintain low downtime. Concurrent session checks prevent resource exhaustion (`getMaxConcurrentSessions()` default 3).
 - **QUA-003 Reliability**: Recovery executor integration enables retry policies with exponential backoff and fallback degraded modes. Heartbeats and inactivity timers autonomously detect stalled or idle sessions.
-- **QUA-004 Maintainability**: Observer registrations return disposables, `SessionConfig` uses typed fields, and statistics centralize state for debugging. Extensive test coverage exists (`src/test/session/session-manager*.test.ts`).
+- **QUA-004 Maintainability**: Observer registrations return disposables, `SessionConfig` uses typed fields, and statistics centralize state for debugging. Extensive test coverage exists (`test/session/session-manager*.test.ts`).
 - **QUA-005 Extensibility**: Conversation hooks and recovery registration allow customization without modifying core logic. Optional dependencies can be injected post-construction for bespoke deployments.
 
 ## 7. Reference Information
@@ -272,8 +272,8 @@ if (!renewalResult.success) {
 
 ### Testing Guidelines & Mock Setup
 
-- Run `npm run test:unit` for lightweight validation (`src/test/session/session-manager.test.ts`).
-- Comprehensive scenarios (`startSession`, renewals, recovery edges) reside in `src/test/session/session-manager-impl.test.ts` and `src/test/session/session-manager-integration.test.ts`.
+- Run `npm run test:unit` for lightweight validation (`test/session/session-manager.test.ts`).
+- Comprehensive scenarios (`startSession`, renewals, recovery edges) reside in `test/session/session-manager-impl.test.ts` and `test/session/session-manager-integration.test.ts`.
 - Provide mock implementations for `EphemeralKeyServiceImpl` methods (`requestEphemeralKey`, `renewKey`, `endSession`) and `SessionTimerManagerImpl` callbacks when testing isolated logic.
 - Use fake timers to validate renewal/timeout scheduling deterministically.
 

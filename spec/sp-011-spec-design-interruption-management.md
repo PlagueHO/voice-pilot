@@ -189,7 +189,7 @@ Messaging payloads exchanged between the webview and extension host SHALL follow
 
 - **Test Levels**: Unit tests for state machine transitions and policy application; integration tests with simulated Azure realtime events and mocked TTS/STT services; VS Code extension host tests verifying UI context updates (`voicepilot.conversationState`).
 - **Frameworks**: Mocha + Sinon for unit/integration (Node context), Playwright for webview event sequencing, `@vscode/test-electron` for end-to-end interruption scenarios.
-- **Test Data Management**: JSON fixtures representing Azure event sequences (normal, barge-in, degraded), audio playback mocks, and configuration permutations stored under `src/test/fixtures/turn-engine`.
+- **Test Data Management**: JSON fixtures representing Azure event sequences (normal, barge-in, degraded), audio playback mocks, and configuration permutations stored under `test/fixtures/turn-engine`.
 - **CI/CD Integration**: Include deterministic interruption suites in `npm run test:unit`; gate release builds with integration scenarios executed via `Test Extension`. Provide optional `TURN_ENGINE_TRACE=1` env flag to emit verbose logs during CI diagnostics.
 - **Coverage Requirements**: ≥95% branch coverage on state machine logic, ≥90% statement coverage overall, explicit assertions on interruption budget timing.
 - **Performance Testing**: Extend `npm run test:perf` harness to measure state transition latency using synthetic timestamps; fail if average exceeds 200 ms for speech-start or 300 ms for speech-stop sequences.

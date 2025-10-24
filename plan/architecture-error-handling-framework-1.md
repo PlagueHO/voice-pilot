@@ -77,9 +77,9 @@ This implementation plan delivers the architecture, services, and UI integration
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-016 | Create unit tests under `src/test/error/error-helpers.test.ts` covering envelope utilities, redaction, and retry policy calculations (≥95% coverage). |  |  |
+| TASK-016 | Create unit tests under `test/error/error-helpers.test.ts` covering envelope utilities, redaction, and retry policy calculations (≥95% coverage). |  |  |
 | TASK-017 | Add integration tests using `@vscode/test-electron` ensuring error publication triggers UI adapters and recovery flows without regressions. |  |  |
-| TASK-018 | Implement contract tests validating JSON schema for webview error messages under `src/test/ui/error-schema.test.ts`. |  |  |
+| TASK-018 | Implement contract tests validating JSON schema for webview error messages under `test/ui/error-schema.test.ts`. |  |  |
 | TASK-019 | Update `docs/validation/error-handling.md` summarizing test matrix, telemetry metrics, and operational playbooks. |  |  |
 | TASK-020 | Configure metrics export hooks (e.g., `metrics/error-metrics.ts`) to ingest domain severity counts and surface correlation identifiers for observability dashboards. |  |  |
 
@@ -105,7 +105,7 @@ This implementation plan delivers the architecture, services, and UI integration
 - **FILE-005**: `src/helpers/error/redaction.ts` — sensitive data redaction logic.
 - **FILE-006**: `src/ui/status-bar.ts` and `src/ui/VoiceControlPanel.ts` — UI presentation updates.
 - **FILE-007**: `docs/validation/error-handling.md` — validation playbook documentation.
-- **FILE-008**: `src/test/error/error-helpers.test.ts` — unit test coverage for error utilities.
+- **FILE-008**: `test/error/error-helpers.test.ts` — unit test coverage for error utilities.
 
 ## 6. Testing
 

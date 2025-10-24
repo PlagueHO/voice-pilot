@@ -57,9 +57,9 @@ Deliver the end-to-end audio feedback system defined in `spec/sp-015-spec-design
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-011 | Author unit tests `src/test/audio/audio-feedback-service.test.ts` covering Observer notifications, ducking state transitions, and degraded-mode triggers using mocha + sinon. |  |  |
-| TASK-012 | Add webview integration tests using Playwright (`src/test/webview/audio-feedback.spec.ts`) validating cue latency, ducking recovery, and accessibility profiles with stubbed AudioContext. |  |  |
-| TASK-013 | Extend `src/test/session/session-state.integration.test.ts` (or create new suite) to verify host↔webview messaging and fallback to textual notifications when cues are disabled. |  |  |
+| TASK-011 | Author unit tests `test/audio/audio-feedback-service.test.ts` covering Observer notifications, ducking state transitions, and degraded-mode triggers using mocha + sinon. |  |  |
+| TASK-012 | Add webview integration tests using Playwright (`test/webview/audio-feedback.spec.ts`) validating cue latency, ducking recovery, and accessibility profiles with stubbed AudioContext. |  |  |
+| TASK-013 | Extend `test/session/session-state.integration.test.ts` (or create new suite) to verify host↔webview messaging and fallback to textual notifications when cues are disabled. |  |  |
 | TASK-014 | Wire telemetry events into existing logging (`src/core/logger.ts`) and update metrics export pipelines so average latency, failure rate, and ducking ratios surface to diagnostics. |  |  |
 | TASK-015 | Update `docs/design/FEATURE-PLAN.md` status for SP-015 and document usage instructions in `README.md` accessibility section. |  |  |
 
@@ -79,7 +79,7 @@ Deliver the end-to-end audio feedback system defined in `spec/sp-015-spec-design
 - **FILE-002**: `src/services/audio-feedback/audio-feedback-service.ts` — host-side cue scheduling and degraded-mode orchestration.
 - **FILE-003**: `media/audio-feedback-player.ts` — webview cue playback engine and ducking strategies.
 - **FILE-004**: `media/audio/cues/*.pcm` — packaged PCM16 cue assets.
-- **FILE-005**: `src/test/audio/audio-feedback-service.test.ts` — unit tests ensuring contract compliance.
+- **FILE-005**: `test/audio/audio-feedback-service.test.ts` — unit tests ensuring contract compliance.
 - **FILE-006**: `media/voice-control-panel.js` — integration point for webview messaging and telemetry.
 
 ## 6. Testing

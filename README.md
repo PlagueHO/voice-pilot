@@ -129,7 +129,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 
 - Integration tests that rely on live Azure resources are tagged with `[requiresAzure]` and skip automatically when credentials are absent.
 - To opt-in locally, provide `voicepilot.azureOpenAI.apiKey` via the extension secret store (`VoicePilot: Configure Azure Credentials`) or set `AZURE_OPENAI_API_KEY` before running the quality gate.
-- Regression suites validate failure handling and cleanup using fixtures under `src/test/fixtures/activation-failure`, with outputs sanitized via `src/test/utils/sanitizers.ts`.
+- Regression suites validate failure handling and cleanup using fixtures under `test/fixtures/activation-failure`, with outputs sanitized via `test/utils/sanitizers.ts`.
 
 ## Reference Projects & APIs
 

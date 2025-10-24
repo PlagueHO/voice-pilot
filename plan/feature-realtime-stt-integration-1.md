@@ -53,8 +53,8 @@ This implementation plan delivers the realtime speech-to-text (STT) service desc
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-007 | Add reconnection and cache replay handling in `src/audio/connection-recovery-manager.ts`, replaying last 120 seconds of transcripts without duplication. |  |  |
-| TASK-008 | Write unit tests in `src/test/audio/stt-service.test.ts` covering delta aggregation, turn detection flags, `response.create` logic, and profanity/redaction hooks. |  |  |
-| TASK-009 | Create integration test harness in `src/test/integration/realtime-stt.integration.test.ts` simulating Azure realtime websocket events and validating state machine transitions and latency metrics. |  |  |
+| TASK-008 | Write unit tests in `test/audio/stt-service.test.ts` covering delta aggregation, turn detection flags, `response.create` logic, and profanity/redaction hooks. |  |  |
+| TASK-009 | Create integration test harness in `test/integration/realtime-stt.integration.test.ts` simulating Azure realtime websocket events and validating state machine transitions and latency metrics. |  |  |
 
 ## 3. Alternatives
 
@@ -73,13 +73,13 @@ This implementation plan delivers the realtime speech-to-text (STT) service desc
 - **FILE-003**: `src/config/sections/azure-openai-realtime.ts` — Configuration mapping for realtime transcription options.
 - **FILE-004**: `src/ui/transcriptView.ts` and `src/ui/VoiceControlPanel.ts` — UI updates for transcript/status events.
 - **FILE-005**: `src/audio/connection-recovery-manager.ts` — Reconnection handling and transcript replay.
-- **FILE-006**: `src/test/audio/stt-service.test.ts` and `src/test/integration/realtime-stt.integration.test.ts` — Automated test coverage.
+- **FILE-006**: `test/audio/stt-service.test.ts` and `test/integration/realtime-stt.integration.test.ts` — Automated test coverage.
 
 ## 6. Testing
 
-- **TEST-001**: Unit tests verifying transcript delta aggregation, utterance state transitions, and profanity/redaction masking in `src/test/audio/stt-service.test.ts`.
-- **TEST-002**: Integration test simulating realtime websocket events to confirm `session.update`, `response.create`, and VAD signal propagation in `src/test/integration/realtime-stt.integration.test.ts`.
-- **TEST-003**: UI webview test ensuring debounced transcript rendering and status updates within latency budgets using Playwright fixtures in `src/test/ui/transcript-view.e2e.test.ts`.
+- **TEST-001**: Unit tests verifying transcript delta aggregation, utterance state transitions, and profanity/redaction masking in `test/audio/stt-service.test.ts`.
+- **TEST-002**: Integration test simulating realtime websocket events to confirm `session.update`, `response.create`, and VAD signal propagation in `test/integration/realtime-stt.integration.test.ts`.
+- **TEST-003**: UI webview test ensuring debounced transcript rendering and status updates within latency budgets using Playwright fixtures in `test/ui/transcript-view.e2e.test.ts`.
 
 ## 7. Risks & Assumptions
 

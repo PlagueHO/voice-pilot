@@ -42,9 +42,9 @@ This implementation plan operationalizes specification `sp-039-spec-process-test
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-004 | Refine integration test fixtures in `src/test/integration/**` to assert initialization order telemetry (Configuration → Authentication → Session → UI) per PAT-001. | ✅ | 2025-10-07 |
-| TASK-005 | Add regression tests covering activation failure cleanup and Azure credential absence, storing synthetic fixtures under `src/test/fixtures/activation-failure`. | ✅ | 2025-10-07 |
-| TASK-006 | Introduce secret-sanitizing log helper in `src/test/utils/sanitizers.ts` and apply across test suites to satisfy SEC-001. | ✅ | 2025-10-07 |
+| TASK-004 | Refine integration test fixtures in `test/integration/**` to assert initialization order telemetry (Configuration → Authentication → Session → UI) per PAT-001. | ✅ | 2025-10-07 |
+| TASK-005 | Add regression tests covering activation failure cleanup and Azure credential absence, storing synthetic fixtures under `test/fixtures/activation-failure`. | ✅ | 2025-10-07 |
+| TASK-006 | Introduce secret-sanitizing log helper in `test/utils/sanitizers.ts` and apply across test suites to satisfy SEC-001. | ✅ | 2025-10-07 |
 
 ### Implementation Phase 3
 
@@ -71,7 +71,7 @@ This implementation plan operationalizes specification `sp-039-spec-process-test
 - **FILE-001**: `.vscode/tasks.json` — add ordering and dependencies for Gate Tasks.
 - **FILE-002**: `package.json` — enforce coverage thresholds and scripts alignment.
 - **FILE-003**: `src/core/logger.ts` or new `src/telemetry/gate-report.ts` — emit task telemetry.
-- **FILE-004**: `src/test/integration/**` and `src/test/fixtures/**` — adjust fixtures and add regression cases.
+- **FILE-004**: `test/integration/**` and `test/fixtures/**` — adjust fixtures and add regression cases.
 - **FILE-005**: `.github/workflows/ci.yml` — enforce sequential task execution and artefact retention.
 - **FILE-006**: `docs/CI-PIPELINE.md`, `README.md` — document QA gating process.
 

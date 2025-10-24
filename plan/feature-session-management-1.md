@@ -153,7 +153,7 @@ This implementation plan addresses the complete rewrite and enhancement of the S
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-042 | Create src/test/session/session-manager-impl.test.ts with unit tests for all session lifecycle operations | | |
+| TASK-042 | Create test/session/session-manager-impl.test.ts with unit tests for all session lifecycle operations | | |
 | TASK-043 | Implement mock dependencies (EphemeralKeyService, SessionTimerManager, ConfigurationManager) for isolated testing | | |
 | TASK-044 | Create integration tests for SessionManager with real EphemeralKeyService and SessionTimerManager coordination | | |
 | TASK-045 | Implement timer-based tests with fake timer implementation for deterministic renewal and timeout testing | | |
@@ -184,9 +184,9 @@ This implementation plan addresses the complete rewrite and enhancement of the S
 - **FILE-002**: src/session/session-manager.ts - Complete rewrite with SP-005 compliant SessionManagerImpl class
 - **FILE-003**: src/types/index.ts - Update to export all new session types and interfaces
 - **FILE-004**: src/core/extension-controller.ts - Update dependency injection and initialization sequence
-- **FILE-005**: src/test/session/session-manager-impl.test.ts - New comprehensive test file for SessionManagerImpl
-- **FILE-006**: src/test/session/session-manager.test.ts - Update existing tests for backward compatibility
-- **FILE-007**: src/test/unit/session-manager.unit.test.ts - Update unit tests for new interface compliance
+- **FILE-005**: test/session/session-manager-impl.test.ts - New comprehensive test file for SessionManagerImpl
+- **FILE-006**: test/session/session-manager.test.ts - Update existing tests for backward compatibility
+- **FILE-007**: test/unit/session-manager.unit.test.ts - Update unit tests for new interface compliance
 
 ## 6. Testing
 

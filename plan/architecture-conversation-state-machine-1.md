@@ -35,7 +35,7 @@ This plan operationalizes specification `spec/sp-012-spec-architecture-conversat
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-001 | Create `src/conversation/conversation-state-machine.ts` implementing `ConversationStateMachine` interface with states `idle`, `preparing`, `listening`, `processing`, `waitingForCopilot`, `speaking`, `interrupted`, `suspended`, `faulted`, `terminating` and state transition guards per SP-012 REQ-001..REQ-010. |  |  |
-| TASK-002 | Add unit tests in `src/test/conversation/conversation-state-machine.test.ts` covering baseline transitions (`Idle → Preparing → Listening`, `Listening → Processing`, `Processing → Speaking`). |  |  |
+| TASK-002 | Add unit tests in `test/conversation/conversation-state-machine.test.ts` covering baseline transitions (`Idle → Preparing → Listening`, `Listening → Processing`, `Processing → Speaking`). |  |  |
 | TASK-003 | Extend dependency injection container in `src/core/ExtensionController.ts` (or equivalent factory) to register the new state machine service and expose lifecycle hooks. |  |  |
 
 ### Implementation Phase 2
@@ -72,7 +72,7 @@ This plan operationalizes specification `spec/sp-012-spec-architecture-conversat
 ## 5. Files
 
 - **FILE-001**: `src/conversation/conversation-state-machine.ts` – New module implementing the conversation state machine.
-- **FILE-002**: `src/test/conversation/conversation-state-machine.test.ts` – Test suite validating transition coverage and guard logic.
+- **FILE-002**: `test/conversation/conversation-state-machine.test.ts` – Test suite validating transition coverage and guard logic.
 - **FILE-003**: `src/session/session-manager.ts` – Integration point for suspension/resume and start triggers.
 - **FILE-004**: `src/audio/stt-service.ts` – Updates for transcript event forwarding.
 - **FILE-005**: `src/audio/tts-service.ts` – Updates for playback event forwarding and interruptions.
@@ -82,10 +82,10 @@ This plan operationalizes specification `spec/sp-012-spec-architecture-conversat
 
 ## 6. Testing
 
-- **TEST-001**: Unit test suite verifying all primary transitions, guard conditions, and fault recovery scenarios in `src/test/conversation/conversation-state-machine.test.ts`.
-- **TEST-002**: Integration test in `src/test/extension/conversation.integration.test.ts` simulating STT/TTS events and asserting UI context keys.
+- **TEST-001**: Unit test suite verifying all primary transitions, guard conditions, and fault recovery scenarios in `test/conversation/conversation-state-machine.test.ts`.
+- **TEST-002**: Integration test in `test/extension/conversation.integration.test.ts` simulating STT/TTS events and asserting UI context keys.
 - **TEST-003**: Performance probe added to `npm run test:perf` measuring `Listening → Processing` latency via synthetic event harness.
-- **TEST-004**: Regression test ensuring Copilot dispatch occurs exactly once per turn using mocked `chat-integration` in `src/test/copilot/conversation-state-machine.integration.test.ts`.
+- **TEST-004**: Regression test ensuring Copilot dispatch occurs exactly once per turn using mocked `chat-integration` in `test/copilot/conversation-state-machine.integration.test.ts`.
 
 ## 7. Risks & Assumptions
 

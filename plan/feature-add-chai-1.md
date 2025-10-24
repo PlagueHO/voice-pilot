@@ -33,7 +33,7 @@ This plan describes the deterministic, step-by-step addition of `chai` and `chai
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-001 | Add `chai`, `chai-as-promised`, `@types/chai`, `@types/chai-as-promised` to devDependencies in `package.json` and run an `npm ci` or `npm install` to update lockfile. | ✅ | 2025-10-10 |
-| TASK-002 | Create `src/test/helpers/chai-setup.ts` with the following content: | | |
+| TASK-002 | Create `test/helpers/chai-setup.ts` with the following content: | | |
 
 |      | ```ts
 |      | import chai from "chai"; | | |
@@ -49,7 +49,7 @@ This plan describes the deterministic, step-by-step addition of `chai` and `chai
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-004 | Identify a small, fast unit test `src/test/unit/<example>.unit.test.ts` and convert it to import from `src/test/helpers/chai-setup` and use `expect`/`eventually`. | ✅ | 2025-10-10 |
+| TASK-004 | Identify a small, fast unit test `test/unit/<example>.unit.test.ts` and convert it to import from `test/helpers/chai-setup` and use `expect`/`eventually`. | ✅ | 2025-10-10 |
 | TASK-005 | Run `npm run compile` and `npm run test:unit` to validate compilation and unit tests pass. | ✅ | 2025-10-10 |
 | TASK-006 | Update `AGENTS.md` and `docs/QUICKSTART.md` to document the new dev dependency and recommended style. | ✅ | 2025-10-10 |
 
@@ -67,7 +67,7 @@ This plan describes the deterministic, step-by-step addition of `chai` and `chai
 ## 5. Files
 
 - **FILE-001**: `package.json` — add dev dependency entries
-- **FILE-002**: `src/test/helpers/chai-setup.ts` — new helper to configure `chai-as-promised`
+- **FILE-002**: `test/helpers/chai-setup.ts` — new helper to configure `chai-as-promised`
 - **FILE-003**: `AGENTS.md` — update testing guidance (already updated)
 - **FILE-004**: `docs/QUICKSTART.md` — add optional note for developers to use `chai` in tests
 

@@ -52,8 +52,8 @@ This plan operationalizes SP-037 by delivering reusable retry envelopes, determi
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-007 | Add unit tests in `src/test/retry/retry-executor.test.ts` covering jitter determinism, circuit breaker transitions, and guardrail enforcement with fake timers. |  |  |
-| TASK-008 | Add integration tests in `src/test/integration/retry-recovery.integration.test.ts` verifying coordination with `SessionManager` and `ErrorEventBus`. |  |  |
+| TASK-007 | Add unit tests in `test/retry/retry-executor.test.ts` covering jitter determinism, circuit breaker transitions, and guardrail enforcement with fake timers. |  |  |
+| TASK-008 | Add integration tests in `test/integration/retry-recovery.integration.test.ts` verifying coordination with `SessionManager` and `ErrorEventBus`. |  |  |
 | TASK-009 | Update `docs/QUICKSTART.md` and `docs/design/COMPONENTS.md` to document new retry helpers (`withRetry`, `scheduleRetry`) and configuration knobs. |  |  |
 
 ## 3. Alternatives

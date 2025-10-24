@@ -33,7 +33,7 @@ Plan the end-to-end implementation of the SP-061 conversation persistence storag
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-001 | Create `src/types/conversation-storage.ts` defining `ConversationRecord`, `ConversationRecordInput`, `ConversationRecordMutation`, `ConversationSummary`, `ConversationMetrics`, `RetentionInfo`, `PrivacyEnvelope`, `StorageEnvelope`, `RecoverySnapshot`, `PurgeReport`, and related TypeScript guards exactly as specified; export the module from `src/types/index.ts`. |  |  |
-| TASK-002 | Extend `src/types/privacy.ts` to add new `PurgeReason` literals (`"retention-expired"`, `"privacy-policy-change"`, `"workspace-reset"`, `"corruption-detected"`) while retaining legacy values, update `isPurgeCommand` validation accordingly, and add unit coverage under `src/test/unit/privacy/privacy-controller.spec.ts`. |  |  |
+| TASK-002 | Extend `src/types/privacy.ts` to add new `PurgeReason` literals (`"retention-expired"`, `"privacy-policy-change"`, `"workspace-reset"`, `"corruption-detected"`) while retaining legacy values, update `isPurgeCommand` validation accordingly, and add unit coverage under `test/unit/privacy/privacy-controller.spec.ts`. |  |  |
 | TASK-003 | Add `src/services/conversation/conversation-storage-crypto.ts` exporting deterministic helpers `loadOrCreateWorkspaceKey`, `encryptPayload`, and `decryptPayload` using `randomBytes(32)` plus AES-256-GCM with 12-byte IVs; persist keys via `context.secrets.store("voicepilot.conversation.key", base64Key)` and memoize in-memory. |  |  |
 
 ### Implementation Phase 2
@@ -54,7 +54,7 @@ Plan the end-to-end implementation of the SP-061 conversation persistence storag
 |------|-------------|-----------|------|
 | TASK-007 | Update `src/session/session-manager.ts` to accept a `conversationStorage` dependency, generate `conversationId` per session, stream realtime transcript deltas into `commitSnapshot`, and invoke `commitConversation` during `endSession` and fatal error paths prior to purging privacy buffers. |  |  |
 | TASK-008 | Modify `src/core/extension-controller.ts` to instantiate `ConversationStorageServiceImpl`, call `initialize()` after privacy controller boot, register it with the disposal orchestrator using priority `DISPOSAL_PRIORITY.session`, inject it into `SessionManagerImpl`, and pipe `privacyController.onPurge` events to `conversationStorage.purgeAll` or `deleteRecord` as required. |  |  |
-| TASK-009 | Create unit tests `src/test/unit/conversation/conversation-storage-service.spec.ts` covering encryption round-trips, retention sweep purge, cursor pagination, and error handling; add integration smoke test `src/test/integration/conversation/conversation-storage.integration.test.ts` verifying session shutdown writes records and disposal clears handles. |  |  |
+| TASK-009 | Create unit tests `test/unit/conversation/conversation-storage-service.spec.ts` covering encryption round-trips, retention sweep purge, cursor pagination, and error handling; add integration smoke test `test/integration/conversation/conversation-storage.integration.test.ts` verifying session shutdown writes records and disposal clears handles. |  |  |
 
 ## 3. Alternatives
 
