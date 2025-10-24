@@ -72,7 +72,19 @@ fi
 # Install global packages
 echo "🌐 Installing global packages..."
 npm install -g @vscode/vsce
-npm install -g @github/copilot
+
+# Install GitHub Copilot CLI
+echo "🤖 Installing GitHub Copilot CLI..."
+if command -v gh >/dev/null 2>&1; then
+  if ! gh extension list | grep -q "github/gh-copilot"; then
+    gh extension install github/gh-copilot
+    echo "✅ GitHub Copilot CLI installed successfully."
+  else
+    echo "GitHub Copilot CLI already installed."
+  fi
+else
+  echo "⚠️ GitHub CLI (gh) not found; skipping GitHub Copilot CLI installation."
+fi
 
 # Create test index file if missing
 echo "🧪 Setting up test environment..."
