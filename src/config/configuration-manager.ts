@@ -295,7 +295,11 @@ export class ConfigurationManager implements ServiceInitializable {
       let hasChanged = oldValue !== newValue;
       
       // For non-primitive values, perform deep comparison only when references differ
-      if (hasChanged && typeof oldValue === 'object' && typeof newValue === 'object') {
+      if (
+        hasChanged &&
+        oldValue !== null && typeof oldValue === 'object' &&
+        newValue !== null && typeof newValue === 'object'
+      ) {
         hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
       }
       
