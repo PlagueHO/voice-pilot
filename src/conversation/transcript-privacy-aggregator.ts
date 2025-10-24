@@ -77,6 +77,7 @@ export class TranscriptPrivacyAggregator {
   private readonly transcripts = new Map<string, AggregatedTranscriptState>();
   private cachedRules?: RedactionRule[];
   private cachedProfanityLevel?: string;
+  private cachedBaseRules?: RedactionRule[];
 
   constructor(
     private readonly voicePanel: VoiceControlPanel,
@@ -111,6 +112,7 @@ export class TranscriptPrivacyAggregator {
     this.transcripts.clear();
     this.cachedRules = undefined;
     this.cachedProfanityLevel = undefined;
+    this.cachedBaseRules = undefined;
   }
 
   private handleDelta(event: TranscriptDeltaEvent): void {
@@ -304,7 +306,12 @@ export class TranscriptPrivacyAggregator {
     policy: PrivacyPolicySnapshot,
   ): RedactionRule[] {
     // Optimization: Cache composed rules to avoid allocating new arrays on every event
-    if (this.cachedRules && this.cachedProfanityLevel === policy.profanityFilter) {
+    // Validate both profanity level AND base redaction rules haven't changed
+    if (
+      this.cachedRules && 
+      this.cachedProfanityLevel === policy.profanityFilter &&
+      this.cachedBaseRules === policy.redactionRules
+    ) {
       return this.cachedRules;
     }
 
@@ -319,6 +326,7 @@ export class TranscriptPrivacyAggregator {
 
     this.cachedRules = rules;
     this.cachedProfanityLevel = policy.profanityFilter;
+    this.cachedBaseRules = policy.redactionRules;
     return rules;
   }
 
