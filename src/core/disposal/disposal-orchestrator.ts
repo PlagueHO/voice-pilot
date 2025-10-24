@@ -9,11 +9,6 @@ interface RegisteredDisposable {
   isDisposed: boolean;
 }
 
-interface DisposalResult {
-  report: DisposalReport;
-  errors: Error[];
-}
-
 const DEFAULT_GRACE_PERIOD_MS = 2000;
 
 export class DisposalOrchestratorImpl

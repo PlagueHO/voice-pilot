@@ -603,8 +603,8 @@ describe('SessionManagerImpl - Comprehensive Tests', () => {
     });
 
     it('should handle session cleanup during disposal', async () => {
-      const session1 = await sessionManager.startSession();
-      const session2 = await sessionManager.startSession();
+      void await sessionManager.startSession();
+      void await sessionManager.startSession();
 
       assert.strictEqual(sessionManager.getAllSessions().length, 2);
 

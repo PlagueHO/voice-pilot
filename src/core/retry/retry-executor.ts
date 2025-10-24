@@ -109,7 +109,6 @@ export class RetryExecutorImpl implements RetryExecutor {
       attempt += 1;
       await context.onAttempt?.(attempt, previousDelay);
 
-      const attemptStart = context.clock.now();
       try {
         const result = await fn();
         const total = context.clock.now() - start;
@@ -122,7 +121,6 @@ export class RetryExecutorImpl implements RetryExecutor {
         await context.onComplete?.({ success: true, attempts: attempt, totalDurationMs: total });
         return result;
       } catch (error: unknown) {
-        const duration = context.clock.now() - attemptStart;
         totalDuration = context.clock.now() - start;
 
         const retryPlanDelay = this.calculateDelay(

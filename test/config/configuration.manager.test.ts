@@ -33,11 +33,10 @@ describe('Configuration Manager', () => {
 
   it('Change handler receives updates', async () => {
     const mgr = await setup();
-    let received = false;
 
     mgr.onConfigurationChanged(async change => {
       if (change.section === 'commands' && change.key === 'timeout') {
-        received = true;
+        // Handler invoked
       }
     });
 

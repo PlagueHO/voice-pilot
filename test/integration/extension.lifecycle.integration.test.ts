@@ -132,7 +132,6 @@ suite("Integration: Extension lifecycle", () => {
   });
 
   test("panel can be shown and disposed", async () => {
-    const logger = new Logger("TestLogger2");
     const panel = new VoiceControlPanel(context);
 
   await panel.initialize();

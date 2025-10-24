@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM"],
+		"sourceMap": true,
+		"experimentalDecorators": true,
+		"noImplicitOverride": true,
+		"noUnusedLocals": true,
+		"useDefineForClassFields": false,
+		"allowUnreachableCode": false,
+		"strict": true,
+		"exactOptionalPropertyTypes": false,
+		"useUnknownInCatchVariables": false,
+		"noFallthroughCasesInSwitch": true,
+		"forceConsistentCasingInFileNames": true,
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"moduleResolution": "node",
+		"resolveJsonModule": true
+	}
+}

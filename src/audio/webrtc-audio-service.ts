@@ -97,7 +97,6 @@ export class WebRTCAudioService implements ServiceInitializable {
   private ephemeralKeyService?: EphemeralKeyServiceImpl;
   private configurationManager?: ConfigurationManager;
   private sessionManager?: SessionManager;
-  private resourceTracker?: AggregatedResourceTracker;
 
   // Audio session state
   private isSessionActive = false;
@@ -147,7 +146,7 @@ export class WebRTCAudioService implements ServiceInitializable {
     this.ephemeralKeyService = ephemeralKeyService;
     this.configurationManager = configurationManager;
     this.sessionManager = sessionManager;
-    this.resourceTracker = resourceTracker;
+
 
     if (this.ephemeralKeyService) {
       this.attachEphemeralKeyObservers(this.ephemeralKeyService);
@@ -173,7 +172,6 @@ export class WebRTCAudioService implements ServiceInitializable {
   }
 
   setResourceTracker(tracker?: AggregatedResourceTracker): void {
-    this.resourceTracker = tracker;
     this.transport.setResourceTracker(tracker);
     this.audioManager.setResourceTracker(tracker);
   }

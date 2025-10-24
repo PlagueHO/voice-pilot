@@ -6,12 +6,12 @@ import type { RealtimeSpeechToTextService } from "../services/realtime-speech-to
 import type { TurnEvent as InterruptionTurnEvent } from "../types/conversation";
 import { SessionInfo } from "../types/session";
 import {
-  TranscriptClearedEvent,
-  TranscriptDeltaEvent,
-  TranscriptEvent,
-  TranscriptFinalEvent,
-  TranscriptionStatusEvent,
-  TranscriptRedoEvent,
+    TranscriptClearedEvent,
+    TranscriptDeltaEvent,
+    TranscriptEvent,
+    TranscriptFinalEvent,
+    TranscriptionStatusEvent,
+    TranscriptRedoEvent,
 } from "../types/speech-to-text";
 import { TtsPlaybackEvent } from "../types/tts";
 
@@ -147,7 +147,6 @@ export class ConversationStateMachine implements ServiceInitializable {
   private previousState: ConversationState = "idle";
   private readonly stateMetadata: StateMetadata = {};
   private currentTurn: TurnContext | undefined;
-  private lastAssistantTurnId: string | undefined;
   private suspensionSnapshot: SuspensionSnapshot | undefined;
   private turnSequence = 0;
   private faultTimestamps: number[] = [];
@@ -581,7 +580,7 @@ export class ConversationStateMachine implements ServiceInitializable {
       return;
     }
     this.currentTurn = this.createTurn("assistant", timestamp);
-    this.lastAssistantTurnId = this.currentTurn.turnId;
+
     this.emitTurnEvent("turn-started", this.currentTurn);
   }
 

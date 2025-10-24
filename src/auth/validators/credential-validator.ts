@@ -147,11 +147,6 @@ export class CredentialValidatorImpl implements CredentialValidator {
     }
   }
 
-  private async testAzureSpeechConnection(key: string): Promise<boolean> {
-    // Azure Speech validation removed: use Azure OpenAI Realtime validation flows instead
-    return false;
-  }
-
   private async testGitHubConnection(token: string): Promise<{ isValid: boolean; permissions?: string[]; expirationDate?: Date }> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), VALIDATION_TIMEOUTS.NETWORK_VALIDATION_MS);

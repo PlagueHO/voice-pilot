@@ -41,8 +41,6 @@ interface MetricsState {
   telemetryListeners: Set<RenderTelemetryListener>;
 }
 
-const DEFAULT_ANALYSIS_INTERVAL_MS = 100;
-
 interface TrackedResourceEntry {
   factory: (tracker: AudioResourceTracker) => () => void;
   cleanup: () => void;
@@ -409,7 +407,7 @@ export class WebAudioProcessingChain implements AudioProcessingChain {
       return;
     }
 
-    for (const [graph, entries] of this.trackedGraphResources.entries()) {
+    for (const [_graph, entries] of this.trackedGraphResources.entries()) {
       for (const [key, entry] of entries.entries()) {
         try {
           entry.cleanup();

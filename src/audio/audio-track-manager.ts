@@ -2,23 +2,23 @@ import type { AudioResourceTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
-  AudioCaptureSampleRate,
-  AudioTrackState,
-  AudioTrackStatistics,
+    AudioCaptureSampleRate,
+    AudioTrackState,
+    AudioTrackStatistics,
 } from "../types/audio-capture";
 import {
-  AudioConfiguration,
-  AudioTrackRegistrationOptions,
-  ConnectionQuality,
-  ConnectionStatistics,
-  WebRTCErrorCode,
-  WebRTCErrorImpl,
-  WebRTCTransport,
+    AudioConfiguration,
+    AudioTrackRegistrationOptions,
+    ConnectionQuality,
+    ConnectionStatistics,
+    WebRTCErrorCode,
+    WebRTCErrorImpl,
+    WebRTCTransport,
 } from "../types/webrtc";
 import {
-  AudioContextProvider,
-  AudioGraphNodes,
-  sharedAudioContextProvider,
+    AudioContextProvider,
+    AudioGraphNodes,
+    sharedAudioContextProvider,
 } from "./audio-context-provider";
 
 const QUALITY_MONITOR_DEFAULT_INTERVAL_MS = 2000;
@@ -64,7 +64,6 @@ export class AudioTrackManager implements ServiceInitializable {
 
   private qualityMonitorTimer?: ReturnType<typeof setInterval>;
   private qualityMonitorTransport: WebRTCTransport | null = null;
-  private qualityMonitorInterval = QUALITY_MONITOR_DEFAULT_INTERVAL_MS;
   private lastConnectionQuality?: ConnectionQuality;
 
   private audioConstraints: MediaTrackConstraints = {
@@ -772,7 +771,7 @@ export class AudioTrackManager implements ServiceInitializable {
   ): void {
     this.stopQualityMonitor();
     this.qualityMonitorTransport = transport;
-    this.qualityMonitorInterval = intervalMs;
+
     this.qualityMonitorTimer = setInterval(
       () => this.pollConnectionQuality(),
       intervalMs,

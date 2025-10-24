@@ -51,10 +51,8 @@ const VALID_FRAME_DURATIONS = new Set([10, 20, 40]);
 const MAX_PACKET_BYTES_LIMIT = 960;
 
 export class AudioCodecFactory {
-  private readonly logger: Logger;
-
-  constructor(logger?: Logger) {
-    this.logger = logger ?? new Logger("AudioCodecFactory");
+  constructor(_logger?: Logger) {
+    // Logger parameter kept for API compatibility but not used
   }
 
   listProfiles(): ReadonlyArray<AudioCodecProfile> {

@@ -41,10 +41,8 @@ export class AudioContextProvider {
   private context?: AudioContext;
   private readonly stateListeners = new Set<AudioContextStateListener>();
   private readonly loadedWorkletUrls = new Set<string>();
-  private appliedSampleRate?: number;
   private appliedLatencyHint?: AudioContextLatencyCategory | number;
   private appliedCodecProfileId?: AudioCodecProfileId;
-  private targetCodecProfile?: AudioCodecProfile;
 
   /**
    * Creates a provider with optional logging support for audio context lifecycle events.
@@ -65,9 +63,6 @@ export class AudioContextProvider {
     codecProfile?: AudioCodecProfile,
   ): void {
     this.configuration = configuration;
-    if (codecProfile) {
-      this.targetCodecProfile = codecProfile;
-    }
 
     if (this.context && configuration.workletModuleUrls.length > 0) {
       void this.loadExternalWorklets(
@@ -171,10 +166,8 @@ export class AudioContextProvider {
     this.context = undefined;
     this.contextPromise = undefined;
     this.loadedWorkletUrls.clear();
-    this.appliedSampleRate = undefined;
     this.appliedLatencyHint = undefined;
     this.appliedCodecProfileId = undefined;
-    this.targetCodecProfile = undefined;
   }
 
   /**
@@ -309,7 +302,6 @@ export class AudioContextProvider {
     );
 
     this.context = context;
-    this.appliedSampleRate = context.sampleRate;
     this.appliedLatencyHint = latencyHint;
     this.appliedCodecProfileId = this.configuration.codecProfileId;
     return context;

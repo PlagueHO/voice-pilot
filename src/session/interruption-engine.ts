@@ -1,25 +1,25 @@
 import { randomUUID } from "crypto";
 import { Disposable } from "vscode";
 import {
-  ConversationInterruptionMetrics,
-  createInterruptionMetrics,
-  incrementCooldownActivations,
-  incrementFallbackActivations,
-  recordInterruptionLatency,
+    ConversationInterruptionMetrics,
+    createInterruptionMetrics,
+    incrementCooldownActivations,
+    incrementFallbackActivations,
+    recordInterruptionLatency,
 } from "../audio/audio-metrics";
 import { Logger } from "../core/logger";
 import {
-  ConversationState,
-  InterruptionEngine,
-  InterruptionEngineHooks,
-  InterruptionInfo,
-  InterruptionPolicyConfig,
-  PlaybackActivityEvent,
-  SpeechActivityEvent,
-  TurnDescriptor,
-  TurnEvent,
-  TurnEventDiagnostics,
-  TurnHints,
+    ConversationState,
+    InterruptionEngine,
+    InterruptionEngineHooks,
+    InterruptionInfo,
+    InterruptionPolicyConfig,
+    PlaybackActivityEvent,
+    SpeechActivityEvent,
+    TurnDescriptor,
+    TurnEvent,
+    TurnEventDiagnostics,
+    TurnHints,
 } from "../types/conversation";
 
 const DEFAULT_POLICY: InterruptionPolicyConfig = {
@@ -53,7 +53,6 @@ export class InterruptionEngineImpl implements InterruptionEngine {
   private pendingUserTurnQueued = false;
   private readonly interruptionHistory: number[] = [];
   private cooldownEndsAt = 0;
-  private lastAssistantStartAt = 0;
   private pendingResponse?: PendingResponseRequest;
   private pendingResponseTimer?: NodeJS.Timeout;
   private metrics: ConversationInterruptionMetrics =
@@ -127,7 +126,7 @@ export class InterruptionEngineImpl implements InterruptionEngine {
         break;
       case "assistant-speech-start":
         this.assistantSpeaking = true;
-        this.lastAssistantStartAt = timestampMs ?? Date.now();
+
         if (!this.isCurrentTurn("assistant")) {
           this.beginTurn("assistant", event.timestamp);
         }

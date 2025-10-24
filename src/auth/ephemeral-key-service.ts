@@ -5,24 +5,24 @@ import { Logger } from "../core/logger";
 import { withRecovery } from "../helpers/error/envelope";
 import { AzureOpenAIConfig } from "../types/configuration";
 import {
-  AuthenticationError,
-  AuthenticationErrorHandler,
-  AuthenticationTestResult,
-  AzureSessionRequest,
-  AzureSessionResponse,
-  EphemeralKeyInfo,
-  EphemeralKeyResult,
-  EphemeralKeyService,
-  EphemeralKeyServiceConfig,
-  KeyExpirationHandler,
-  KeyRenewalHandler,
-  RealtimeSessionInfo,
+    AuthenticationError,
+    AuthenticationErrorHandler,
+    AuthenticationTestResult,
+    AzureSessionRequest,
+    AzureSessionResponse,
+    EphemeralKeyInfo,
+    EphemeralKeyResult,
+    EphemeralKeyService,
+    EphemeralKeyServiceConfig,
+    KeyExpirationHandler,
+    KeyRenewalHandler,
+    RealtimeSessionInfo,
 } from "../types/ephemeral";
 import type {
-  RecoveryExecutionOptions,
-  RecoveryExecutor,
-  RecoveryPlan,
-  VoicePilotError,
+    RecoveryExecutionOptions,
+    RecoveryExecutor,
+    RecoveryPlan,
+    VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { CredentialManagerImpl } from "./credential-manager";
 
@@ -715,40 +715,6 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
         });
       }
     }
-  }
-
-  private async requestEphemeralKeyWithRetry(): Promise<EphemeralKeyResult> {
-    let backoffMs = this.config.retryBackoffMs;
-
-    for (let attempt = 1; attempt <= this.config.maxRetryAttempts; attempt++) {
-      const result = await this.requestEphemeralKey();
-
-      if (result.success || !result.error?.isRetryable) {
-        return result;
-      }
-
-      if (attempt < this.config.maxRetryAttempts) {
-        this.logger.warn(
-          `Key request attempt ${attempt} failed, retrying in ${backoffMs}ms`,
-          result.error,
-        );
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        backoffMs *= 2; // Exponential backoff
-      }
-    }
-
-    this.logger.error(
-      `All ${this.config.maxRetryAttempts} key request attempts failed`,
-    );
-    return {
-      success: false,
-      error: {
-        code: "MAX_RETRIES_EXCEEDED",
-        message: `Failed to obtain ephemeral key after ${this.config.maxRetryAttempts} attempts`,
-        isRetryable: true,
-        remediation: "Check network connectivity and Azure service status",
-      },
-    };
   }
 
   private mapAzureError(error: any): AuthenticationError {

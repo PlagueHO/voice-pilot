@@ -2,22 +2,22 @@ import * as vscode from "vscode";
 import { Logger } from "../core/logger";
 import { ServiceInitializable } from "../core/service-initializable";
 import {
-  AudioConfig,
-  AudioFeedbackConfig,
-  AzureOpenAIConfig,
-  AzureRealtimeConfig,
-  CommandsConfig,
-  ConfigurationChange,
-  ConfigurationChangeHandler,
-  ConversationConfig,
-  GitHubConfig,
-  RetryConfig,
-  ValidationResult,
+    AudioConfig,
+    AudioFeedbackConfig,
+    AzureOpenAIConfig,
+    AzureRealtimeConfig,
+    CommandsConfig,
+    ConfigurationChange,
+    ConfigurationChangeHandler,
+    ConversationConfig,
+    GitHubConfig,
+    RetryConfig,
+    ValidationResult,
 } from "../types/configuration";
 import type { PrivacyPolicyConfig } from "../types/privacy";
 import {
-  resolveRealtimeSessionPreferences,
-  type RealtimeSessionPreferences,
+    resolveRealtimeSessionPreferences,
+    type RealtimeSessionPreferences,
 } from "./realtime-session";
 import { AudioSection } from "./sections/audio-config-section";
 import { AudioFeedbackSection } from "./sections/audio-feedback-section";
@@ -57,7 +57,6 @@ export class ConfigurationManager implements ServiceInitializable {
   private retrySection: RetrySection;
   private validator: ConfigurationValidator;
 
-  private context!: vscode.ExtensionContext;
   private logger!: Logger;
 
   constructor(context?: vscode.ExtensionContext, logger?: Logger) {
@@ -71,7 +70,7 @@ export class ConfigurationManager implements ServiceInitializable {
     if (!logger) {
       logger = new Logger("VoicePilot");
     }
-    this.context = context as vscode.ExtensionContext;
+
     this.logger = logger as Logger;
     this.azureOpenAISection = new AzureOpenAISection();
     this.azureRealtimeSection = new AzureOpenAIRealtimeSection();

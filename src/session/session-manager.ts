@@ -1160,7 +1160,6 @@ export class SessionManagerImpl implements SessionManager {
     } catch (error: any) {
       session.statistics.failedRenewalCount++;
       session.state = SessionState.Failed;
-      const latencyMs = Date.now() - renewalStart;
 
       this.emitSessionError("renewal-error", sessionId, {
         code: "RENEWAL_EXCEPTION",

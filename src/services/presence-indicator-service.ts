@@ -1,29 +1,29 @@
 import * as vscode from "vscode";
 import ConversationStateMachine, {
-  ConversationState,
-  StateChangeEvent as ConversationStateChangeEvent,
-  TurnEvent as ConversationTurnEvent,
+    ConversationState,
+    StateChangeEvent as ConversationStateChangeEvent,
+    TurnEvent as ConversationTurnEvent,
 } from "../conversation/conversation-state-machine";
 import { Logger } from "../core/logger";
 import {
-  PRESENCE_BATCH_WINDOW_MS,
-  PresenceDetails,
-  PresenceStateDescriptor,
-  PresenceUpdate,
-  VoicePilotPresenceState,
-  isPresenceStateEqual,
-  normalizePresenceState,
-  resolvePresenceDescriptor,
+    PRESENCE_BATCH_WINDOW_MS,
+    PresenceDetails,
+    PresenceStateDescriptor,
+    PresenceUpdate,
+    VoicePilotPresenceState,
+    isPresenceStateEqual,
+    normalizePresenceState,
+    resolvePresenceDescriptor,
 } from "../types/presence";
 import {
-  SessionDiagnostics,
-  SessionError,
-  SessionErrorEvent,
-  SessionEvent,
-  SessionManager,
-  SessionRenewalEvent,
-  SessionState,
-  SessionStateEvent,
+    SessionDiagnostics,
+    SessionError,
+    SessionErrorEvent,
+    SessionEvent,
+    SessionManager,
+    SessionRenewalEvent,
+    SessionState,
+    SessionStateEvent,
 } from "../types/session";
 
 /**
@@ -52,10 +52,8 @@ export class PresenceIndicatorService implements vscode.Disposable {
   private readonly latencyWarningMs: number;
 
   private sessionManager?: SessionManager;
-  private conversationMachine?: ConversationStateMachine;
 
   private conversationState: ConversationState = "idle";
-  private conversationMetadata: Record<string, unknown> | undefined;
   private currentTurnId: string | undefined;
 
   private sessionState: SessionState = SessionState.Idle;
@@ -146,7 +144,7 @@ export class PresenceIndicatorService implements vscode.Disposable {
     machine: ConversationStateMachine,
   ): vscode.Disposable {
     this.ensureNotDisposed();
-    this.conversationMachine = machine;
+
 
     const stateSub = machine.onStateChanged((event) => {
       this.handleConversationStateChange(event);
@@ -325,7 +323,7 @@ export class PresenceIndicatorService implements vscode.Disposable {
    */
   handleConversationStateChange(event: ConversationStateChangeEvent): void {
     this.conversationState = event.transition.to;
-    this.conversationMetadata = event.metadata?.metadata ?? undefined;
+
     this.currentTurnId = event.turnContext?.turnId ?? this.currentTurnId;
     this.logger.debug("PresenceIndicator: conversation state change", {
       from: event.transition.from,

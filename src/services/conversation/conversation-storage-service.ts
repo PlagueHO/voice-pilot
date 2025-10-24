@@ -132,7 +132,6 @@ export class ConversationStorageServiceImpl
       throw new Error(`Conversation ${input.conversationId} already exists`);
     }
 
-    const now = new Date().toISOString();
     const metrics = this.normalizeMetrics(input.metrics);
     const retention = this.buildRetentionInfo(input.createdAt);
     const storage: StorageEnvelope = {

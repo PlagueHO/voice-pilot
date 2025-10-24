@@ -4,10 +4,10 @@ import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { presentCleanupDiagnostics, summarizeCleanupReport, type CleanupDiagnosticsResult } from "../commands/run-diagnostics";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-    StateChangeEvent as ConversationStateChangeEvent,
-    TurnContext as ConversationTurnContext,
-    TurnEvent as ConversationTurnEvent,
-    CopilotResponseEvent,
+  StateChangeEvent as ConversationStateChangeEvent,
+  TurnContext as ConversationTurnContext,
+  TurnEvent as ConversationTurnEvent,
+  CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
@@ -22,18 +22,18 @@ import { PrivacyController } from "../services/privacy/privacy-controller";
 import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
 import { InterruptionEngineImpl } from "../session/interruption-engine";
 import { SessionManagerImpl } from "../session/session-manager";
-import { SessionTimerManagerImpl } from "../session/session-timer-manager";
+
 import {
-    lifecycleTelemetry,
-    type LifecyclePhase,
+  lifecycleTelemetry,
+  type LifecyclePhase,
 } from "../telemetry/lifecycle-telemetry";
 import { telemetryLogger } from "../telemetry/logger";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type { DisposalReason, DisposalReport } from "../types/disposal";
 import type {
-    RecoveryPlan,
-    VoicePilotError,
+  RecoveryPlan,
+  VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
@@ -43,8 +43,8 @@ import { OrphanDetector } from "./disposal/orphan-detector";
 import type { AggregatedResourceTracker } from "./disposal/orphan-resource-tracker";
 import { OrphanResourceTracker } from "./disposal/orphan-resource-tracker";
 import {
-    createServiceScope,
-    DisposableScope,
+  createServiceScope,
+  DisposableScope,
 } from "./disposal/scoped-disposable";
 import { Logger } from "./logger";
 import { RetryConfigurationProviderImpl } from "./retry/retry-configuration-provider";
@@ -78,7 +78,6 @@ export class ExtensionController implements ServiceInitializable {
   private readonly disposalOrchestrator: DisposalOrchestratorImpl;
   private credentialManager!: CredentialManagerImpl;
   private ephemeralKeyService!: EphemeralKeyServiceImpl;
-  private sessionTimerManager!: SessionTimerManagerImpl;
   private readonly interruptionEngine: InterruptionEngineImpl;
   private readonly conversationMachine: ConversationStateMachine;
   private readonly chatIntegration: ChatIntegration;

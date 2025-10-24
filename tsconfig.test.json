@@ -1,9 +1,12 @@
 {
-    "extends": "./tsconfig.json",
-    "compilerOptions": {
-        "rootDir": ".",
-        "outDir": "./out"
-    },
-    "include": ["src/**/*.ts", "test/**/*.ts"],
-    "exclude": ["node_modules", "**/*.spec.ts"]
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "./out",
+		"declaration": false,
+		// TODO: Add 'override' keywords to test mock classes
+		"noImplicitOverride": false
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"],
+	"exclude": ["node_modules", "**/*.spec.ts"]
 }
