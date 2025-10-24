@@ -116,11 +116,20 @@ voice-pilot/
 ## Testing and Quality Assurance
 
 - Unit tests (`test/unit/**/*.ts`) target Node-only services using stubbed VS Code APIs. Run via `Test Unit` task or `npm run test:unit`.
-- Integration tests (`@vscode/test-electron`) verify activation, command wiring, and webview interactions. Run via `Test Extension` or `npm test`.
-- `npm run test:all` executes unit then integration; use before commits.
+- Integration tests (`@vscode/test-electron`) verify activation, command wiring, and webview interactions. Run via `Test Extension` task or `npm run test:extension`.
+- `npm test` runs all `test:*` scripts sequentially via `npm-run-all`: `test:coverage`, `test:extension`, `test:headless`, `test:perf`, and `test:unit`.
 - Coverage is enforced by NYC thresholds (90/85/90/90). Run `npm run test:coverage` if instrumentation is needed.
 - For performance probes, use `npm run test:perf` (outputs JSON payload for telemetry analysis).
+- Headless tests run via `npm run test:headless` using xvfb for CI environments.
 - The repository uses Mocha as the test runner. Wrap specs with `suite` from `test/mocha-globals`, prefixing names with `Unit:` or `Integration:` as appropriate, and define scenarios with `test`. Chai is the assertion library; always import `{ expect }` (plus `chai-as-promised` helpers when dealing with async flows) and express checks in BDD style—never fall back to Node's `assert`/`should`. Keep shared setup in `before`/`after` hooks, reset mutable state in `afterEach`, and isolate side effects with fakes so every run is deterministic.
+
+## Watch Mode for Development
+
+- `npm run watch` runs all `watch:*` tasks in parallel via `npm-run-all -p` for continuous feedback during development.
+- `npm run watch:tsc` performs type-checking only on main source code (`--noEmit`) without compilation.
+- `npm run watch:tsc-test` performs type-checking only on test code (`--noEmit`) without compilation.
+- `npm run watch:webpack` watches and rebuilds the webpack bundle in development mode.
+- The parallel watch pattern separates type validation from bundling, providing immediate TypeScript error feedback while webpack handles compilation.
 
 ## VS Code Tasks Workflow
 

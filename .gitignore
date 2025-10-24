@@ -11,6 +11,10 @@ dist/
 lib/
 *.vsix
 
+# Compiled test files (tests compile to out/test/)
+test/**/*.js
+test/**/*.js.map
+
 # TypeScript
 *.tsbuildinfo
 *.d.ts.map

@@ -21,8 +21,7 @@ const tasks = [
   { label: "Validate Threat Register", command: "npm", args: ["run", "validate:threats"] },
   { label: "Lint Extension", command: "npm", args: ["run", "lint"] },
   { label: "Test Unit", command: "npm", args: ["run", "test:unit"] },
-  { label: "Test Extension", command: "npm", args: ["test"] },
-  { label: "Test All", command: "npm", args: ["run", "test:all"] },
+  { label: "Test Extension", command: "npm", args: ["run", "test:extension"] },
   {
     label: "Test Coverage",
     command: "npm",

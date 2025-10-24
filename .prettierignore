@@ -1,0 +1,9 @@
+out/**
+dist/**
+.vscode/**
+.vscode-test/**
+test/.vscode-test/**
+**/*.md
+**/*.ts
+**/*.js
+**/*.yml
