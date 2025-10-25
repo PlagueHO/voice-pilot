@@ -3,67 +3,59 @@ name: Validate Infrastructure
 on:
   workflow_call:
     inputs:
-      environment:
+      ENVIRONMENT:
+        description: "The environment to validate the application infrastructure for"
         required: true
         type: string
-      resource_token:
+      AZURE_LOCATION:
+        description: "The Azure region to deploy the application resources to"
         required: true
         type: string
-      retain_resources:
+      AZURE_ENV_NAME:
+        description: "The name of the Azure environment"
         required: true
-        type: boolean
-      azure_location:
-        required: false
         type: string
-    outputs:
-      endpoint_url:
-        description: Azure AI Foundry endpoint emitted by provisioning workflow
-        value: ${{ jobs.provision.outputs.endpoint_url || '' }}
-      workspace_id:
-        description: Diagnostics workspace resource ID
-        value: ${{ jobs.provision.outputs.workspace_id || '' }}
-      workspace_customer_id:
-        description: Diagnostics workspace customer ID used for Data Collector API calls
-        value: ${{ jobs.provision.outputs.workspace_customer_id || '' }}
-      resource_group_name:
-        description: Azure resource group containing VoicePilot assets
-        value: ${{ jobs.provision.outputs.resource_group_name || '' }}
-      azure_environment_name:
-        description: azd environment identifier used for provisioning
-        value: ${{ jobs.provision.outputs.azure_environment_name || '' }}
-      resource_token:
-        description: Token provided by caller to scope ephemeral resources
-        value: ${{ inputs.resource_token }}
-      target_environment:
-        description: Logical deployment environment requested by caller
-        value: ${{ inputs.environment }}
-      azure_location:
-        description: Azure region used during provisioning
-        value: ${{ jobs.provision.outputs.azure_location || '' }}
 
-permissions:
-  contents: read
-  id-token: write
+    secrets:
+      AZURE_TENANT_ID:
+        description: "The Azure tenant ID to use for authentication to Azure for deployment"
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        description: "The Azure subscription ID to use for authentication to Azure for deployment"
+        required: true
+      AZURE_CLIENT_ID:
+        description: "The Azure client ID to use for authentication to Azure for deployment"
+        required: true
 
 jobs:
-  provision:
-    name: Provision infrastructure snapshot
-    if: ${{ inputs.environment == 'testing' }}
-    uses: ./.github/workflows/provision-infrastructure.yml
-    secrets: inherit
-    with:
-      environment: ${{ inputs.environment }}
-      resource_token: ${{ inputs.resource_token }}
-      azure_location: ${{ inputs.azure_location }}
+  validate-infrastructure:
+    name: Validate Infrastructure ${{ inputs.ENVIRONMENT }}
+    environment: ${{ inputs.ENVIRONMENT }}
+    runs-on: ubuntu-latest
 
-  teardown:
-    name: Teardown validation environment
-    needs: provision
-    if: ${{ inputs.environment == 'testing' && inputs.retain_resources == false }}
-    uses: ./.github/workflows/delete-infrastructure.yml
-    secrets: inherit
-    with:
-      environment: ${{ inputs.environment }}
-      resource_token: ${{ inputs.resource_token }}
-      retain_resources: ${{ inputs.retain_resources }}
-      azure_location: ${{ inputs.azure_location }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Validate Bicep
+        id: validate-azure-infrastructure
+        uses: azure/arm-deploy@v2
+        with:
+          deploymentMode: Validate
+          deploymentName: ${{ inputs.AZURE_ENV_NAME }}-${{ inputs.AZURE_LOCATION }}-${{ inputs.ENVIRONMENT }}-${{ github.run_number }}
+          scope: subscription
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          region: ${{ inputs.AZURE_LOCATION }}
+          template: ./infra/main.bicep
+          parameters: >-
+            environmentName=${{ inputs.AZURE_ENV_NAME }}
+            location=${{ inputs.AZURE_LOCATION }}
+            principalId=${{ secrets.AZURE_CLIENT_ID }}
+            principalIdType=ServicePrincipal

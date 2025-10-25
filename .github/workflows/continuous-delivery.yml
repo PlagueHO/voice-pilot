@@ -42,19 +42,16 @@ jobs:
     uses: ./.github/workflows/validate-infrastructure.yml
     secrets: inherit
     with:
-      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
-      resource_token: ${{ github.run_id }}
-      retain_resources: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' && inputs.retain_resources || false }}
-      azure_location: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' && inputs.azure_location || 'eastus2' }}
+      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
+      AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || secrets.AZURE_LOCATION || 'eastus2' }}
+      AZURE_ENV_NAME: voicepilot-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}-${{ github.run_id }}
 
   package_extension:
     name: Package extension artefacts
     needs:
       - validate_infrastructure
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ needs.validate_infrastructure.outputs.target_environment }}
-      url: ${{ needs.validate_infrastructure.outputs.endpoint_url || null }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -67,7 +64,8 @@ jobs:
 
       - name: Set deployment context
         run: |
-          echo "TARGET_ENVIRONMENT=${{ needs.validate_infrastructure.outputs.target_environment }}" >> $GITHUB_ENV
+          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}"
+          echo "TARGET_ENVIRONMENT=$TARGET_ENV" >> $GITHUB_ENV
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             echo "CHANGE_TICKET=${{ inputs.change_ticket }}" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
@@ -105,7 +103,7 @@ jobs:
           fi
 
       - name: Publish VSIX to Marketplace (production only)
-        if: ${{ needs.validate_infrastructure.outputs.target_environment == 'production' }}
+        if: env.TARGET_ENVIRONMENT == 'production'
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
@@ -118,7 +116,7 @@ jobs:
       - name: Upload deployment artefacts
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-${{ needs.validate_infrastructure.outputs.target_environment }}
+          name: deployment-${{ env.TARGET_ENVIRONMENT }}
           path: artefacts/
           retention-days: 14
 
@@ -128,7 +126,7 @@ jobs:
       - validate_infrastructure
       - package_extension
     runs-on: ubuntu-latest
-    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'testing' }}
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -144,104 +142,28 @@ jobs:
 
       - name: Set verification context
         run: |
-          echo "TARGET_ENVIRONMENT=${{ needs.validate_infrastructure.outputs.target_environment }}" >> $GITHUB_ENV
+          echo "TARGET_ENVIRONMENT=testing" >> $GITHUB_ENV
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             echo "CHANGE_TICKET=${{ inputs.change_ticket }}" >> $GITHUB_ENV
           else
             echo "CHANGE_TICKET=release-${{ github.run_id }}" >> $GITHUB_ENV
           fi
-          echo "TELEMETRY_WORKSPACE_ID=${{ needs.validate_infrastructure.outputs.workspace_customer_id }}" >> $GITHUB_ENV
-          echo "ENDPOINT_URL=${{ needs.validate_infrastructure.outputs.endpoint_url }}" >> $GITHUB_ENV
 
       - name: Execute performance probes
         run: npm run test:perf
-
-      - name: Emit telemetry to Log Analytics
-        if: ${{ needs.validate_infrastructure.outputs.workspace_customer_id != '' }}
-        env:
-          WORKSPACE_ID: ${{ needs.validate_infrastructure.outputs.workspace_customer_id }}
-          SHARED_KEY: ${{ secrets.AZURE_LOG_ANALYTICS_SHARED_KEY }}
-          ENDPOINT_URL: ${{ needs.validate_infrastructure.outputs.endpoint_url }}
-        run: |
-          if [ -z "$SHARED_KEY" ]; then
-            echo "Log Analytics shared key not configured; skipping telemetry upload." >&2
-            exit 0
-          fi
-          node - <<'NODE'
-          import crypto from 'node:crypto';
-          import https from 'node:https';
-
-          const workspaceId = process.env.WORKSPACE_ID;
-          const sharedKey = process.env.SHARED_KEY;
-
-          if (!workspaceId || !sharedKey) {
-            console.log('Telemetry workspace credentials not supplied; skipping custom telemetry upload.');
-            process.exit(0);
-          }
-
-          const body = JSON.stringify({
-            time: new Date().toISOString(),
-            pipeline: 'continuous-delivery',
-            runId: process.env.GITHUB_RUN_ID,
-            repository: process.env.GITHUB_REPOSITORY,
-            commit: process.env.GITHUB_SHA,
-            environment: process.env.TARGET_ENVIRONMENT,
-            changeTicket: process.env.CHANGE_TICKET,
-            endpointUrl: process.env.ENDPOINT_URL,
-            status: 'verification',
-          });
-
-          const contentLength = Buffer.byteLength(body, 'utf8');
-          const rfc1123date = new Date().toUTCString();
-          const stringToSign = `POST\n${contentLength}\napplication/json\nx-ms-date:${rfc1123date}\n/api/logs`;
-          const decodedKey = Buffer.from(sharedKey, 'base64');
-          const signature = crypto.createHmac('sha256', decodedKey).update(stringToSign, 'utf8').digest('base64');
-          const authorization = `SharedKey ${workspaceId}:${signature}`;
-          const options = {
-            hostname: `${workspaceId}.ods.opinsights.azure.com`,
-            path: '/api/logs?api-version=2016-04-01',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': contentLength,
-              'x-ms-date': rfc1123date,
-              'Log-Type': 'VoicePilotPipelineTelemetry',
-              Authorization: authorization,
-            },
-          };
-
-          const request = https.request(options, (response) => {
-            if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-              console.log(`Telemetry accepted with status ${response.statusCode}`);
-            } else {
-              console.error(`Telemetry rejected with status ${response.statusCode}`);
-              response.resume();
-              process.exit(1);
-            }
-          });
-
-          request.on('error', (error) => {
-            console.error('Error sending telemetry', error);
-            process.exit(1);
-          });
-
-          request.write(body);
-          request.end();
-          NODE
 
   rollback_infrastructure:
     name: Rollback infrastructure
     needs:
       - validate_infrastructure
       - post_deployment_verification
-    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'testing' && needs.post_deployment_verification.result == 'failure' }}
+    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' || github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
     uses: ./.github/workflows/delete-infrastructure.yml
     secrets: inherit
     with:
-      environment: ${{ needs.validate_infrastructure.outputs.target_environment }}
-      resource_token: ${{ github.run_id }}
-      retain_resources: false
-      azure_location: ${{ needs.validate_infrastructure.outputs.azure_location }}
+      ENVIRONMENT: testing
+      AZURE_ENV_NAME: voicepilot-testing-${{ github.run_id }}
+      AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || secrets.AZURE_LOCATION || 'eastus2' }}
 
   rollback_application_testing:
     name: Rollback extension package (testing)
@@ -249,13 +171,13 @@ jobs:
       - validate_infrastructure
       - package_extension
       - post_deployment_verification
-    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'testing' && needs.post_deployment_verification.result == 'failure' }}
+    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' || github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     steps:
       - name: Download deployment artefacts
         uses: actions/download-artifact@v5
         with:
-          name: deployment-${{ needs.validate_infrastructure.outputs.target_environment }}
+          name: deployment-testing
           path: artefacts
 
       - name: Publish previous VSIX
@@ -273,14 +195,14 @@ jobs:
           npx vsce publish --packagePath artefacts/previous.vsix
 
       - name: Report rollback completion
-        run: echo "Rollback routine executed for environment ${{ needs.validate_infrastructure.outputs.target_environment }}"
+        run: echo "Rollback routine executed for testing environment"
 
   rollback_application_production:
     name: Rollback extension package (production)
     needs:
       - validate_infrastructure
       - package_extension
-    if: ${{ needs.validate_infrastructure.outputs.target_environment == 'production' && needs.package_extension.result == 'failure' }}
+    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'production' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     steps:
       - name: Download deployment artefacts

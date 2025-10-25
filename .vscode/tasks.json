@@ -7,11 +7,10 @@
         "id": "azure"
       },
       "type": "shell",
-      "command": "pwsh",
+      "command": "bash",
       "args": [
-        "-NoProfile",
-        "-Command",
-        "bicep build .\\infra\\main.bicep; Get-ChildItem -Path .\\infra -Filter 'main.bicep' -Recurse | ForEach-Object { if ($_.FullName -ne (Resolve-Path '.\\infra\\main.bicep').Path) { bicep build $_.FullName } }"
+        "-c",
+        "az bicep build --file ./infra/main.bicep && find ./infra -name 'main.bicep' -type f ! -path './infra/main.bicep' -exec az bicep build --file {} \\;"
       ],
       "group": {
         "kind": "build",

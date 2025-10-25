@@ -15,11 +15,6 @@ on:
         description: "The name of the Azure environment"
         required: true
         type: string
-      DEPLOY_SAMPLE_OPENAI_MODELS:
-        description: "Whether to deploy the sample OpenAI models"
-        required: false
-        type: string
-        default: 'false'
 
     secrets:
       AZURE_TENANT_ID:
@@ -41,7 +36,6 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_ENV_NAME: ${{ inputs.AZURE_ENV_NAME }}
       AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-      DEPLOY_SAMPLE_OPENAI_MODELS: ${{ inputs.DEPLOY_SAMPLE_OPENAI_MODELS }}
       AZURE_PRINCIPAL_ID_TYPE: 'ServicePrincipal'
 
     environment: ${{ inputs.ENVIRONMENT }}

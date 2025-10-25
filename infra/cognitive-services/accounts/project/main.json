@@ -5,8 +5,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.34.44.8038",
-      "templateHash": "12415324140444442937"
+      "version": "0.38.33.27573",
+      "templateHash": "14482875318979497037"
     },
     "name": "Cognitive Services Project",
     "description": "This module deploys a Project within a Cognitive Services account.\nIt allows for the creation of a AI Foundry Project with optional managed identities and role assignments.\n"
