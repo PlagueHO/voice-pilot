@@ -12,8 +12,8 @@ on:
         description: Target deployment environment
         type: choice
         options:
-          - testing
-          - production
+          - test
+          - pro
         required: true
       azure_location:
         description: Azure region for deployment resources
@@ -42,16 +42,16 @@ jobs:
     uses: ./.github/workflows/validate-infrastructure.yml
     secrets: inherit
     with:
-      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
+      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}
       AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || vars.AZURE_LOCATION || 'eastus2' }}
-      AZURE_ENV_NAME: voicepilot-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}-${{ github.run_id }}
+      AZURE_ENV_NAME: voicepilot-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}-${{ github.run_id }}
 
   package_extension:
     name: Package extension artefacts
     needs:
       - validate_infrastructure
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -64,14 +64,14 @@ jobs:
 
       - name: Set deployment context
         run: |
-          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}"
+          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}"
           echo "TARGET_ENVIRONMENT=$TARGET_ENV" >> $GITHUB_ENV
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             echo "CHANGE_TICKET=${{ inputs.change_ticket }}" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "CHANGE_TICKET=release-${{ github.ref_name }}" >> $GITHUB_ENV
           else
-            echo "CHANGE_TICKET=testing-${{ github.run_id }}" >> $GITHUB_ENV
+            echo "CHANGE_TICKET=test-${{ github.run_id }}" >> $GITHUB_ENV
           fi
 
       - name: Install dependencies
@@ -102,8 +102,8 @@ jobs:
             shasum -a 256 "$prev" > artefacts/previous.sha256
           fi
 
-      - name: Publish VSIX to Marketplace (production only)
-        if: env.TARGET_ENVIRONMENT == 'production'
+      - name: Publish VSIX to Marketplace (prod only)
+        if: env.TARGET_ENVIRONMENT == 'prod'
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
@@ -126,7 +126,7 @@ jobs:
       - validate_infrastructure
       - package_extension
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'test' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -142,7 +142,7 @@ jobs:
 
       - name: Set verification context
         run: |
-          echo "TARGET_ENVIRONMENT=testing" >> $GITHUB_ENV
+          echo "TARGET_ENVIRONMENT=test" >> $GITHUB_ENV
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             echo "CHANGE_TICKET=${{ inputs.change_ticket }}" >> $GITHUB_ENV
           else
@@ -157,27 +157,27 @@ jobs:
     needs:
       - validate_infrastructure
       - post_deployment_verification
-    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' || github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
+    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'test' || github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
     uses: ./.github/workflows/delete-infrastructure.yml
     secrets: inherit
     with:
-      ENVIRONMENT: testing
-      AZURE_ENV_NAME: voicepilot-testing-${{ github.run_id }}
+      ENVIRONMENT: test
+      AZURE_ENV_NAME: voicepilot-test-${{ github.run_id }}
       AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || vars.AZURE_LOCATION || 'eastus2' }}
 
-  rollback_application_testing:
-    name: Rollback extension package (testing)
+  rollback_application_test:
+    name: Rollback extension package (test)
     needs:
       - validate_infrastructure
       - package_extension
       - post_deployment_verification
-    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'testing' || github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
+    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'test' || github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     steps:
       - name: Download deployment artefacts
         uses: actions/download-artifact@v5
         with:
-          name: deployment-testing
+          name: deployment-test
           path: artefacts
 
       - name: Publish previous VSIX
@@ -195,20 +195,20 @@ jobs:
           npx vsce publish --packagePath artefacts/previous.vsix
 
       - name: Report rollback completion
-        run: echo "Rollback routine executed for testing environment"
+        run: echo "Rollback routine executed for test environment"
 
-  rollback_application_production:
-    name: Rollback extension package (production)
+  rollback_application_prod:
+    name: Rollback extension package (prod)
     needs:
       - validate_infrastructure
       - package_extension
-    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'production' || startsWith(github.ref, 'refs/tags/v'))
+    if: failure() && (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     steps:
       - name: Download deployment artefacts
         uses: actions/download-artifact@v5
         with:
-          name: deployment-production
+          name: deployment-prod
           path: artefacts
 
       - name: Publish previous VSIX
@@ -226,4 +226,4 @@ jobs:
           npx vsce publish --packagePath artefacts/previous.vsix
 
       - name: Report rollback completion
-        run: echo "Rollback routine executed for production deployment"
+        run: echo "Rollback routine executed for prod deployment"
