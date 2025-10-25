@@ -43,7 +43,7 @@ jobs:
     secrets: inherit
     with:
       ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}
-      AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || secrets.AZURE_LOCATION || 'eastus2' }}
+      AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || vars.AZURE_LOCATION || 'eastus2' }}
       AZURE_ENV_NAME: voicepilot-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'testing') }}-${{ github.run_id }}
 
   package_extension:
@@ -163,7 +163,7 @@ jobs:
     with:
       ENVIRONMENT: testing
       AZURE_ENV_NAME: voicepilot-testing-${{ github.run_id }}
-      AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || secrets.AZURE_LOCATION || 'eastus2' }}
+      AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || vars.AZURE_LOCATION || 'eastus2' }}
 
   rollback_application_testing:
     name: Rollback extension package (testing)
