@@ -114,7 +114,7 @@ jobs:
           npx vsce publish --packagePath artefacts/current.vsix
 
       - name: Upload deployment artefacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: deployment-${{ env.TARGET_ENVIRONMENT }}
           path: artefacts/
@@ -175,7 +175,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download deployment artefacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: deployment-test
           path: artefacts
@@ -206,7 +206,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download deployment artefacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: deployment-prod
           path: artefacts
