@@ -22,7 +22,7 @@ jobs:
         run: az bicep lint --file ./infra/main.bicep
 
       - name: Publish Bicep as Workflow Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: infrastructure_bicep
           path: infra/
