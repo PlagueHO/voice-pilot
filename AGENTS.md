@@ -224,4 +224,11 @@ context.subscriptions.push(
 - Azure OpenAI realtime quickstart (TypeScript, keyless): <https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-quickstart?tabs=keyless%2Cwindows&pivots=programming-language-typescript>
 - Web Audio API + AudioWorklet references: see `TECHNICAL-REFERENCE-INDEX.md`
 
+## Package Usage and Sample Code Guidance
+
+- `#context7` (<https://context7.com/about>) keeps package documentation and samples current; rely on it as the source of truth for dependency decisions.
+- Before writing code that leverages a package or proposing a new dependency, call `#context7_get-library-docs` to confirm the latest version guidance and review relevant sample code.
+- If the library ID is unknown, resolve it with `#context7_resolve-library-id` first, then fetch the documentation and samples.
+- Capture the key notes or snippet references from Context7 in your design rationale so future reviewers can trace decisions to the retrieved guidance.
+
 Keep this document current; update tooling, architecture notes, and task references whenever implementation changes land.

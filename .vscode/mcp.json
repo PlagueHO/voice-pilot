@@ -21,7 +21,7 @@
 			"type": "stdio",
 			"env": {}
 		},
-		"Azure Verified Module Bicep Docs": {
+		"azure-verified-module-docs": {
 			"type": "http",
 			"url": "https://gitmcp.io/Azure/bicep-registry-modules"
 		},
