@@ -37,9 +37,7 @@ module.exports = (env, argv) => {
             new CleanWebpackPlugin()
         ],
         optimization: {
-            minimize: isProduction,
-            usedExports: true,
-            sideEffects: false
+            minimize: isProduction
         },
         devtool: isProduction ? false : 'source-map',
         target: 'node',

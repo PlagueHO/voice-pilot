@@ -12,10 +12,12 @@
     "vscode": "^1.105.0",
     "node": ">=20.19.0"
   },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "files": [
-    "out/**/*.js",
-    "out/**/*.js.map",
+    "out/extension.js",
     "resources/**",
     "media/**",
     "spec/schemas/**/*.json",
@@ -40,7 +42,7 @@
     "test:perf": "node -e \"console.log(JSON.stringify({timestamp: new Date().toISOString(), testDuration: Math.random() * 1000 + 500}))\"",
     "test:unit": "tsc -p tsconfig.test.json && mocha --ui bdd --require ./out/test/unit-test-setup.js \"out/test/unit/**/*.js\" --timeout 3000",
     "validate:threats": "node ./scripts/validate-threat-register.mjs",
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run webpack:prod",
     "watch": "npm-run-all -p watch:*",
     "watch:tsc": "tsc --noEmit --watch -p ./",
     "watch:tsc-test": "tsc --noEmit --watch -p tsconfig.test.json",

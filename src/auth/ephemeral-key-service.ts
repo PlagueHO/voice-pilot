@@ -5,24 +5,24 @@ import { Logger } from "../core/logger";
 import { withRecovery } from "../helpers/error/envelope";
 import { AzureOpenAIConfig } from "../types/configuration";
 import {
-    AuthenticationError,
-    AuthenticationErrorHandler,
-    AuthenticationTestResult,
-    AzureSessionRequest,
-    AzureSessionResponse,
-    EphemeralKeyInfo,
-    EphemeralKeyResult,
-    EphemeralKeyService,
-    EphemeralKeyServiceConfig,
-    KeyExpirationHandler,
-    KeyRenewalHandler,
-    RealtimeSessionInfo,
+  AuthenticationError,
+  AuthenticationErrorHandler,
+  AuthenticationTestResult,
+  AzureSessionRequest,
+  AzureSessionResponse,
+  EphemeralKeyInfo,
+  EphemeralKeyResult,
+  EphemeralKeyService,
+  EphemeralKeyServiceConfig,
+  KeyExpirationHandler,
+  KeyRenewalHandler,
+  RealtimeSessionInfo,
 } from "../types/ephemeral";
 import type {
-    RecoveryExecutionOptions,
-    RecoveryExecutor,
-    RecoveryPlan,
-    VoicePilotError,
+  RecoveryExecutionOptions,
+  RecoveryExecutor,
+  RecoveryPlan,
+  VoicePilotError,
 } from "../types/error/voice-pilot-error";
 import { CredentialManagerImpl } from "./credential-manager";
 
@@ -109,18 +109,18 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
       );
     }
 
-    // Test authentication capability
+    // Test authentication capability (non-blocking)
     try {
       const testResult = await this.testAuthentication();
       if (!testResult.success) {
-        this.logger.error("Authentication test failed", testResult);
-        throw new Error(`Authentication test failed: ${testResult.error}`);
+        this.logger.warn("Authentication test failed - service will run in degraded mode", testResult);
+      } else {
+        this.logger.info("Authentication test passed successfully");
       }
     } catch (error: any) {
-      this.logger.error("Failed to test authentication during initialization", {
+      this.logger.warn("Failed to test authentication during initialization - service will run in degraded mode", {
         error: error.message,
       });
-      throw new Error(`Authentication initialization failed: ${error.message}`);
     }
 
     this.initialized = true;
