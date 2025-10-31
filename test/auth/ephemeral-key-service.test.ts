@@ -246,16 +246,13 @@ describe('EphemeralKeyService Tests', () => {
       }
     });
 
-  it('should fail initialization when authentication test fails', async () => {
+  it('should initialize in degraded mode when authentication test fails', async () => {
       // Mock failed authentication test
       setMockFetch({}, 401);
 
-      try {
-        await service.initialize();
-        assert.fail('Should have thrown an error');
-      } catch (error: any) {
-        assert.ok(error.message.includes('Authentication test failed'));
-      }
+      // Service should initialize successfully even if auth test fails (degraded mode)
+      await service.initialize();
+      assert.strictEqual(service.isInitialized(), true);
     });
   });
 
