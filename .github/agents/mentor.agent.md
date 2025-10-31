@@ -1,7 +1,7 @@
 ---
-name: 'Mentor'
+name: 'mentor'
 description: 'Help mentor the engineer by providing guidance and support.'
-tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'Microsoft Docs/*', 'Azure MCP/search', 'context7/*', 'extensions', 'todos', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
+tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'context7/*', 'microsoft-learn/*', 'extensions', 'todos', 'runTests', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'githubRepo']
 ---
 # Mentor mode instructions
 

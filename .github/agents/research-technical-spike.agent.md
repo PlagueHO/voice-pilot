@@ -1,7 +1,7 @@
 ---
-name: 'Research Technical Spike Agent'
+name: 'research-technical-spike-agent'
 description: 'Systematically research and validate technical spike documents through exhaustive investigation and controlled experimentation.'
-tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'Microsoft Docs/*', 'Azure MCP/search', 'context7/*', 'extensions', 'todos', 'runTests', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
+tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'context7/*', 'microsoft-learn/*', 'extensions', 'todos', 'runTests', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'githubRepo']
 ---
 # Technical spike research mode
 

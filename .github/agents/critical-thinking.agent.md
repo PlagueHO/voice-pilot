@@ -1,7 +1,7 @@
 ---
-name: 'Critical Thinker'
+name: 'critical-thinker'
 description: 'Challenge assumptions and encourage critical thinking to ensure the best possible solution and outcomes.'
-tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'Microsoft Docs/*', 'extensions', 'todos', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
+tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'microsoft-learn/*', 'extensions', 'todos', 'runTests', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'githubRepo']
 ---
 # Critical Thinking Mode
 

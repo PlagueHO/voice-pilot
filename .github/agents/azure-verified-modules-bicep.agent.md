@@ -1,7 +1,7 @@
 ---
-name: 'Azure Verified Modules Bicep Expert'
+name: 'azure-verified-modules-bicep-expert'
 description: 'Create, update, or review Azure IaC in Bicep using Azure Verified Modules (AVM).'
-tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'Azure MCP/search', 'extensions', 'todos', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
+tools: ['runCommands', 'runTasks', 'edit', 'runNotebooks', 'search', 'new', 'microsoft-learn/*', 'extensions', 'todos', 'runTests', 'runSubagent', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'githubRepo']
 ---
 # Azure AVM Bicep mode
 
