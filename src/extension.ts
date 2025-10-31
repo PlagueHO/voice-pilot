@@ -3,9 +3,10 @@ import { ConfigurationManager } from './config/configuration-manager';
 import { ExtensionController } from './core/extension-controller';
 import { Logger } from './core/logger';
 import {
-  ensureCopilotChatInstalled,
-  isCopilotChatAvailable,
+    ensureCopilotChatInstalled,
+    isCopilotChatAvailable,
 } from './helpers/ensure-copilot';
+import { IntentProcessorImpl } from './intent/intent-processor-impl';
 import { PrivacyController } from './services/privacy/privacy-controller';
 import { SessionManagerImpl } from './session/session-manager';
 import { lifecycleTelemetry } from './telemetry/lifecycle-telemetry';
@@ -32,6 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(logger);
   const configurationManager = new ConfigurationManager(context, logger);
   const sessionManager = new SessionManagerImpl();
+  const intentProcessor = new IntentProcessorImpl(logger);
   const voicePanel = new VoiceControlPanel(context);
   const privacyController = new PrivacyController(configurationManager, logger);
   controller = new ExtensionController(
@@ -42,6 +44,10 @@ export async function activate(context: vscode.ExtensionContext) {
     privacyController,
     logger,
   );
+
+  // Initialize intent processor after session manager
+  await intentProcessor.initialize();
+  context.subscriptions.push(new vscode.Disposable(() => intentProcessor.dispose()));
 
   const controllerDisposable = new vscode.Disposable(() => {
     controller?.dispose();

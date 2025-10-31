@@ -99,6 +99,12 @@ export interface StateChangeEvent {
   metadata: StateMetadata;
 }
 
+export interface ConversationStateSnapshot {
+  state: ConversationState;
+  metadata: StateMetadata;
+  turnContext?: TurnContext;
+}
+
 export interface TurnEvent {
   type: "turn-started" | "turn-completed" | "turn-interrupted";
   turnContext: TurnContext;
