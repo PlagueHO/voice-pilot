@@ -58,7 +58,7 @@ function sanitizeOverride(raw: unknown): RetryDomainOverride | undefined {
 
 export class RetrySection {
   read(): RetryConfig {
-    const config = vscode.workspace.getConfiguration("voicepilot.retry");
+    const config = vscode.workspace.getConfiguration("agentvoice.retry");
     const overridesRaw = config.get<Record<string, unknown>>("overrides", {});
     const overrides: RetryConfig["overrides"] = {};
 

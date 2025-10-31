@@ -4,8 +4,8 @@ import type {
   ErrorEventBus,
   ErrorEventHandler,
   SubscriptionOptions,
-  VoicePilotError
-} from '../../types/error/voice-pilot-error';
+  AgentVoiceError,
+} from '../../types/error/agent-voice-error';
 
 /**
  * Internal registration bookkeeping for error event handlers.
@@ -108,7 +108,7 @@ export class ErrorEventBusImpl implements ErrorEventBus {
    *
    * @param error - The error payload to dispatch to subscribers.
    */
-  async publish(error: VoicePilotError): Promise<void> {
+  async publish(error: AgentVoiceError): Promise<void> {
     const suppressed = this.shouldSuppress(error);
     const event = suppressed
       ? {
@@ -149,7 +149,7 @@ export class ErrorEventBusImpl implements ErrorEventBus {
    * @param error - Error under evaluation.
    * @returns `true` when the error falls within its suppression window.
    */
-  private shouldSuppress(error: VoicePilotError): boolean {
+  private shouldSuppress(error: AgentVoiceError): boolean {
     const suppressionWindow = error.recoveryPlan?.suppressionWindowMs;
     if (!suppressionWindow || suppressionWindow <= 0) {
       return false;

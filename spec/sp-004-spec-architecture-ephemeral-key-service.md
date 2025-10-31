@@ -3,7 +3,7 @@ title: Ephemeral Key Service (Azure Realtime)
 version: 1.0
 date_created: 2025-09-20
 last_updated: 2025-09-20
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, azure, authentication, realtime, security]
 ---
 
@@ -13,7 +13,7 @@ This specification defines the Ephemeral Key Service for minting and managing sh
 
 ## 1. Purpose & Scope
 
-This specification defines the ephemeral key management requirements for VoicePilot's Azure OpenAI Realtime API integration, covering:
+This specification defines the ephemeral key management requirements for Agent Voice's Azure OpenAI Realtime API integration, covering:
 
 - Secure ephemeral token minting using permanent Azure credentials
 - Token lifecycle management with automatic renewal

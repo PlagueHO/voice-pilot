@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/audio.feedback.event.schema.json",
+  "$id": "https://agentvoice/spec/audio.feedback.event.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Audio Feedback Event Envelope",
   "description": "Playback event emitted by the webview audio feedback player.",
   "allOf": [
-    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

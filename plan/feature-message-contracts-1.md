@@ -1,9 +1,9 @@
 ---
-goal: VoicePilot Message Contract Implementation Plan
+goal: Agent Voice Message Contract Implementation Plan
 version: 1.0
 date_created: 2025-10-11
 last_updated: 2025-10-11
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: Completed
 tags: [feature, messaging, architecture]
 ---

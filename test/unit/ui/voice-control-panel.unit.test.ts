@@ -35,7 +35,7 @@ function createWebviewViewStub(): WebviewViewStub {
   const webview = {
     html: "",
     options: {} as vscode.WebviewOptions,
-    cspSource: "vscode-resource://voicepilot-test",
+    cspSource: "vscode-resource://agentvoice-test",
     asWebviewUri(uri: vscode.Uri): vscode.Uri {
       return uri;
     },
@@ -211,7 +211,7 @@ suite("Unit: VoiceControlPanel", () => {
     expect(internal.pendingMessages).to.have.length(0);
   });
 
-  test("reveal executes voicepilot view command when view is not yet created", async () => {
+  test("reveal executes agentvoice view command when view is not yet created", async () => {
     const executed: Array<{ command: string; args: unknown[] }> = [];
     const executeCommandStub: typeof vscode.commands.executeCommand = async <T>(
       command: string,
@@ -230,7 +230,7 @@ suite("Unit: VoiceControlPanel", () => {
     await panel.reveal();
 
     expect(executed).to.have.length(1);
-    expect(executed[0]?.command).to.equal("workbench.view.extension.voicepilot");
+    expect(executed[0]?.command).to.equal("workbench.view.extension.agentvoice");
     expect(panel.isVisible()).to.equal(true);
   });
 
@@ -274,7 +274,7 @@ suite("Unit: VoiceControlPanel", () => {
     panel.resolveWebviewView(stub.view);
 
     const pendingEntry = {
-      speaker: "voicepilot",
+      speaker: "agentvoice",
       content: "Latest message",
       partial: true,
     } as unknown as TranscriptEntry;

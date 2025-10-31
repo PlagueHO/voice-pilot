@@ -77,7 +77,7 @@ function createConversationInput(conversationId: string, createdAt = new Date().
     frameId: `${conversationId}-frame-1`,
     sequence: 1,
     role: 'user',
-    content: 'Hello VoicePilot',
+    content: 'Hello Agent Voice',
     createdAt,
     privacy: {
       containsSecrets: false,
@@ -90,7 +90,7 @@ function createConversationInput(conversationId: string, createdAt = new Date().
     createdAt,
     participants: [
       { id: 'user', role: 'user', displayName: 'Test User' },
-      { id: 'assistant', role: 'assistant', displayName: 'VoicePilot' },
+      { id: 'assistant', role: 'assistant', displayName: 'Agent Voice' },
     ],
     messages: [message],
   };
@@ -161,15 +161,15 @@ suite('Unit: ConversationStorageServiceImpl', () => {
     const hashed = createHash('sha256').update('conv-1').digest('hex').substring(0, 32);
     const fileUri = vscode.Uri.joinPath(
       context.storageUri!,
-      'voicepilot',
+      'agentvoice',
       'conversations',
       `${hashed}.vpconv`,
     );
     const stored = await vscode.workspace.fs.readFile(fileUri);
-    expect(Buffer.from(stored).toString('utf8')).to.not.include('Hello VoicePilot');
+    expect(Buffer.from(stored).toString('utf8')).to.not.include('Hello Agent Voice');
 
     const fetched = await service.getRecord('conv-1');
-    expect(fetched?.messages[0].content).to.equal('Hello VoicePilot');
+    expect(fetched?.messages[0].content).to.equal('Hello Agent Voice');
   });
 
   test('retention sweep purges expired conversations', async () => {

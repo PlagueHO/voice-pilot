@@ -132,7 +132,7 @@ export class CredentialValidatorImpl implements CredentialValidator {
       const response = await fetch(VALIDATION_ENDPOINTS.AZURE_OPENAI, {
         headers: {
           'api-key': key,
-          'User-Agent': 'VoicePilot/1.0'
+          'User-Agent': 'Agent Voice/1.0'
         },
         signal: controller.signal
       });
@@ -155,7 +155,7 @@ export class CredentialValidatorImpl implements CredentialValidator {
       const response = await fetch(VALIDATION_ENDPOINTS.GITHUB_API, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'User-Agent': 'VoicePilot/1.0',
+          'User-Agent': 'Agent Voice/1.0',
           'Accept': 'application/vnd.github.v3+json'
         },
         signal: controller.signal

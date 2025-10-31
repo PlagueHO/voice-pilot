@@ -3,7 +3,7 @@ goal: Complete SessionManager Implementation for SP-005 Session Management & Ren
 version: 1.0
 date_created: 2025-09-21
 last_updated: 2025-09-22
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, session, lifecycle, timer, renewal, architecture]
 ---

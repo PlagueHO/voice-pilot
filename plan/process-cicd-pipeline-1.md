@@ -1,9 +1,9 @@
 ---
-goal: Establish VoicePilot CI/CD workflows and quality gates per SP-040
+goal: Establish Agent Voice CI/CD workflows and quality gates per SP-040
 version: 1.0
 date_created: 2025-10-08
 last_updated: 2025-10-08
-owner: VoicePilot Engineering Productivity
+owner: Agent Voice Engineering Productivity
 status: 'Planned'
 tags: [process, cicd, automation, testing, azure]
 ---

@@ -4,7 +4,7 @@ import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { ConfigurationManager } from "../config/configuration-manager";
 import type { TimerTracker } from "../core/disposal/resource-tracker";
 import { Logger } from "../core/logger";
-import { createVoicePilotError, withRecovery } from "../helpers/error/envelope";
+import { createAgentVoiceError, withRecovery } from "../helpers/error/envelope";
 import { PrivacyController } from "../services/privacy/privacy-controller";
 import { RealtimeSpeechToTextService } from "../services/realtime-speech-to-text-service";
 import type {
@@ -18,7 +18,7 @@ import type {
     RecoveryExecutor,
     RecoveryPlan,
     RecoveryRegistrar,
-} from "../types/error/voice-pilot-error";
+} from "../types/error/agent-voice-error";
 import type { PurgeCommand, PurgeReason } from "../types/privacy";
 import { RealtimeEvent } from "../types/realtime-events";
 import {
@@ -58,7 +58,7 @@ export interface ConversationLifecycleHooks {
 }
 
 /**
- * Comprehensive session management implementation for VoicePilot voice interactions.
+ * Comprehensive session management implementation for Agent Voice voice interactions.
  * Handles session lifecycle, automatic credential renewal, timer-based operations,
  * and event notifications according to SP-005 Session Management & Renewal specification.
  */
@@ -809,7 +809,7 @@ export class SessionManagerImpl implements SessionManager {
           return {
             success: false,
             durationMs: Date.now() - start,
-            error: createVoicePilotError({
+            error: createAgentVoiceError({
               faultDomain: "session",
               code: "SESSION_FORCE_TERMINATION_FAILED",
               message: error?.message ?? "Failed to force end session",
@@ -846,11 +846,11 @@ export class SessionManagerImpl implements SessionManager {
           return {
             success: false,
             durationMs: Date.now() - start,
-            error: createVoicePilotError({
+            error: createAgentVoiceError({
               faultDomain: "session",
               code: "SESSION_PRIVACY_PURGE_FAILED",
               message: error?.message ?? "Failed to purge session privacy data",
-              remediation: "Manually clear VoicePilot privacy cache.",
+              remediation: "Manually clear Agent Voice privacy cache.",
               metadata: { error },
             }),
           };
@@ -865,7 +865,7 @@ export class SessionManagerImpl implements SessionManager {
       try {
         await vscode.commands.executeCommand(
           "setContext",
-          "voicepilot.session.degraded",
+          "agentvoice.session.degraded",
           true,
         );
       } catch (error: any) {
@@ -1425,14 +1425,14 @@ export class SessionManagerImpl implements SessionManager {
     try {
       await this.conversationStorage.createRecord({
         conversationId,
-        title: `VoicePilot session ${session.sessionId}`,
+        title: `Agent Voice session ${session.sessionId}`,
         createdAt,
         participants: [
           { id: "user", role: "user", displayName: "User" },
           {
-            id: "assistant.voicepilot",
+            id: "assistant.agentvoice",
             role: "assistant",
-            displayName: "VoicePilot",
+            displayName: "Agent Voice",
           },
         ],
         messages: [],

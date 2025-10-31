@@ -3,17 +3,17 @@ title: Resource Cleanup & Disposal Semantics
 version: 1.0
 date_created: 2025-10-11
 last_updated: 2025-10-11
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, lifecycle, cleanup, disposal]
 ---
 
 ## Introduction
 
-This specification defines deterministic cleanup and disposal semantics for VoicePilot services, transports, UI components, and audio pipelines. The goal is to guarantee predictable teardown behavior, prevent resource leaks, and preserve session integrity when conversations end, failures occur, or the extension deactivates.
+This specification defines deterministic cleanup and disposal semantics for Agent Voice services, transports, UI components, and audio pipelines. The goal is to guarantee predictable teardown behavior, prevent resource leaks, and preserve session integrity when conversations end, failures occur, or the extension deactivates.
 
 ## 1. Purpose & Scope
 
-The specification establishes ordering, orchestration, and verification rules for cleaning up runtime resources across the VoicePilot extension host and webview contexts.
+The specification establishes ordering, orchestration, and verification rules for cleaning up runtime resources across the Agent Voice extension host and webview contexts.
 
 - Covers lifecycle hooks for `ServiceInitializable` implementations, WebRTC transports, audio worklets, timers, and storage handles.
 - Applies to session shutdown, error recovery, extension deactivation, and configuration reloads that require component recycling.
@@ -135,7 +135,7 @@ export interface DisposalReport {
 
 ```json
 {
-  "eventName": "voicepilot.cleanup.completed",
+  "eventName": "agentvoice.cleanup.completed",
   "timestamp": "2025-10-11T00:00:00.000Z",
   "reason": "session-end",
   "durationMs": 742,
@@ -175,7 +175,7 @@ export interface DisposalReport {
 
 ## 7. Rationale & Context
 
-Deterministic resource disposal ensures VoicePilot avoids memory leaks, dangling transports, and inconsistent session state. Aligning cleanup with SP-005's session lifecycle prevents conflicts during credential renewal. SP-006 mandates WebRTC resource release to avoid ICE failures, while SP-007 and SP-012 rely on teardown signals to reset audio pipelines and conversation states. Structured disposal telemetry enables rapid incident resolution and regression detection.
+Deterministic resource disposal ensures Agent Voice avoids memory leaks, dangling transports, and inconsistent session state. Aligning cleanup with SP-005's session lifecycle prevents conflicts during credential renewal. SP-006 mandates WebRTC resource release to avoid ICE failures, while SP-007 and SP-012 rely on teardown signals to reset audio pipelines and conversation states. Structured disposal telemetry enables rapid incident resolution and regression detection.
 
 ## 8. Dependencies & External Integrations
 

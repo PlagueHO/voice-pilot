@@ -3,7 +3,7 @@ goal: Implement Audio Capture Pipeline Architecture for Real-Time Voice Interact
 version: 1.0
 date_created: 2025-09-23
 last_updated: 2025-09-23
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, capture, pipeline, webapi, microphone, webrtc]
 ---

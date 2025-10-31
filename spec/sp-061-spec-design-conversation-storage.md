@@ -3,17 +3,17 @@ title: Conversation Persistence Storage
 version: 1.0
 date_created: 2025-10-21
 last_updated: 2025-10-21
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, storage, conversation, persistence, privacy]
 ---
 
 ## Introduction
 
-This specification defines the workspace-scoped conversation persistence subsystem for VoicePilot. It prescribes how conversations are serialized, encrypted, retained, restored, and purged while honoring session lifecycle guarantees, privacy policies, and deterministic cleanup rules.
+This specification defines the workspace-scoped conversation persistence subsystem for Agent Voice. It prescribes how conversations are serialized, encrypted, retained, restored, and purged while honoring session lifecycle guarantees, privacy policies, and deterministic cleanup rules.
 
 ## 1. Purpose & Scope
 
-VoicePilot requires durable storage so users can revisit conversations, resume interrupted work, and power history experiences. This specification covers:
+Agent Voice requires durable storage so users can revisit conversations, resume interrupted work, and power history experiences. This specification covers:
 
 - Storage service architecture for persisting conversation transcripts, metadata, and derived summaries.
 - Retention policies, purge workflows, and secure deletion practices aligned with privacy rules.
@@ -33,7 +33,7 @@ VoicePilot requires durable storage so users can revisit conversations, resume i
 
 - **Conversation Record**: Canonical persisted bundle consisting of conversation metadata, ordered messages, attachments, and derived analytics.
 - **Message Frame**: Individual utterance or assistant response annotated with timestamps, role, and privacy metadata.
-- **Storage Namespace**: Unique directory under the workspace storage URI reserved for VoicePilot conversation assets.
+- **Storage Namespace**: Unique directory under the workspace storage URI reserved for Agent Voice conversation assets.
 - **Retention Window**: Maximum lifetime assigned to a conversation before automatic purge triggers.
 - **Secure Deletion**: Process that overwrites, truncates, and removes serialized data to prevent recovery.
 - **Write Compaction**: Batched operation merging incremental changes into a new encrypted blob while discarding prior revisions.
@@ -42,14 +42,14 @@ VoicePilot requires durable storage so users can revisit conversations, resume i
 
 ## 3. Requirements, Constraints & Guidelines
 
-- **REQ-001**: Storage service SHALL persist conversations using workspace-scoped storage obtained from `ExtensionContext.storageUri` with directory name `voicepilot/conversations`.
+- **REQ-001**: Storage service SHALL persist conversations using workspace-scoped storage obtained from `ExtensionContext.storageUri` with directory name `agentvoice/conversations`.
 - **REQ-002**: Storage operations SHALL expose CRUD APIs (`createRecord`, `updateRecord`, `getRecord`, `listRecords`, `deleteRecord`, `purgeAll`).
 - **REQ-003**: `listRecords` SHALL return records sorted by `lastInteractionAt` descending and support cursor-based pagination for future UI scenarios.
 - **REQ-004**: Storage service SHALL publish `conversationStored` and `conversationDeleted` events for downstream subscribers (e.g., SP-062 history UI).
 - **REQ-005**: Crash recovery snapshots SHALL be flushed within 2 seconds after every assistant response to guarantee resumability.
 - **DAT-001**: Conversation record schema SHALL include identifiers, timestamps, title, participants, redaction flags, summary shards, and storage metrics as defined in Section 4.
 - **DAT-002**: Message frames SHALL preserve sequence numbers, role, transcript text (redacted), audio references, and privacy annotations.
-- **SEC-001**: Persisted blobs SHALL be encrypted using AES-256-GCM with per-workspace keys stored in VS Code SecretStorage under `voicepilot.conversation.key`.
+- **SEC-001**: Persisted blobs SHALL be encrypted using AES-256-GCM with per-workspace keys stored in VS Code SecretStorage under `agentvoice.conversation.key`.
 - **SEC-002**: Storage filenames SHALL incorporate SHA-256 hashes of conversation IDs to prevent metadata leakage.
 - **SEC-003**: Decryption failures SHALL be treated as fatal storage errors, triggering purge of corrupted blobs and notifying recovery orchestrator (SP-028).
 - **PRI-001**: Only transcripts that pass privacy sanitization per SP-027 SHALL be persisted; sensitive markers MUST remain in metadata without storing raw values.
@@ -305,7 +305,7 @@ const record = await storage.createRecord({
   createdAt: new Date().toISOString(),
   participants: [
     { id: 'user-default', role: 'user', displayName: 'You' },
-    { id: 'assistant-voicepilot', role: 'assistant', displayName: 'VoicePilot' }
+    { id: 'assistant-agentvoice', role: 'assistant', displayName: 'Agent Voice' }
   ],
   messages: [
     {

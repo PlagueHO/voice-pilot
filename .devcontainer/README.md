@@ -1,8 +1,8 @@
-# VoicePilot Development Container
+# Agent Voice Development Container
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PlagueHO/voice-pilot)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PlagueHO/agent-voice)
 
-This development container sets up the tooling needed to build and test the VoicePilot VS Code extension. The configuration reflects the files in `.devcontainer/devcontainer.json` and `.devcontainer/setup.sh` so you know exactly what is provisioned. This .devcontainer can also be used in GitHub Codespaces.
+This development container sets up the tooling needed to build and test the Agent Voice VS Code extension. The configuration reflects the files in `.devcontainer/devcontainer.json` and `.devcontainer/setup.sh` so you know exactly what is provisioned. This .devcontainer can also be used in GitHub Codespaces.
 
 ## What's Included
 

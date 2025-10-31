@@ -233,7 +233,7 @@
     "azureAiFoundryModels": "[variables('$fxv#1')]",
     "tags": {
       "azd-env-name": "[parameters('environmentName')]",
-      "project": "voice-pilot"
+      "project": "agent-voice"
     },
     "resourceToken": "[toLower(uniqueString(subscription().id, parameters('environmentName'), parameters('location')))]",
     "sanitizedEnvironmentName": "[toLower(replace(parameters('environmentName'), '_', '-'))]",

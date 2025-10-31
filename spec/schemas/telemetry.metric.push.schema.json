@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/telemetry.metric.push.schema.json",
+  "$id": "https://agentvoice/spec/telemetry.metric.push.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Telemetry Metric Push Envelope",
   "description": "Metric snapshot published to the host telemetry pipeline.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

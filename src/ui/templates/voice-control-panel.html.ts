@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { PanelStatus, VoiceControlPanelState } from '../voice-control-state';
 
 /**
- * Configuration options used to render the VoicePilot control panel webview.
+ * Configuration options used to render the Agent Voice control panel webview.
  * @property webview - The target VS Code webview used for resource resolution.
  * @property extensionUri - Root URI of the extension for locating bundled assets.
  * @property state - Current panel state used to populate dynamic content.
@@ -70,7 +70,7 @@ function primaryActionLabel(state: VoiceControlPanelState): string {
 }
 
 /**
- * Renders the complete VoicePilot control panel HTML for embedding in a webview.
+ * Renders the complete Agent Voice control panel HTML for embedding in a webview.
  * @param options - Context required to produce a CSP-compliant document tailored to the current state.
  * @returns Serialized HTML template for the voice control panel.
  */
@@ -93,7 +93,7 @@ export function renderVoiceControlPanelHtml(options: RenderOptions): string {
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VoicePilot</title>
+    <title>Agent Voice</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -281,10 +281,10 @@ export function renderVoiceControlPanelHtml(options: RenderOptions): string {
       <div class="vp-header">
         <div class="vp-title" aria-live="off">
           <span role="img" aria-hidden="true">🎤</span>
-          <span>VoicePilot</span>
+          <span>Agent Voice</span>
         </div>
         <div>
-          <button id="vp-settings" class="vp-icon-button" title="Open VoicePilot settings" aria-label="Open VoicePilot settings">⚙️</button>
+          <button id="vp-settings" class="vp-icon-button" title="Open Agent Voice settings" aria-label="Open Agent Voice settings">⚙️</button>
         </div>
       </div>
       <section id="vp-status" class="vp-status" data-state="${state.status}" aria-live="polite">

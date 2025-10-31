@@ -68,7 +68,7 @@ export class ConfigurationManager implements ServiceInitializable {
       } as any;
     }
     if (!logger) {
-      logger = new Logger("VoicePilot");
+      logger = new Logger("Agent Voice");
     }
 
     this.logger = logger as Logger;
@@ -109,7 +109,7 @@ export class ConfigurationManager implements ServiceInitializable {
     }
     this.disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("voicepilot")) {
+        if (e.affectsConfiguration("agentvoice")) {
           this.handleConfigurationChange(e).catch((err) =>
             this.logger.error("Error handling configuration change", err),
           );

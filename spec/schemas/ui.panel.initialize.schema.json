@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/ui.panel.initialize.schema.json",
+  "$id": "https://agentvoice/spec/ui.panel.initialize.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "UI Panel Initialize Envelope",
-  "description": "Initial state snapshot delivered to the VoicePilot webview during bootstrap.",
+  "description": "Initial state snapshot delivered to the Agent Voice webview during bootstrap.",
   "allOf": [
-    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {
@@ -15,7 +15,7 @@
           "type": "object",
           "required": ["state"],
           "properties": {
-            "state": { "$ref": "https://voicepilot/spec/ui.session.state.schema.json#/allOf/1/properties/payload" }
+            "state": { "$ref": "https://agentvoice/spec/ui.session.state.schema.json#/allOf/1/properties/payload" }
           },
           "additionalProperties": false
         }

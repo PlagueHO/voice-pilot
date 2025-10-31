@@ -3,15 +3,15 @@ title: Configuration & Settings Management
 version: 1.0
 date_created: 2025-09-20
 last_updated: 2025-09-20
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, configuration, settings, validation]
 ---
 
-This specification defines the configuration and settings management system for the VoicePilot VS Code extension. It establishes the schema, validation, change handling, and persistence mechanisms for all extension settings, ensuring proper integration with VS Code's configuration system while maintaining security and performance requirements.
+This specification defines the configuration and settings management system for the Agent Voice VS Code extension. It establishes the schema, validation, change handling, and persistence mechanisms for all extension settings, ensuring proper integration with VS Code's configuration system while maintaining security and performance requirements.
 
 ## 1. Purpose & Scope
 
-This specification defines the configuration management requirements for VoicePilot, including:
+This specification defines the configuration management requirements for Agent Voice, including:
 
 - Extension settings schema and namespace organization
 - Configuration validation and error handling
@@ -35,7 +35,7 @@ This specification defines the configuration management requirements for VoicePi
 - **Workspace Settings**: Project-specific configuration stored in `.vscode/settings.json`
 - **User Settings**: Global VS Code user preferences
 - **Secret Storage**: VS Code's secure credential storage mechanism
-- **Configuration Section**: Namespaced group of related settings (e.g., `voicepilot.azureOpenAI`)
+- **Configuration Section**: Namespaced group of related settings (e.g., `agentvoice.azureOpenAI`)
 - **Change Handler**: Function that responds to configuration updates
 - **Validation Rule**: Constraint that ensures configuration value correctness
 
@@ -43,7 +43,7 @@ This specification defines the configuration management requirements for VoicePi
 
 ### Configuration Schema Requirements
 
-- **REQ-001**: Extension SHALL use `voicepilot.*` namespace for all settings
+- **REQ-001**: Extension SHALL use `agentvoice.*` namespace for all settings
 - **REQ-002**: Configuration SHALL be organized into logical sections (azureOpenAI, audio, github)
 - **REQ-003**: All settings SHALL have defined JSON schema with type validation
 - **REQ-004**: Settings SHALL include descriptive titles and detailed descriptions
@@ -101,89 +101,89 @@ This specification defines the configuration management requirements for VoicePi
 {
   "contributes": {
     "configuration": {
-      "title": "VoicePilot",
+      "title": "Agent Voice",
       "properties": {
-        "voicepilot.azureOpenAI.endpoint": {
+        "agentvoice.azureOpenAI.endpoint": {
           "type": "string",
           "default": "",
           "description": "Azure OpenAI resource endpoint URL",
           "format": "uri",
           "pattern": "^https://.*\\.openai\\.azure\\.com/?$"
         },
-        "voicepilot.azureOpenAI.deploymentName": {
+        "agentvoice.azureOpenAI.deploymentName": {
           "type": "string",
           "default": "gpt-4o-realtime-preview",
           "description": "Azure OpenAI Realtime model deployment name"
         },
-        "voicepilot.azureOpenAI.region": {
+        "agentvoice.azureOpenAI.region": {
           "type": "string",
           "default": "eastus2",
           "enum": ["eastus2", "swedencentral"],
           "description": "Azure region for OpenAI service"
         },
-        "voicepilot.azureOpenAI.endpoint": {
+        "agentvoice.azureOpenAI.endpoint": {
           "type": "string",
           "default": "",
           "description": "Azure OpenAI resource endpoint URL",
           "format": "uri",
           "pattern": "^https://.*\\.openai\\.azure\\.com/?$"
         },
-        "voicepilot.azureOpenAI.deploymentName": {
+        "agentvoice.azureOpenAI.deploymentName": {
           "type": "string",
           "default": "gpt-4o-realtime-preview",
           "description": "Azure OpenAI Realtime model deployment name"
         },
-        "voicepilot.audio.inputDevice": {
+        "agentvoice.audio.inputDevice": {
           "type": "string",
           "default": "default",
           "description": "Preferred microphone device ID"
         },
-        "voicepilot.audio.outputDevice": {
+        "agentvoice.audio.outputDevice": {
           "type": "string",
           "default": "default",
           "description": "Preferred speaker device ID"
         },
-        "voicepilot.audio.noiseReduction": {
+        "agentvoice.audio.noiseReduction": {
           "type": "boolean",
           "default": true,
           "description": "Enable noise reduction for microphone input"
         },
-        "voicepilot.audio.echoCancellation": {
+        "agentvoice.audio.echoCancellation": {
           "type": "boolean",
           "default": true,
           "description": "Enable echo cancellation"
         },
-        "voicepilot.audio.sampleRate": {
+        "agentvoice.audio.sampleRate": {
           "type": "number",
           "default": 24000,
           "enum": [16000, 24000, 48000],
           "description": "Audio sample rate in Hz"
         },
-        "voicepilot.commands.wakeWord": {
+        "agentvoice.commands.wakeWord": {
           "type": "string",
-          "default": "voicepilot",
+          "default": "agentvoice",
           "description": "Wake word for voice activation"
         },
-        "voicepilot.commands.sensitivity": {
+        "agentvoice.commands.sensitivity": {
           "type": "number",
           "default": 0.7,
           "minimum": 0.1,
           "maximum": 1.0,
           "description": "Voice detection sensitivity (0.1-1.0)"
         },
-        "voicepilot.commands.timeout": {
+        "agentvoice.commands.timeout": {
           "type": "number",
           "default": 30,
           "minimum": 5,
           "maximum": 300,
           "description": "Command timeout in seconds"
         },
-        "voicepilot.github.repository": {
+        "agentvoice.github.repository": {
           "type": "string",
           "default": "",
           "description": "GitHub repository in owner/repo format"
         },
-        "voicepilot.github.authMode": {
+        "agentvoice.github.authMode": {
           "type": "string",
           "default": "auto",
           "enum": ["auto", "token", "oauth"],
@@ -361,14 +361,14 @@ class ConfigurationManager implements ServiceInitializable {
 
     // Setup change listener
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration('voicepilot')) {
+      if (e.affectsConfiguration('agentvoice')) {
         this.handleConfigurationChange(e);
       }
     });
   }
 
   getAzureOpenAIConfig(): AzureOpenAIConfig {
-    const config = vscode.workspace.getConfiguration('voicepilot.azureOpenAI');
+    const config = vscode.workspace.getConfiguration('agentvoice.azureOpenAI');
     return {
       endpoint: config.get('endpoint', ''),
       deploymentName: config.get('deploymentName', 'gpt-4o-realtime-preview'),
@@ -389,7 +389,7 @@ async validateConfiguration(): Promise<ValidationResult> {
   const azureConfig = this.getAzureOpenAIConfig();
   if (!azureConfig.endpoint) {
     errors.push({
-      path: 'voicepilot.azureOpenAI.endpoint',
+      path: 'agentvoice.azureOpenAI.endpoint',
       message: 'Azure OpenAI endpoint is required',
       code: 'MISSING_ENDPOINT',
       severity: 'error',
@@ -397,7 +397,7 @@ async validateConfiguration(): Promise<ValidationResult> {
     });
   } else if (!this.isValidAzureEndpoint(azureConfig.endpoint)) {
     errors.push({
-      path: 'voicepilot.azureOpenAI.endpoint',
+      path: 'agentvoice.azureOpenAI.endpoint',
       message: 'Invalid Azure OpenAI endpoint format',
       code: 'INVALID_ENDPOINT_FORMAT',
       severity: 'error',
@@ -454,7 +454,7 @@ async getSecretValue(key: string): Promise<string | undefined> {
       'Open Settings'
     ).then(action => {
       if (action === 'Open Settings') {
-        vscode.commands.executeCommand('workbench.action.openSettings', '@ext:voicepilot');
+        vscode.commands.executeCommand('workbench.action.openSettings', '@ext:agentvoice');
       }
     });
 

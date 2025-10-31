@@ -64,11 +64,11 @@ suite("Integration: Cleanup Telemetry Flow", () => {
     expect(report.orphanSnapshot.timers).to.equal(0);
     expect(payload.failureCount).to.equal(0);
     expect(events).to.have.length(1 + payload.steps.length);
-    expect(events[0].name).to.equal("voicepilot.cleanup.report");
+    expect(events[0].name).to.equal("agentvoice.cleanup.report");
     expect(
       events
         .slice(1)
-        .every((event: TelemetryEvent) => event.name === "voicepilot.cleanup.step"),
+        .every((event: TelemetryEvent) => event.name === "agentvoice.cleanup.step"),
     ).to.equal(true);
   });
 });

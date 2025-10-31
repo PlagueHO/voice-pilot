@@ -48,7 +48,7 @@ function sanitizeRetention(retention: Partial<PrivacyRetentionWindowConfig> | un
 
 export class PrivacyPolicySection {
   read(): PrivacyPolicyConfig {
-    const config = vscode.workspace.getConfiguration('voicepilot.privacyPolicy');
+    const config = vscode.workspace.getConfiguration('agentvoice.privacyPolicy');
     const retention = sanitizeRetention(config.get<Partial<PrivacyRetentionWindowConfig>>('retention'));
     const storedRules = config.get<StoredRedactionRule[]>('redactionRules', []);
 

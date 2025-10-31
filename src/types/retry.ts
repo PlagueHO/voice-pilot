@@ -1,4 +1,4 @@
-import type { VoicePilotFaultDomain } from "./error/error-taxonomy";
+import type { AgentVoiceFaultDomain } from "./error/error-taxonomy";
 
 /**
  * Supported retry policy shapes available to service orchestrators.
@@ -22,7 +22,7 @@ export type RetryJitterStrategy =
  * Canonical retry envelope describing backoff behavior for a fault domain.
  */
 export interface RetryEnvelope {
-  domain: VoicePilotFaultDomain;
+  domain: AgentVoiceFaultDomain;
   policy: RetryPolicy;
   initialDelayMs: number;
   multiplier: number;
@@ -43,8 +43,8 @@ export type RetryDomainOverride = Partial<
 };
 
 /**
- * Aggregate retry configuration keyed by VoicePilot fault domains.
+ * Aggregate retry configuration keyed by Agent Voice fault domains.
  */
 export interface RetryConfig {
-  overrides: Partial<Record<VoicePilotFaultDomain, RetryDomainOverride>>;
+  overrides: Partial<Record<AgentVoiceFaultDomain, RetryDomainOverride>>;
 }

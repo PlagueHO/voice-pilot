@@ -1,9 +1,9 @@
-export const PCM_ENCODER_WORKLET_NAME = "voicepilot-pcm-encoder";
+export const PCM_ENCODER_WORKLET_NAME = "agentvoice-pcm-encoder";
 
 const PCM_ENCODER_WORKLET_SOURCE = `
 const EXPECTED_RENDER_QUANTUM_FRAMES = 128;
 
-class VoicePilotPcmEncoderProcessor extends AudioWorkletProcessor {
+class AgentVoicePcmEncoderProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this._sequence = 0;
@@ -79,7 +79,7 @@ class VoicePilotPcmEncoderProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('${PCM_ENCODER_WORKLET_NAME}', VoicePilotPcmEncoderProcessor);
+registerProcessor('${PCM_ENCODER_WORKLET_NAME}', AgentVoicePcmEncoderProcessor,);
 `;
 
 const registeredContexts = new WeakSet<AudioContext>();

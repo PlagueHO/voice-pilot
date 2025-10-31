@@ -3,7 +3,7 @@ import { AzureRealtimeConfig } from '../../types/configuration';
 
 export class AzureOpenAIRealtimeSection {
   read(): AzureRealtimeConfig {
-    const c = vscode.workspace.getConfiguration('voicepilot.azureRealtime');
+    const c = vscode.workspace.getConfiguration('agentvoice.azureRealtime');
     return {
       model: c.get('model', 'gpt-realtime'),
       apiVersion: c.get('apiVersion', '2025-08-28'),

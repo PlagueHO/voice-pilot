@@ -3,17 +3,17 @@ title: Conversation State Machine Architecture
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, conversation, state-machine, realtime, voice]
 ---
 
 ## Introduction
 
-This specification defines the conversation state machine governing VoicePilot's full-duplex voice interactions. The state machine orchestrates transitions between listening, thinking, speaking, and interruption flows while coordinating with session management, realtime speech-to-text (STT), and text-to-speech (TTS) services. It provides deterministic behavioural contracts for the extension host, webview audio pipeline, and GitHub Copilot integrations so that users experience natural, low-latency conversations consistent with the UI design guidelines.
+This specification defines the conversation state machine governing Agent Voice's full-duplex voice interactions. The state machine orchestrates transitions between listening, thinking, speaking, and interruption flows while coordinating with session management, realtime speech-to-text (STT), and text-to-speech (TTS) services. It provides deterministic behavioural contracts for the extension host, webview audio pipeline, and GitHub Copilot integrations so that users experience natural, low-latency conversations consistent with the UI design guidelines.
 
 ## 1. Purpose & Scope
 
-The purpose of this specification is to standardize the conversation lifecycle that connects Azure OpenAI realtime events, VoicePilot audio services, and VS Code UI components. Scope includes:
+The purpose of this specification is to standardize the conversation lifecycle that connects Azure OpenAI realtime events, Agent Voice audio services, and VS Code UI components. Scope includes:
 
 - Formal state and transition definitions for user/assistant turns, background processing, and error recovery.
 - Integration rules between Session Manager (SP-005), Realtime STT (SP-009), TTS Output (SP-010), and UI surfaces (`docs/design/UI.md`).
@@ -32,14 +32,14 @@ The purpose of this specification is to standardize the conversation lifecycle t
 
 ## 2. Definitions
 
-- **Conversation State Machine (CSM)**: Deterministic controller that governs VoicePilot conversational states.
-- **Turn**: Single exchange where either the user or VoicePilot speaks while the other listens.
+- **Conversation State Machine (CSM)**: Deterministic controller that governs Agent Voice conversational states.
+- **Turn**: Single exchange where either the user or Agent Voice speaks while the other listens.
 - **Idle**: Baseline ready state after initialization with no active audio streams.
 - **Listening**: State where the system captures user audio and routes it to STT.
 - **Processing**: State where incoming transcripts are being analysed or forwarded to Copilot.
-- **WaitingForCopilot**: Sub-state of Processing where VoicePilot awaits Copilot or LLM completion.
+- **WaitingForCopilot**: Sub-state of Processing where Agent Voice awaits Copilot or LLM completion.
 - **Speaking**: State where TTS is streaming audio to the user.
-- **Interrupted**: Transitional state invoked when the user speaks while VoicePilot is still talking.
+- **Interrupted**: Transitional state invoked when the user speaks while Agent Voice is still talking.
 - **Suspended**: Temporary pause due to session renewal, network reconnection, or diagnostics.
 - **Faulted**: Error state entered when unrecoverable failures occur.
 - **State Transition Event**: Structured notification describing movement between conversation states.
@@ -204,7 +204,7 @@ export interface TurnEvent {
 
 ```json
 {
-  "type": "voicepilot.state",
+  "type": "agentvoice.state",
   "payload": {
     "state": "listening",
     "localizedLabel": "● Listening",
@@ -218,7 +218,7 @@ export interface TurnEvent {
 }
 
 {
-  "type": "voicepilot.turn",
+  "type": "agentvoice.turn",
   "payload": {
     "event": "turn-completed",
     "turnId": "turn-789",
@@ -252,7 +252,7 @@ export interface CopilotError {
 - **AC-001**: Given an initialized session, When `startConversation()` is invoked, Then the CSM transitions `Idle → Preparing → Listening` within 500 ms and emits corresponding state change events.
 - **AC-002**: Given the user finishes speaking, When STT emits a final transcript, Then the CSM transitions `Listening → Processing` and triggers a single Copilot request with the captured transcript.
 - **AC-003**: Given Copilot returns a response, When TTS buffers audio, Then the CSM transitions `Processing → Speaking` and the Voice Control Panel displays the Speaking state.
-- **AC-004**: Given VoicePilot is speaking, When the user interrupts, Then the CSM transitions `Speaking → Interrupted → Listening` within 400 ms total and TTS playback is cancelled per SP-010.
+- **AC-004**: Given Agent Voice is speaking, When the user interrupts, Then the CSM transitions `Speaking → Interrupted → Listening` within 400 ms total and TTS playback is cancelled per SP-010.
 - **AC-005**: Given a session renewal occurs, When Session Manager signals pause, Then the CSM transitions into `Suspended`, pauses audio services, and returns to the prior state after renewal completes without losing turn context.
 - **AC-006**: Given an unrecoverable error (e.g., authentication failure), When the CSM detects `Faulted`, Then it emits remediation guidance, stops the conversation, and enters `Terminating`.
 - **AC-007**: Given multiple rapid turns, When the user speaks consecutively, Then the CSM creates unique turn IDs, maintains ordering, and never skips `Listening` state between turns.
@@ -270,7 +270,7 @@ export interface CopilotError {
 
 ## 7. Rationale & Context
 
-The conversation state machine ensures VoicePilot delivers a seamless audio-first experience by synchronizing the behaviours mandated in SP-005 (session lifecycle), SP-009 (transcription), and SP-010 (speech synthesis). Hierarchical states reduce complexity when coordinating UI cues described in `docs/design/UI.md`, including distinct Listening, Thinking, and Speaking indicators. Deterministic transitions give the Copilot integration consistent entry points, preventing duplicate prompts and aligning with the Components design guidance (`docs/design/COMPONENTS.md`). The specification formalizes interruption handling—vital for accessibility and natural conversation—while leaving room for future enhancements such as semantic VAD (SP-008) and conversational analytics.
+The conversation state machine ensures Agent Voice delivers a seamless audio-first experience by synchronizing the behaviours mandated in SP-005 (session lifecycle), SP-009 (transcription), and SP-010 (speech synthesis). Hierarchical states reduce complexity when coordinating UI cues described in `docs/design/UI.md`, including distinct Listening, Thinking, and Speaking indicators. Deterministic transitions give the Copilot integration consistent entry points, preventing duplicate prompts and aligning with the Components design guidance (`docs/design/COMPONENTS.md`). The specification formalizes interruption handling—vital for accessibility and natural conversation—while leaving room for future enhancements such as semantic VAD (SP-008) and conversational analytics.
 
 ## 8. Dependencies & External Integrations
 
@@ -293,7 +293,7 @@ The conversation state machine ensures VoicePilot delivers a seamless audio-firs
 
 - **DAT-001**: Transcript events (SP-009) – Required for turn context and Processing transitions.
 - **DAT-002**: TTS playback events (SP-010) – Required for Speaking state activation and completion notifications.
-- **DAT-003**: Configuration values (`voicepilot.conversation.*`) – Define timeouts, retry budgets, and Copilot participation rules.
+- **DAT-003**: Configuration values (`agentvoice.conversation.*`) – Define timeouts, retry budgets, and Copilot participation rules.
 
 ### Technology Platform Dependencies
 
@@ -355,7 +355,7 @@ if (Date.now() - copilotRequest.startedAt > config.copilotTimeoutMs) {
     cause: 'copilot.timeout',
     remediation: 'Suggest retry or offline planning tips'
   });
-  uiBus.post({ type: 'voicepilot.notification', message: 'Copilot is taking longer than expected. Listening…' });
+  uiBus.post({ type: 'agentvoice.notification', message: 'Copilot is taking longer than expected. Listening…' });
 }
 ```
 

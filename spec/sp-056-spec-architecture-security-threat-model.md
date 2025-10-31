@@ -3,17 +3,17 @@ title: Security Threat Model & Mitigations
 version: 1.0
 date_created: 2025-10-18
 last_updated: 2025-10-18
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [security, threat-model, architecture, privacy, mitigation]
 ---
 
 ## Introduction
 
-This specification defines the formal security threat model for the VoicePilot VS Code extension. It catalogs attack surfaces, enumerates prioritized threats, and prescribes mitigations that integrate with credential handling (SP-003), ephemeral key minting (SP-004), session lifecycle (SP-005), WebRTC transport (SP-006), privacy governance (SP-027), and data contracts (SP-050). The document enables consistent risk assessment, remediation tracking, and regression prevention for future changes.
+This specification defines the formal security threat model for the Agent Voice VS Code extension. It catalogs attack surfaces, enumerates prioritized threats, and prescribes mitigations that integrate with credential handling (SP-003), ephemeral key minting (SP-004), session lifecycle (SP-005), WebRTC transport (SP-006), privacy governance (SP-027), and data contracts (SP-050). The document enables consistent risk assessment, remediation tracking, and regression prevention for future changes.
 
 ## 1. Purpose & Scope
 
-This specification establishes mandatory threat modeling activities, artifacts, and review cadences required to maintain VoicePilot's security posture.
+This specification establishes mandatory threat modeling activities, artifacts, and review cadences required to maintain Agent Voice's security posture.
 
 - Covers VS Code extension host, webview sandbox, WebRTC transport, Azure OpenAI integrations, configuration surfaces, and message contracts.
 - Applies to core engineering, security reviewers, and release managers responsible for approving changes with security impact.

@@ -1,19 +1,19 @@
 ---
-title: VoicePilot Data Contracts for Message Passing
+title: Agent Voice Data Contracts for Message Passing
 version: 1.0
 date_created: 2025-10-11
 last_updated: 2025-10-11
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, data-contracts, messaging, realtime]
 ---
 
 ## Introduction
 
-This specification defines the authoritative data contracts and messaging envelopes that govern communication among the VoicePilot extension host, the sidebar webview, realtime audio services, and Azure OpenAI integrations. It ensures every participant exchanges structured, versioned JSON messages that are discoverable, validated, and backward compatible while honouring privacy, session, and transport guarantees established by prior specifications.
+This specification defines the authoritative data contracts and messaging envelopes that govern communication among the Agent Voice extension host, the sidebar webview, realtime audio services, and Azure OpenAI integrations. It ensures every participant exchanges structured, versioned JSON messages that are discoverable, validated, and backward compatible while honouring privacy, session, and transport guarantees established by prior specifications.
 
 ## 1. Purpose & Scope
 
-This document provides the normative requirements for message schemas, versioning, validation, and transport bindings used across VoicePilot runtime services.
+This document provides the normative requirements for message schemas, versioning, validation, and transport bindings used across Agent Voice runtime services.
 
 - Covers host ↔ webview messaging, audio capture streaming, realtime speech-to-text (STT) events, text-to-speech (TTS) outputs, telemetry envelopes, and error propagation.
 - Applies to extension and webview TypeScript modules, service initializers, and test harnesses.
@@ -36,7 +36,7 @@ Intended audience: extension architects, service developers, QA engineers, and t
 - **REQ-002**: Message payloads shall be JSON-serializable objects validated against JSON Schema draft 2020-12 definitions stored in `/spec/schemas/`.
 - **REQ-003**: Each message type shall increment semantic versions using `MAJOR.MINOR.PATCH` and maintain backward compatibility for two minor revisions.
 - **REQ-004**: Host ↔ webview messages shall be transmitted via `vscode.Webview.postMessage` and received through the corresponding message event listener using the envelope.
-- **REQ-005**: Audio streaming control messages shall use the WebRTC data channel labelled `voicepilot-control`; PCM frames shall use `voicepilot-audio` with fixed little-endian encoding and explicit `Codec Hint` metadata in control frames.
+- **REQ-005**: Audio streaming control messages shall use the WebRTC data channel labelled `agentvoice-control`; PCM frames shall use `agentvoice-audio` with fixed little-endian encoding and explicit `Codec Hint` metadata in control frames.
 - **REQ-006**: STT transcripts shall distinguish `partial` versus `final` results, carrying incremental diffs and confidence scores, aligned with SP-009 timing guarantees.
 - **REQ-007**: TTS playback directives shall include interruption tokens to comply with SP-011 interruption semantics and SP-010 playback rules.
 - **REQ-008**: Error envelopes shall embed `severity`, `category`, and `retryable` flags consistent with SP-028 taxonomy.
@@ -65,13 +65,13 @@ Intended audience: extension architects, service developers, QA engineers, and t
 | TTS Playback | `tts.play.request` | 1.1.0 | Host → Service | Requests audio synthesis with voice, prosody, and barge-in token. |
 | TTS Playback | `tts.play.chunk` | 1.0.0 | Service → Host | Delivers encoded audio chunks and playback offsets. |
 | Telemetry | `telemetry.metric.push` | 1.0.0 | Any → Host | Publishes metrics aligned with SP-054 schema once available. |
-| Error Bus | `error.frame` | 1.0.0 | Any → Host | Conveys VoicePilotError structure with remediation guidance. |
+| Error Bus | `error.frame` | 1.0.0 | Any → Host | Conveys Agent VoiceError structure with remediation guidance. |
 
 ### Envelope Schema (JSON Schema excerpt)
 
 ```json
 {
-  "$id": "https://voicepilot/spec/envelope.schema.json",
+  "$id": "https://agentvoice/spec/envelope.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "required": ["id", "type", "version", "timestamp", "payload", "source"],

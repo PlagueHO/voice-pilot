@@ -3,7 +3,7 @@ goal: Achieve SP-006 WebRTC transport compliance
 version: 2025-09-27
 date_created: 2025-09-27
 last_updated: 2025-09-28
-owner: VoicePilot Engineering
+owner: Agent Voice Engineering
 status: Completed
 tags: [architecture, audio, realtime]
 ---

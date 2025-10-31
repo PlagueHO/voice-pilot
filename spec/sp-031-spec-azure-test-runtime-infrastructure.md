@@ -3,17 +3,17 @@ title: Azure Test & Runtime Infrastructure Specification
 version: 1.0
 date_created: 2025-10-04
 last_updated: 2025-10-04
-owner: VoicePilot Security Architecture
+owner: Agent Voice Security Architecture
 tags: [infrastructure, azure, diagnostics, ci]
 ---
 
 ## Introduction
 
-This specification defines the Azure infrastructure required to operate the VoicePilot platform in automated testing pipelines and optional customer-hosted deployments. It covers provisioning the Azure AI Foundry account with GPT Realtime deployments, as well as the diagnostics workspace needed to observe CI executions, while recognizing that RBAC, PIM, and automation identities are supplied automatically by the `azd up` workflow executed in GitHub Actions and that the repository applies required role assignments when supplied with a principal.
+This specification defines the Azure infrastructure required to operate the Agent Voice platform in automated testing pipelines and optional customer-hosted deployments. It covers provisioning the Azure AI Foundry account with GPT Realtime deployments, as well as the diagnostics workspace needed to observe CI executions, while recognizing that RBAC, PIM, and automation identities are supplied automatically by the `azd up` workflow executed in GitHub Actions and that the repository applies required role assignments when supplied with a principal.
 
 ## 1. Purpose & Scope
 
-The specification establishes mandatory controls for provisioning the Azure AI Foundry environment, GPT Realtime model deployments, and telemetry infrastructure used by VoicePilot CI and optional customer environments. It applies to engineering, operations, and security teams maintaining the automated GitHub Actions pipeline and documenting requirements for production-ready deployments. Assumptions: Microsoft Entra ID is the identity provider; `azd up` executes end-to-end provisioning including principal creation and passes the deployment principal to infrastructure templates; deployments may be short-lived during CI or retained for real usage depending on the operator.
+The specification establishes mandatory controls for provisioning the Azure AI Foundry environment, GPT Realtime model deployments, and telemetry infrastructure used by Agent Voice CI and optional customer environments. It applies to engineering, operations, and security teams maintaining the automated GitHub Actions pipeline and documenting requirements for production-ready deployments. Assumptions: Microsoft Entra ID is the identity provider; `azd up` executes end-to-end provisioning including principal creation and passes the deployment principal to infrastructure templates; deployments may be short-lived during CI or retained for real usage depending on the operator.
 
 ## 2. Definitions
 
@@ -68,7 +68,7 @@ The specification establishes mandatory controls for provisioning the Azure AI F
 
 ## 7. Rationale & Context
 
-VoicePilot relies on Azure AI Foundry GPT Realtime services for both automated validation and runtime experiences. Provisioning the AI Foundry account alongside diagnostics visibility ensures consistent environments across CI and potential customer deployments. By leveraging `azd up` for identity management while applying targeted contributor roles when a principal is supplied, the repository enforces least privilege and observability requirements through a dedicated Log Analytics workspace.
+Agent Voice relies on Azure AI Foundry GPT Realtime services for both automated validation and runtime experiences. Provisioning the AI Foundry account alongside diagnostics visibility ensures consistent environments across CI and potential customer deployments. By leveraging `azd up` for identity management while applying targeted contributor roles when a principal is supplied, the repository enforces least privilege and observability requirements through a dedicated Log Analytics workspace.
 
 ## 8. Dependencies & External Integrations
 

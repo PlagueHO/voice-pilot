@@ -3,15 +3,15 @@ title: Privacy & Data Handling Policy
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [security, privacy, data-handling, compliance, policy]
 ---
 
-This specification defines the privacy and data handling policy for the VoicePilot VS Code extension. It establishes data classification, retention, redaction, and disposal standards governing audio streams, transcript text, configuration metadata, telemetry, and credentials processed during voice-assisted Copilot workflows. The policy enforces least-data principles across the extension host and webview contexts while ensuring compliance with accessibility and conversational UX requirements defined in UI and COMPONENTS design documents.
+This specification defines the privacy and data handling policy for the Agent Voice VS Code extension. It establishes data classification, retention, redaction, and disposal standards governing audio streams, transcript text, configuration metadata, telemetry, and credentials processed during voice-assisted Copilot workflows. The policy enforces least-data principles across the extension host and webview contexts while ensuring compliance with accessibility and conversational UX requirements defined in UI and COMPONENTS design documents.
 
 ## 1. Purpose & Scope
 
-The policy provides authoritative rules for ingesting, processing, caching, transmitting, and disposing user data collected during VoicePilot sessions. It covers:
+The policy provides authoritative rules for ingesting, processing, caching, transmitting, and disposing user data collected during Agent Voice sessions. It covers:
 
 - Raw and processed audio handled in the webview audio pipeline (SP-006, SP-007)
 - Transcript deltas and finalized utterances emitted by realtime STT (SP-009)
@@ -24,7 +24,7 @@ The policy provides authoritative rules for ingesting, processing, caching, tran
 
 **Assumptions**:
 
-- VoicePilot operates within VS Code’s extension sandbox with Secret Storage available.
+- Agent Voice operates within VS Code’s extension sandbox with Secret Storage available.
 - Azure OpenAI GPT Realtime API is the only external processor of audio and transcript data.
 - No persistent analytics pipeline currently exists; future telemetry must comply with this spec.
 - OS-level keychain security and Azure Identity mechanisms function as defined in SP-003 and the Technical Reference Index.
@@ -40,7 +40,7 @@ The policy provides authoritative rules for ingesting, processing, caching, tran
 - **Redaction Rule**: Pattern-based transformation removing or masking sensitive data before persistence or UI display.
 - **Retention Clock**: Timestamp from which retention policies measure maximum lifetime.
 - **Data Classification**: Categorization of data assets into `Sensitive`, `Confidential`, or `Operational` tiers described below.
-- **Data Processor**: External system (Azure OpenAI) handling audio/transcript processing on behalf of VoicePilot.
+- **Data Processor**: External system (Azure OpenAI) handling audio/transcript processing on behalf of Agent Voice.
 
 ## 3. Requirements, Constraints & Guidelines
 
@@ -194,7 +194,7 @@ interface PrivacyPolicyConfig {
 
 ## 7. Rationale & Context
 
-VoicePilot’s conversational modality processes highly sensitive user data, including spoken ideas, credentials, and project context. Establishing explicit privacy boundaries ensures:
+Agent Voice’s conversational modality processes highly sensitive user data, including spoken ideas, credentials, and project context. Establishing explicit privacy boundaries ensures:
 
 1. **Least Data Exposure**: By constraining storage to ephemeral buffers, the risk of leakage is minimized.
 2. **User Trust & Transparency**: UI indicators and controls communicate ongoing processing and empower users to clear data on demand (UI.md).

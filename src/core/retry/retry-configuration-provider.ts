@@ -1,6 +1,6 @@
 import type * as vscode from "vscode";
 import { ConfigurationManager } from "../../config/configuration-manager";
-import type { VoicePilotFaultDomain } from "../../types/error/error-taxonomy";
+import type { AgentVoiceFaultDomain } from "../../types/error/error-taxonomy";
 import type { RetryDomainOverride, RetryEnvelope } from "../../types/retry";
 import { Logger } from "../logger";
 import {
@@ -20,8 +20,8 @@ export class RetryConfigurationProviderImpl
   implements RetryConfigurationProvider
 {
   private initialized = false;
-  private cache = new Map<VoicePilotFaultDomain, RetryEnvelope>();
-  private overrides: Partial<Record<VoicePilotFaultDomain, RetryDomainOverride>> = {};
+  private cache = new Map<AgentVoiceFaultDomain, RetryEnvelope>();
+  private overrides: Partial<Record<AgentVoiceFaultDomain, RetryDomainOverride>> = {};
   private disposable: vscode.Disposable | undefined;
 
   constructor(
@@ -55,19 +55,19 @@ export class RetryConfigurationProviderImpl
     this.initialized = false;
   }
 
-  getEnvelope(domain: VoicePilotFaultDomain): RetryEnvelope {
+  getEnvelope(domain: AgentVoiceFaultDomain): RetryEnvelope {
     const cached = this.cache.get(domain);
     if (cached) {
       return cloneEnvelope(cached);
     }
     const fallbackDomain = isKnownRetryDomain(domain) ? domain : "session";
-    const envelope = this.buildEnvelope(fallbackDomain as VoicePilotFaultDomain);
+    const envelope = this.buildEnvelope(fallbackDomain as AgentVoiceFaultDomain);
     this.cache.set(domain, envelope);
     return cloneEnvelope(envelope);
   }
 
   getOverride(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
   ): RetryDomainOverride | undefined {
     return this.overrides[domain] ? { ...this.overrides[domain]! } : undefined;
   }
@@ -141,7 +141,7 @@ export class RetryConfigurationProviderImpl
       this.overrides = { ...retryConfig.overrides };
       this.cache.clear();
       for (const domain of Object.keys(DEFAULT_RETRY_ENVELOPES)) {
-        const typedDomain = domain as VoicePilotFaultDomain;
+        const typedDomain = domain as AgentVoiceFaultDomain;
         this.cache.set(typedDomain, this.buildEnvelope(typedDomain));
       }
     } catch (error: any) {
@@ -151,7 +151,7 @@ export class RetryConfigurationProviderImpl
     }
   }
 
-  private buildEnvelope(domain: VoicePilotFaultDomain): RetryEnvelope {
+  private buildEnvelope(domain: AgentVoiceFaultDomain): RetryEnvelope {
     const base = cloneEnvelope(DEFAULT_RETRY_ENVELOPES[domain] ?? DEFAULT_RETRY_ENVELOPES.session);
     const override = this.overrides[domain];
     if (!override) {

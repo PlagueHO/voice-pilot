@@ -17,7 +17,7 @@ outcome: "✅ FEASIBLE - Strong recommendation to proceed with WebRTC integratio
 
 **Spike Objective:** Determine if Azure OpenAI's WebRTC Realtime API can be successfully integrated from within a VS Code extension context, including authentication, connection establishment, and real-time audio streaming.
 
-**Why This Matters:** The Azure OpenAI Realtime API is the core technology for speech-to-text functionality in VoicePilot. If this integration isn't possible from VS Code extensions due to security model limitations, the entire audio processing architecture needs to be reconsidered.
+**Why This Matters:** The Azure OpenAI Realtime API is the core technology for speech-to-text functionality in Agent Voice. If this integration isn't possible from VS Code extensions due to security model limitations, the entire audio processing architecture needs to be reconsidered.
 
 **Timebox:** 2 weeks (completed in 1 day)
 
@@ -57,7 +57,7 @@ outcome: "✅ FEASIBLE - Strong recommendation to proceed with WebRTC integratio
 **This spike is complete when:**
 
 - [x] ✅ **RESEARCH VALIDATED:** Comprehensive analysis proves WebRTC connection feasibility
-- [x] ✅ **AUTHENTICATION SOLVED:** Ephemeral key patterns validated with existing VoicePilot code
+- [x] ✅ **AUTHENTICATION SOLVED:** Ephemeral key patterns validated with existing Agent Voice code
 - [x] ✅ **STREAMING CONFIRMED:** Real-time audio capabilities proven by production extensions
 - [x] ✅ **PERFORMANCE VALIDATED:** <200ms latency achievable, no VS Code impact confirmed
 - [x] ✅ **CLEAR RECOMMENDATION:** Strong recommendation to proceed with 95%+ success probability
@@ -72,7 +72,7 @@ outcome: "✅ FEASIBLE - Strong recommendation to proceed with WebRTC integratio
 - WebRTC Client Implementation
 - Ephemeral Key Manager
 - Audio Processing Pipeline
-- VoicePilot STT Service
+- Agent Voice STT Service
 
 **Dependencies:**
 
@@ -171,7 +171,7 @@ outcome: "✅ FEASIBLE - Strong recommendation to proceed with WebRTC integratio
    - Tags include "WebRTC", "Real-time", and "Sharing"
    - Proves WebRTC peer connections are technically possible from extensions
 
-3. **VoicePilot Project Internal Evidence:**
+3. **Agent Voice Project Internal Evidence:**
    - **Existing STTService implementation** using Azure OpenAI
    - **AzureService class** with `initializeRealtimeClient()` method
    - **WebRTC Client component design** already planned
@@ -184,7 +184,7 @@ outcome: "✅ FEASIBLE - Strong recommendation to proceed with WebRTC integratio
 
 **Architecture Validation from Existing Code:**
 
-✅ **VoicePilot architecture already accounts for these patterns:**
+✅ **Agent Voice architecture already accounts for these patterns:**
 
 ```typescript
 // From src/services/azureService.ts - PROVES AUTHENTICATION APPROACH
@@ -231,7 +231,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 **ANSWER: SOLVED** - Need `connect-src https://*.openai.azure.com wss://*.azure.com`
 
 ✅ **How does authentication integrate with VS Code extension architecture?**
-**ANSWER: VALIDATED** - Existing VoicePilot code shows working pattern
+**ANSWER: VALIDATED** - Existing Agent Voice code shows working pattern
 
 ✅ **Can extensions handle ephemeral key management for Azure OpenAI sessions?**
 **ANSWER: YES** - 1-minute validity allows time for backend service integration
@@ -279,7 +279,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 **Based on comprehensive research, these tests are HIGHLY LIKELY to succeed given:**
 - ✅ Direct evidence from PeerCode extension (WebRTC in VS Code works)
 - ✅ Production validation from Microsoft VS Code Speech extension (1M+ installs)
-- ✅ Existing VoicePilot codebase already implements Azure authentication patterns
+- ✅ Existing Agent Voice codebase already implements Azure authentication patterns
 - ✅ Documented Azure OpenAI WebRTC API compatibility with browser environments
 
 ### External Resources
@@ -319,7 +319,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 
 1. **Direct Implementation Evidence:** PeerCode extension (WebRTC collaboration) and Microsoft's VS Code Speech extension (1M+ installs, real-time audio) provide concrete proof that WebRTC and real-time audio processing work in VS Code extension contexts.
 
-2. **Architecture Alignment:** VoicePilot's existing codebase already implements the required authentication patterns (DefaultAzureCredential, getBearerTokenProvider) and component architecture (WebRTC Client, STTService, AzureService).
+2. **Architecture Alignment:** Agent Voice's existing codebase already implements the required authentication patterns (DefaultAzureCredential, getBearerTokenProvider) and component architecture (WebRTC Client, STTService, AzureService).
 
 3. **Security Model Compatibility:** VS Code webviews support WebRTC with proper CSP configuration (`connect-src https://*.openai.azure.com wss://*.azure.com`), and ephemeral key management solves the client-side security requirements.
 
@@ -347,7 +347,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 **Critical Implementation Requirements:**
 
 1. **CSP Configuration:** `media-src 'self'; connect-src https://*.openai.azure.com wss://*.azure.com`
-2. **Authentication Pattern:** Use existing VoicePilot AzureService.initializeRealtimeClient() approach in backend service
+2. **Authentication Pattern:** Use existing Agent Voice AzureService.initializeRealtimeClient() approach in backend service
 3. **WebRTC URL:** Match region with Azure OpenAI resource: `https://{region}.realtimeapi-preview.ai.azure.com/v1/realtimertc`
 4. **Session Management:** Implement automatic ephemeral key refresh every 50 seconds
 5. **Error Handling:** Graceful degradation for permission denial, network failures, and service unavailability
@@ -357,7 +357,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 1. **Phase 1:** Basic WebRTC connection and authentication validation (1-2 days)
 2. **Phase 2:** Real-time audio streaming and VAD integration (3-5 days)
 3. **Phase 3:** Performance optimization and error handling (2-3 days)
-4. **Phase 4:** Integration with existing VoicePilot components (1-2 days)
+4. **Phase 4:** Integration with existing Agent Voice components (1-2 days)
 
 **Success Probability: 95%+** based on:
 - Direct implementation evidence from production extensions
@@ -373,7 +373,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 - [ ] Implement Azure OpenAI session management within webview context
 - [ ] Create comprehensive testing plan for audio quality and latency validation
 - [ ] Design error recovery and fallback mechanisms for network/permission issues
-- [ ] Update VoicePilot architecture documentation to reflect webview-based approach
+- [ ] Update Agent Voice architecture documentation to reflect webview-based approach
 - [ ] Plan integration testing with existing Copilot integration and STT service components
 
 ## Status History
@@ -390,7 +390,7 @@ public async initializeRealtimeClient(): Promise<OpenAIRealtimeWS> {
 - Direct evidence from existing WebRTC extensions (PeerCode)
 - Production validation from Microsoft VS Code Speech extension (1M+ installs)
 - Comprehensive Azure API compatibility analysis
-- Existing VoicePilot codebase architecture alignment
+- Existing Agent Voice codebase architecture alignment
 - Detailed implementation plan with 95%+ success probability
 
 ---

@@ -24,12 +24,12 @@ This guide provides a quick start for developing Visual Studio Code extensions. 
    yo code
    ```
 
-3. **Follow the Prompts**: Choose the type of extension you want to create (e.g., TypeScript), provide a name (e.g., "VoicePilot"), and fill in other details as prompted.
+3. **Follow the Prompts**: Choose the type of extension you want to create (e.g., TypeScript), provide a name (e.g., "Agent Voice"), and fill in other details as prompted.
 
 4. **Navigate to Your Extension Directory**:
 
    ```bash
-   cd VoicePilot
+   cd Agent Voice
    ```
 
 ## Development
@@ -39,7 +39,7 @@ This guide provides a quick start for developing Visual Studio Code extensions. 
 Your extension will have the following structure:
 
 ```
-VoicePilot
+Agent Voice
 ├── src
 │   ├── extension.ts
 │   ├── audio

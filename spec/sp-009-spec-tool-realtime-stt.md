@@ -3,17 +3,17 @@ title: Realtime Speech-to-Text Integration
 version: 1.0
 date_created: 2025-09-25
 last_updated: 2025-09-27
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [tool, speech-to-text, realtime, azure-openai, transcription]
 ---
 
 # Introduction
 
-This specification defines the realtime speech-to-text (STT) integration that converts live microphone audio captured in the VoicePilot webview into structured transcription events using Azure OpenAI GPT Realtime API. The STT layer bridges the audio capture pipeline, WebRTC transport, and conversational UX so that users receive low-latency transcripts, intent extraction inputs, and UI feedback aligned with VoicePilot's accessibility-first design.
+This specification defines the realtime speech-to-text (STT) integration that converts live microphone audio captured in the Agent Voice webview into structured transcription events using Azure OpenAI GPT Realtime API. The STT layer bridges the audio capture pipeline, WebRTC transport, and conversational UX so that users receive low-latency transcripts, intent extraction inputs, and UI feedback aligned with Agent Voice's accessibility-first design.
 
 ## 1. Purpose & Scope
 
-This specification covers the functional, architectural, and operational requirements for realtime speech-to-text within VoicePilot:
+This specification covers the functional, architectural, and operational requirements for realtime speech-to-text within Agent Voice:
 
 - Transform PCM16 audio streams delivered over the WebRTC transport (SP-006) into incremental transcription results.
 - Coordinate closely with the audio capture pipeline (SP-007) and session management (SP-005) to ensure authenticated, resilient streaming.
@@ -342,7 +342,7 @@ export interface RedactionMatch {
 
 ## 7. Rationale & Context
 
-Realtime transcription is central to the VoicePilot experience because it drives intent extraction, conversational feedback, and accessibility. The design prioritizes:
+Realtime transcription is central to the Agent Voice experience because it drives intent extraction, conversational feedback, and accessibility. The design prioritizes:
 
 1. **Low Latency**: Streaming Azure realtime events avoids the latency of batch STT and keeps conversation flow natural.
 2. **Resilience**: Integration with Session Manager and WebRTC transport allows seamless recovery from key renewals or network hiccups.
@@ -456,7 +456,7 @@ async function handleRealtimeMessage(message: AzureRealtimeTranscriptMessage) {
 ```typescript
 const debouncedEmit = debounce((event: TranscriptDeltaEvent) => {
   vscodeApi.postMessage({
-    type: 'voicepilot.transcriptDelta',
+    type: 'agentvoice.transcriptDelta',
     payload: event
   });
 }, options.interimDebounceMs ?? 250, { maxWait: 500 });
@@ -482,7 +482,7 @@ if (audioContext.renderQuantumSize !== expectedQuantum) {
 }
 
 await audioContext.audioWorklet.addModule(context.asWebviewUri(workletModule).toString());
-const captureNode = new AudioWorkletNode(audioContext, 'voicepilot-capture-router', {
+const captureNode = new AudioWorkletNode(audioContext, 'agentvoice-capture-router', {
   numberOfInputs: 1,
   numberOfOutputs: 1,
   outputChannelCount: [1],
@@ -510,7 +510,7 @@ async function handleTransportDesync(sessionId: string) {
   const history = sttService.getTranscriptHistory(sessionId, 20);
   for (const entry of history) {
     vscodeApi.postMessage({
-      type: 'voicepilot.transcriptHydration',
+      type: 'agentvoice.transcriptHydration',
       payload: entry
     });
   }

@@ -3,18 +3,18 @@ title: Audio Feedback and Sound Design Specification
 version: 1.0
 date_created: 2025-10-01
 last_updated: 2025-10-01
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, audio, ui, accessibility]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # Introduction
 
-This specification defines the audio feedback and sound design system for VoicePilot. It translates conversation state changes, microphone activity, and Azure OpenAI response events into short-form audio cues rendered within the shared Web Audio API 1.1 context. The document describes requirements for cue authoring, playback coordination alongside the text-to-speech (TTS) pipeline, resilience expectations, and integration contracts for both the extension host and the webview.
+This specification defines the audio feedback and sound design system for Agent Voice. It translates conversation state changes, microphone activity, and Azure OpenAI response events into short-form audio cues rendered within the shared Web Audio API 1.1 context. The document describes requirements for cue authoring, playback coordination alongside the text-to-speech (TTS) pipeline, resilience expectations, and integration contracts for both the extension host and the webview.
 
 ## 1. Purpose & Scope
 
-The purpose of this specification is to standardize the auditory experience that complements VoicePilot’s voice interaction loop. Scope covers audio cue taxonomy, playback sequencing, volume scaling, accessibility compliance, and coordination with the microphone capture pipeline (SP-007) and the Azure Realtime TTS subsystem (SP-010). It targets extension developers, UX designers, and QA engineers responsible for authoring, integrating, or validating audio feedback. Assumptions include availability of the shared AudioContext provided by SP-007, an operational TTS stream per SP-010, and adherence to VS Code webview security constraints.
+The purpose of this specification is to standardize the auditory experience that complements Agent Voice’s voice interaction loop. Scope covers audio cue taxonomy, playback sequencing, volume scaling, accessibility compliance, and coordination with the microphone capture pipeline (SP-007) and the Azure Realtime TTS subsystem (SP-010). It targets extension developers, UX designers, and QA engineers responsible for authoring, integrating, or validating audio feedback. Assumptions include availability of the shared AudioContext provided by SP-007, an operational TTS stream per SP-010, and adherence to VS Code webview security constraints.
 
 ## 2. Definitions
 

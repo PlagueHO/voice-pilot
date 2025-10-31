@@ -3,7 +3,7 @@ goal: Implement privacy and data handling controls per SP-027
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-10-05
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [privacy, security, process]
 ---
@@ -12,7 +12,7 @@ tags: [privacy, security, process]
 
 ![Status: Completed on 2025-10-05](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This plan delivers the end-to-end implementation of the Privacy & Data Handling Policy (SP-027), covering data classification, retention enforcement, redaction, purge workflows, UI indicators, and telemetry safeguards across the VoicePilot extension.
+This plan delivers the end-to-end implementation of the Privacy & Data Handling Policy (SP-027), covering data classification, retention enforcement, redaction, purge workflows, UI indicators, and telemetry safeguards across the Agent Voice extension.
 
 ## 1. Requirements & Constraints
 

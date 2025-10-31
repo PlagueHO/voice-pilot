@@ -4,7 +4,7 @@ import {
   PRESENCE_BATCH_WINDOW_MS,
   PresenceUpdate,
   resolvePresenceDescriptor,
-  VoicePilotPresenceState,
+  AgentVoicePresenceState,
 } from '../../../src/types/presence';
 import { expect } from '../../helpers/chai-setup';
 import { suite, test } from '../../mocha-globals';
@@ -19,7 +19,7 @@ suite('Unit: presence state helpers', () => {
     const canonical = normalizePresenceState('interrupted');
     expect(canonical).to.equal('listening');
 
-    const states: VoicePilotPresenceState[] = [
+    const states: AgentVoicePresenceState[] = [
       'idle',
       'listening',
       'processing',

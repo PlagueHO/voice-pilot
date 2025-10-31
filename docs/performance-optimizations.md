@@ -1,6 +1,6 @@
 # Performance Optimizations
 
-This document details the performance optimizations made to the VoicePilot extension to improve responsiveness and reduce resource usage.
+This document details the performance optimizations made to the Agent Voice extension to improve responsiveness and reduce resource usage.
 
 ## Summary of Optimizations
 

@@ -1,8 +1,8 @@
 import type { ServiceInitializable } from '../../core/service-initializable';
 import type {
-    VoicePilotFaultDomain,
-    VoicePilotSeverity,
-    VoicePilotUserImpact
+    AgentVoiceFaultDomain,
+    AgentVoiceSeverity,
+    AgentVoiceUserImpact,
 } from './error-taxonomy';
 
 export interface CircuitBreakerState {
@@ -28,7 +28,7 @@ export interface RetryPlan {
 export interface RecoveryOutcome {
   success: boolean;
   durationMs: number;
-  error?: VoicePilotError;
+  error?: AgentVoiceError;
 }
 
 export interface RecoveryStep {
@@ -63,11 +63,11 @@ export interface TelemetryContext {
   deviceInfo?: TelemetryDeviceInfo;
 }
 
-export interface VoicePilotError {
+export interface AgentVoiceError {
   id: string;
-  faultDomain: VoicePilotFaultDomain;
-  severity: VoicePilotSeverity;
-  userImpact: VoicePilotUserImpact;
+  faultDomain: AgentVoiceFaultDomain;
+  severity: AgentVoiceSeverity;
+  userImpact: AgentVoiceUserImpact;
   code: string;
   message: string;
   remediation: string;
@@ -80,25 +80,25 @@ export interface VoicePilotError {
 }
 
 export interface ErrorEventHandler {
-  (error: VoicePilotError): Promise<void> | void;
+  (error: AgentVoiceError): Promise<void> | void;
 }
 
 export interface SubscriptionOptions {
-  domains?: VoicePilotFaultDomain[];
-  severities?: VoicePilotSeverity[];
+  domains?: AgentVoiceFaultDomain[];
+  severities?: AgentVoiceSeverity[];
   once?: boolean;
 }
 
 export interface ErrorEventBus extends ServiceInitializable {
-  publish(error: VoicePilotError): Promise<void>;
+  publish(error: AgentVoiceError): Promise<void>;
   subscribe(handler: ErrorEventHandler, options?: SubscriptionOptions): import('vscode').Disposable;
 }
 
 export interface ErrorPresentationAdapter {
-  showStatusBarBadge(error: VoicePilotError): Promise<void>;
-  showPanelBanner(error: VoicePilotError): Promise<void>;
-  appendTranscriptNotice(error: VoicePilotError): Promise<void>;
-  clearSuppressedNotifications(domain: VoicePilotFaultDomain): Promise<void>;
+  showStatusBarBadge(error: AgentVoiceError): Promise<void>;
+  showPanelBanner(error: AgentVoiceError): Promise<void>;
+  appendTranscriptNotice(error: AgentVoiceError): Promise<void>;
+  clearSuppressedNotifications(domain: AgentVoiceFaultDomain): Promise<void>;
 }
 
 export interface RecoveryRegistrar {
@@ -117,12 +117,12 @@ export interface RecoveryContext {
 }
 
 export interface RecoveryExecutionOptions extends RecoveryContext {
-  faultDomain: VoicePilotFaultDomain;
+  faultDomain: AgentVoiceFaultDomain;
   code: string;
   message: string;
   remediation: string;
-  severity: VoicePilotSeverity;
-  userImpact: VoicePilotUserImpact;
+  severity: AgentVoiceSeverity;
+  userImpact: AgentVoiceUserImpact;
   metadata?: Record<string, unknown>;
   retry?: {
     policy?: RetryPlan['policy'];
@@ -140,9 +140,9 @@ export interface RecoveryExecutor {
 }
 
 export interface RecoverableService {
-  domain: VoicePilotFaultDomain;
+  domain: AgentVoiceFaultDomain;
   withRecovery<T>(operation: () => Promise<T>, context: RecoveryExecutionOptions): Promise<T>;
   registerRecoveryActions(registrar: RecoveryRegistrar): void;
 }
 
-export type { VoicePilotFaultDomain } from './error-taxonomy';
+export type { AgentVoiceFaultDomain, } from './error-taxonomy';

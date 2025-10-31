@@ -1,8 +1,8 @@
-# VoicePilot Extension UI Design
+# Agent Voice Extension UI Design
 
 ## Overview
 
-VoicePilot provides a natural, conversational voice interface for hands/eyes free project planning, specification writing, and task management. The focus is on seamless two-way conversation where users can interrupt VoicePilot at any time, with minimal visual controls and gentle audio/visual feedback during processing states. This design serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or during ideation sessions).
+Agent Voice provides a natural, conversational voice interface for hands/eyes free project planning, specification writing, and task management. The focus is on seamless two-way conversation where users can interrupt Agent Voice at any time, with minimal visual controls and gentle audio/visual feedback during processing states. This design serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or during ideation sessions).
 
 ## Design Principles
 
@@ -21,16 +21,16 @@ VoicePilot provides a natural, conversational voice interface for hands/eyes fre
 - **Inactive**: Subtle microphone icon
 - **Conversation Active**: Gentle pulsing animation
 - **User Speaking**: Soft blue glow
-- **VoicePilot Speaking**: Soft green glow
+- **Agent Voice Speaking**: Soft green glow
 - **Thinking/Waiting**: Gentle orange pulse
 
 ```
 Position: After Explorer, Search, Source Control, Run and Debug
 Icon: 🎤 (clean microphone with minimal visual feedback)
-Tooltip: "VoicePilot - Start Conversation"
+Tooltip: "Agent Voice - Start Conversation"
 ```
 
-### 1.2 VoicePilot Panel
+### 1.2 Agent Voice Panel
 
 **Layout**: Full-height sidebar panel (similar to Explorer or Extensions)
 
@@ -38,7 +38,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ```
 ┌─────────────────────────────────────┐
-│ 🎤 VoicePilot                    ⚙️  │
+│ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ● Conversation Active               │
 └─────────────────────────────────────┘
@@ -46,7 +46,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 **Header Elements**:
 
-- **Title**: "VoicePilot" with status indicator
+- **Title**: "Agent Voice" with status indicator
 - **Settings**: Single gear icon for configuration
 - **Status**: Simple text indicator ("Ready", "Listening", "Speaking", "Thinking")
 - **No Volume Meters**: Audio-first approach without visual distractions
@@ -97,7 +97,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 - **Single Action Button**: "Start Conversation" or "End Conversation"
 - **Voice Activation**: Always listening once conversation starts
-- **Natural Interruption**: User can speak anytime to interrupt VoicePilot
+- **Natural Interruption**: User can speak anytime to interrupt Agent Voice
 - **Silence Detection**: Automatic turn-taking based on speech pauses
 
 ## 2. Conversation Flow States
@@ -106,7 +106,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ```text
 ┌─────────────────────────────────────┐
-│ 🎤 VoicePilot                    ⚙️  │
+│ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
 │                                     │
 │    Hands/Eyes Free Planning         │
@@ -127,7 +127,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ```text
 ┌─────────────────────────────────────┐
-│ 🎤 VoicePilot                    ⚙️  │
+│ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ● Listening                         │
 ├─────────────────────────────────────┤
@@ -144,11 +144,11 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ### 2.3 Thinking/Waiting States
 
-#### VoicePilot Thinking
+#### Agent Voice Thinking
 
 ```text
 ┌─────────────────────────────────────┐
-│ 🎤 VoicePilot                    ⚙️  │
+│ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ⋯ Thinking                          │
 ├─────────────────────────────────────┤
@@ -166,7 +166,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ```text
 ┌─────────────────────────────────────┐
-│ 🎤 VoicePilot                    ⚙️  │
+│ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ⋯ Waiting for Copilot               │
 ├─────────────────────────────────────┤
@@ -182,19 +182,19 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ### Behavior when GitHub Copilot Chat is not installed
 
-- **Degraded state:** If the `GitHub Copilot Chat` extension is not installed, VoicePilot continues to operate for local voice interactions (transcription, local planning, and simple voice-driven features) but will not be able to forward prompts or request Copilot-generated responses.
+- **Degraded state:** If the `GitHub Copilot Chat` extension is not installed, Agent Voice continues to operate for local voice interactions (transcription, local planning, and simple voice-driven features) but will not be able to forward prompts or request Copilot-generated responses.
 - **UI indication:** The panel shows a clear status line `⋯ Waiting for Copilot (not installed)` and an orange warning badge on the header while Copilot-specific actions are attempted.
-- **User prompt:** When a Copilot action is required (for example, "Ask Copilot to generate code"), VoicePilot will prompt the user with a one-click install option: `Install Copilot Chat`. Choosing this action triggers the Marketplace installation flow and then prompts the user to reload VS Code.
-- **Context key:** The extension sets a context key `voicepilot.copilotAvailable` (true/false) so commands and UI elements requiring Copilot can be hidden or disabled via `when` clauses.
-- **Graceful fallback:** If the user declines installation or installation fails, VoicePilot offers an in-place fallback message explaining which features are unavailable and provides manual instructions (Marketplace link and VSIX advice) in the settings/help pane.
+- **User prompt:** When a Copilot action is required (for example, "Ask Copilot to generate code"), Agent Voice will prompt the user with a one-click install option: `Install Copilot Chat`. Choosing this action triggers the Marketplace installation flow and then prompts the user to reload VS Code.
+- **Context key:** The extension sets a context key `agentvoice.copilotAvailable` (true/false) so commands and UI elements requiring Copilot can be hidden or disabled via `when` clauses.
+- **Graceful fallback:** If the user declines installation or installation fails, Agent Voice offers an in-place fallback message explaining which features are unavailable and provides manual instructions (Marketplace link and VSIX advice) in the settings/help pane.
 
 ```
 
-#### VoicePilot Speaking
+#### Agent Voice Speaking
 
 ```text
 ┌─────────────────────────────────────┐
-│ 🎤 VoicePilot                    ⚙️  │
+│ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
 │ ● Speaking                          │
 ├─────────────────────────────────────┤
@@ -214,7 +214,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 ### 3.1 Thinking Audio
 
-**Purpose**: Gentle audio cue when VoicePilot is processing
+**Purpose**: Gentle audio cue when Agent Voice is processing
 
 - **Sound**: Soft, ambient thinking tone (similar to a gentle "hmm")
 - **Duration**: 1-2 second loop, fades in/out smoothly
@@ -225,7 +225,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 **User Speech Detection**:
 
-- **Immediate Response**: VoicePilot stops speaking when user starts
+- **Immediate Response**: Agent Voice stops speaking when user starts
 - **Audio Fade**: Current audio fades out quickly (200ms)
 - **Visual Transition**: Status changes to "● Listening"
 - **Context Preservation**: Maintains conversation context
@@ -234,7 +234,7 @@ Tooltip: "VoicePilot - Start Conversation"
 
 **Silence Detection**:
 
-- **User Pause**: 1.5 seconds of silence triggers VoicePilot response
+- **User Pause**: 1.5 seconds of silence triggers Agent Voice response
 - **Conversation Flow**: Natural back-and-forth without button presses
 - **Audio Confirmation**: Subtle tone when switching speakers
 
@@ -243,7 +243,7 @@ Tooltip: "VoicePilot - Start Conversation"
 ### 4.1 Voice Activity Detection (VAD)
 
 - **Always Listening**: Once conversation starts, continuously monitors for user speech
-- **Interruption Support**: User can speak anytime to interrupt VoicePilot
+- **Interruption Support**: User can speak anytime to interrupt Agent Voice
 - **Noise Filtering**: Distinguishes speech from background noise
 - **Sensitivity Settings**: Adjustable detection threshold
 
@@ -266,7 +266,7 @@ stateDiagram-v2
 
 ### 4.3 Interruption Patterns
 
-- **Clean Interruption**: VoicePilot stops immediately when user speaks
+- **Clean Interruption**: Agent Voice stops immediately when user speaks
 - **Context Retention**: Remembers where it was interrupted
 - **Resume Capability**: Can continue previous thought if relevant
 - **Graceful Transitions**: Smooth audio crossfades
@@ -275,7 +275,7 @@ stateDiagram-v2
 
 ### 5.1 Seamless Integration
 
-- **Unified Experience**: VoicePilot conversations appear in Copilot Chat panel
+- **Unified Experience**: Agent Voice conversations appear in Copilot Chat panel
 - **Voice Annotations**: Messages include speaker indicators (👤 User, 🎤 Voice)
 - **Mixed Interaction**: Users can switch between voice and text seamlessly
 - **Context Sharing**: Voice conversations contribute to Copilot's context

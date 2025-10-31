@@ -3,17 +3,17 @@ title: Intent Processing & Classification Algorithm
 version: 1.0
 date_created: 2025-10-29
 last_updated: 2025-10-29
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [algorithm, intent, classification, nlp, conversation]
 ---
 
 ## Introduction
 
-This specification defines the intent processing and classification pipeline that transforms realtime speech transcripts into actionable intents for VoicePilot's conversational workflows. The intent processor bridges the realtime speech-to-text service (SP-009) and the conversation state machine (SP-012), enabling VoicePilot to understand user goals, route commands to appropriate handlers, and provide natural conversational feedback aligned with the UI design guidelines.
+This specification defines the intent processing and classification pipeline that transforms realtime speech transcripts into actionable intents for Agent Voice's conversational workflows. The intent processor bridges the realtime speech-to-text service (SP-009) and the conversation state machine (SP-012), enabling Agent Voice to understand user goals, route commands to appropriate handlers, and provide natural conversational feedback aligned with the UI design guidelines.
 
 ## 1. Purpose & Scope
 
-This specification covers the functional, architectural, and operational requirements for intent processing within VoicePilot:
+This specification covers the functional, architectural, and operational requirements for intent processing within Agent Voice:
 
 - Parse finalized transcripts from the STT service into structured intent representations.
 - Classify user utterances into command, query, navigation, planning, and conversational categories.
@@ -398,7 +398,7 @@ export interface UserPreferences {
 
 ## 7. Rationale & Context
 
-Intent processing is the cognitive layer enabling VoicePilot to understand user goals and coordinate actions across extension services. The design prioritizes:
+Intent processing is the cognitive layer enabling Agent Voice to understand user goals and coordinate actions across extension services. The design prioritizes:
 
 1. **Low Latency**: Rule-based classification provides sub-200ms responses for common commands maintaining conversational flow.
 2. **Flexibility**: LLM-based classification handles complex queries and natural phrasing without exhaustive pattern libraries.
@@ -427,7 +427,7 @@ The specification establishes clear contracts between STT output (SP-009), inten
 
 ### Data Dependencies
 
-- **DAT-001**: Intent pack definitions stored in configuration (`voicepilot.intents.packs`) or workspace `.voicepilot/` directory.
+- **DAT-001**: Intent pack definitions stored in configuration (`agentvoice.intents.packs`) or workspace `.agentvoice/` directory.
 - **DAT-002**: Intent history retained in memory per session for context-aware classification.
 
 ### Technology Platform Dependencies
@@ -452,10 +452,10 @@ The specification establishes clear contracts between STT output (SP-009), inten
 
 ```typescript
 const commandIntentPack: IntentPack = {
-  id: 'voicepilot.core.commands',
+  id: 'agentvoice.core.commands',
   name: 'Core Commands',
   version: '1.0.0',
-  description: 'Built-in VoicePilot command intents',
+  description: 'Built-in Agent Voice command intents',
   locale: 'en-US',
   intents: [
     {

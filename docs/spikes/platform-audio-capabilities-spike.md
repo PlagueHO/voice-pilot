@@ -17,7 +17,7 @@ outcome: "PROCEED - Webview implementation confirmed feasible"
 
 **Spike Objective:** Determine if VS Code extensions can access microphone and perform real-time audio processing within the extension host environment or through webviews.
 
-**Why This Matters:** VoicePilot's core functionality depends on capturing and processing audio input. If VS Code extensions cannot reliably access audio APIs, the entire VS Code extension approach becomes unfeasible.
+**Why This Matters:** Agent Voice's core functionality depends on capturing and processing audio input. If VS Code extensions cannot reliably access audio APIs, the entire VS Code extension approach becomes unfeasible.
 
 **Timebox:** 2 weeks (completed in 1 day)
 
@@ -67,7 +67,7 @@ outcome: "PROCEED - Webview implementation confirmed feasible"
 - VS Code Extension Host
 - Web Audio API
 - MediaStream API
-- VoicePilot Audio Capture Service
+- Agent Voice Audio Capture Service
 - Azure OpenAI Realtime API Integration
 - Audio Processing Pipeline
 
@@ -165,7 +165,7 @@ outcome: "PROCEED - Webview implementation confirmed feasible"
 ### Prototype/Testing Notes
 
 **Initial Analysis Phase:** Document parsed and research plan established
-- Identified critical dependency on audio input for VoicePilot functionality
+- Identified critical dependency on audio input for Agent Voice functionality
 - Determined this spike blocks Azure OpenAI Realtime API integration
 - Success requires working audio capture proof-of-concept
 
@@ -262,7 +262,7 @@ outcome: "PROCEED - Webview implementation confirmed feasible"
 - [ ] Implement Azure OpenAI Realtime API integration within webview
 - [ ] Create cross-platform testing plan for Windows, macOS, and Linux
 - [ ] Design user permission and error handling user experience flows
-- [ ] Update VoicePilot architecture documentation based on webview approach
+- [ ] Update Agent Voice architecture documentation based on webview approach
 - [ ] Plan performance optimization and audio quality validation testing
 
 ## Status History

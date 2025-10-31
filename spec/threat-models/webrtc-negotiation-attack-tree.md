@@ -3,17 +3,17 @@ title: WebRTC Negotiation Attack Tree
 version: 1.0
 date_created: 2025-10-18
 last_updated: 2025-10-18
-owner: VoicePilot Security Engineering
+owner: Agent Voice Security Engineering
 tags: [security, webrtc, attack-tree]
 ---
 
 ## Overview
 
-This attack tree enumerates adversarial strategies targeting WebRTC negotiation for VoicePilot realtime sessions and maps each branch to mitigations defined in `sp-056-spec-architecture-security-threat-model.md`, `sp-006-spec-architecture-webrtc-audio.md`, and related specifications.
+This attack tree enumerates adversarial strategies targeting WebRTC negotiation for Agent Voice realtime sessions and maps each branch to mitigations defined in `sp-056-spec-architecture-security-threat-model.md`, `sp-006-spec-architecture-webrtc-audio.md`, and related specifications.
 
 ## Root Goal
 
-- **R-001**: Compromise WebRTC session integrity between VoicePilot webview and Azure OpenAI GPT Realtime endpoint.
+- **R-001**: Compromise WebRTC session integrity between Agent Voice webview and Azure OpenAI GPT Realtime endpoint.
 
 ## Level 1 Branches
 

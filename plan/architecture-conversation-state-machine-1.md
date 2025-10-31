@@ -3,7 +3,7 @@ goal: Implement Conversation State Machine per SP-012
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [architecture, conversation, realtime, vscode-extension]
 ---
@@ -12,7 +12,7 @@ tags: [architecture, conversation, realtime, vscode-extension]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This plan operationalizes specification `spec/sp-012-spec-architecture-conversation-state-machine.md` by defining deterministic implementation phases for the VoicePilot conversation state machine, ensuring integration with session, STT, TTS, and UI systems aligns with referenced technical guidance and Azure realtime documentation from the Technical Reference Index.
+This plan operationalizes specification `spec/sp-012-spec-architecture-conversation-state-machine.md` by defining deterministic implementation phases for the Agent Voice conversation state machine, ensuring integration with session, STT, TTS, and UI systems aligns with referenced technical guidance and Azure realtime documentation from the Technical Reference Index.
 
 ## 1. Requirements & Constraints
 
@@ -54,7 +54,7 @@ This plan operationalizes specification `spec/sp-012-spec-architecture-conversat
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-007 | Modify `src/ui/voice-control-panel.ts` (or related webview messaging handler) to react to `voicepilot.state` messages emitted by the state machine, updating UI context keys and localized strings per UI design guidelines. |  |  |
+| TASK-007 | Modify `src/ui/voice-control-panel.ts` (or related webview messaging handler) to react to `agentvoice.state` messages emitted by the state machine, updating UI context keys and localized strings per UI design guidelines. |  |  |
 | TASK-008 | Implement Copilot coordination in `src/copilot/chat-integration.ts` (or equivalent) so that state transitions trigger single prompt dispatches and handle `CopilotResponseEvent` callbacks defined in SP-012 section 4. |  |  |
 | TASK-009 | Add resilience logic in `src/conversation/conversation-state-machine.ts` to apply circuit breaker thresholds for repeated `faulted` states and emit remediation notifications through `src/core/logger.ts`. |  |  |
 

@@ -15,7 +15,7 @@ export class TelemetryLogger {
   private readonly events: TelemetryEvent[] = [];
   private readonly listeners = new Set<(event: TelemetryEvent) => void>();
 
-  constructor(private readonly logger: Logger = new Logger("VoicePilotTelemetry")) {}
+  constructor(private readonly logger: Logger = new Logger("Agent VoiceTelemetry")) {}
 
   reset(): void {
     this.events.length = 0;
@@ -36,14 +36,14 @@ export class TelemetryLogger {
   ): CleanupReportTelemetry {
     const payload = createCleanupReportTelemetry(report);
     this.record({
-      name: "voicepilot.cleanup.report",
+      name: "agentvoice.cleanup.report",
       properties: payload,
     });
 
     if (options.emitStepEvents) {
       for (const step of payload.steps) {
         this.record({
-          name: "voicepilot.cleanup.step",
+          name: "agentvoice.cleanup.step",
           properties: {
             ...step,
             reason: payload.reason,

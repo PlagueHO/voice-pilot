@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/ui.telemetry.event.schema.json",
+  "$id": "https://agentvoice/spec/ui.telemetry.event.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "UI Telemetry Event Envelope",
-  "description": "Telemetry snapshot emitted from host to the VoicePilot webview for diagnostics.",
+  "description": "Telemetry snapshot emitted from host to the Agent Voice webview for diagnostics.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

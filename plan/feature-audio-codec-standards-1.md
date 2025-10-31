@@ -1,9 +1,9 @@
 ---
-goal: Implement Audio Codec Standards across VoicePilot realtime pipeline
+goal: Implement Audio Codec Standards across Agent Voice realtime pipeline
 version: 1.0
 date_created: 2025-10-04
 last_updated: 2025-10-05
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, codec, realtime]
 ---

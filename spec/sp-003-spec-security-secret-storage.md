@@ -3,15 +3,15 @@ title: Secret Storage & Credential Handling
 version: 1.0
 date_created: 2025-09-20
 last_updated: 2025-09-20
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [security, secrets, credentials, storage, vscode]
 ---
 
-This specification defines secure storage and credential handling mechanisms for the VoicePilot VS Code extension. It establishes security boundaries for sensitive data such as Azure API keys, GitHub tokens, and other authentication credentials, ensuring they are never exposed in plaintext configuration or logging while providing secure access patterns for extension services.
+This specification defines secure storage and credential handling mechanisms for the Agent Voice VS Code extension. It establishes security boundaries for sensitive data such as Azure API keys, GitHub tokens, and other authentication credentials, ensuring they are never exposed in plaintext configuration or logging while providing secure access patterns for extension services.
 
 ## 1. Purpose & Scope
 
-This specification defines the security requirements and implementation patterns for credential handling in VoicePilot, covering:
+This specification defines the security requirements and implementation patterns for credential handling in Agent Voice, covering:
 
 - Secure storage of API keys and authentication tokens
 - Access control and retrieval patterns for sensitive data
@@ -148,11 +148,11 @@ enum CredentialType {
 ```typescript
 interface SecretKeySchema {
   // Azure service keys
-  AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey';
-  AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey';
+  AZURE_OPENAI_API_KEY: 'agentvoice.azure-openai.apikey';
+  AZURE_OPENAI_API_KEY: 'agentvoice.azure-openai.apikey';
 
   // GitHub authentication
-  GITHUB_PERSONAL_TOKEN: 'voicepilot.github.token';
+  GITHUB_PERSONAL_TOKEN: 'agentvoice.github.token';
 
   // Future extensibility
   [key: string]: string;
@@ -160,9 +160,9 @@ interface SecretKeySchema {
 
 // Const implementation for type safety
 const SECRET_KEYS: SecretKeySchema = {
-  AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey',
-  AZURE_OPENAI_API_KEY: 'voicepilot.azure-openai.apikey',
-  GITHUB_PERSONAL_TOKEN: 'voicepilot.github.token'
+  AZURE_OPENAI_API_KEY: 'agentvoice.azure-openai.apikey',
+  AZURE_OPENAI_API_KEY: 'agentvoice.azure-openai.apikey',
+  GITHUB_PERSONAL_TOKEN: 'agentvoice.github.token'
 } as const;
 ```
 
@@ -221,7 +221,7 @@ interface GitHubConfig {
 - **AC-005**: Given Secret Storage unavailable, When credential access fails, Then graceful fallback with user guidance occurs
 - **AC-006**: Given multiple credentials, When bulk operations execute, Then individual failures don't affect other credentials
 - **AC-007**: Given credential validation, When network check occurs, Then validation completes within timeout without blocking
-- **AC-008**: Given credential deletion, When clearAllCredentials() executes, Then all VoicePilot credentials are removed from OS keychain
+- **AC-008**: Given credential deletion, When clearAllCredentials() executes, Then all Agent Voice credentials are removed from OS keychain
 
 ## 6. Test Automation Strategy
 
@@ -411,7 +411,7 @@ async testCredentialAccess(): Promise<HealthCheckResult> {
 
   try {
     // Test basic secret storage functionality
-    const testKey = 'voicepilot.test.access';
+    const testKey = 'agentvoice.test.access';
     const testValue = 'test-value';
 
     await this.context.secrets.store(testKey, testValue);
@@ -447,8 +447,8 @@ async testCredentialAccess(): Promise<HealthCheckResult> {
 async migrateCredentials(): Promise<void> {
   // Handle migration from old credential format to new format
   const legacyKeys = [
-    'voicepilot.azure.key',  // old format
-    'voicepilot.github.pat'  // old format
+    'agentvoice.azure.key',  // old format
+    'agentvoice.github.pat'  // old format
   ];
 
   for (const legacyKey of legacyKeys) {
@@ -498,10 +498,10 @@ async handleCredentialError(error: Error, credentialType: CredentialType): Promi
 
   if (action === actionButton) {
     // Open appropriate configuration UI
-    vscode.commands.executeCommand('voicepilot.openCredentialSettings', credentialType);
+    vscode.commands.executeCommand('agentvoice.openCredentialSettings', credentialType);
   } else if (action === 'Help') {
     // Open documentation
-    vscode.env.openExternal(vscode.Uri.parse('https://github.com/PlagueHO/voice-pilot/docs/setup'));
+    vscode.env.openExternal(vscode.Uri.parse('https://github.com/PlagueHO/agent-voice/docs/setup'));
   }
 }
 ```

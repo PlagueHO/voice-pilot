@@ -3,7 +3,7 @@ goal: Implement Core Extension Activation & Lifecycle Architecture
 version: 1.0
 date_created: 2025-09-19
 last_updated: 2025-09-20
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [architecture, extension, lifecycle, refactor, vscode]
 ---
@@ -12,12 +12,12 @@ tags: [architecture, extension, lifecycle, refactor, vscode]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan refactors the existing VoicePilot extension to implement proper activation lifecycle management according to SP-001 specification. The plan establishes a structured foundation with dependency injection, service coordination, and proper resource management to support all extension components.
+This implementation plan refactors the existing Agent Voice extension to implement proper activation lifecycle management according to SP-001 specification. The plan establishes a structured foundation with dependency injection, service coordination, and proper resource management to support all extension components.
 
 ## 1. Requirements & Constraints
 
-- **REQ-001**: Extension SHALL activate on first user interaction with VoicePilot commands
-- **REQ-002**: Extension SHALL activate when VoicePilot sidebar panel is opened
+- **REQ-001**: Extension SHALL activate on first user interaction with Agent Voice commands
+- **REQ-002**: Extension SHALL activate when Agent Voice sidebar panel is opened
 - **REQ-003**: Extension SHALL register all commands during activation
 - **REQ-004**: Extension SHALL initialize core services in dependency order
 - **REQ-005**: Extension SHALL display activity bar icon after successful activation
@@ -34,7 +34,7 @@ This implementation plan refactors the existing VoicePilot extension to implemen
 - **GUD-004**: Maintain clear separation between extension host and webview contexts
 - **PAT-001**: Initialize services in order: Configuration → Authentication → Session → UI
 - **PAT-002**: Use VS Code's built-in disposal pattern for cleanup
-- **PAT-003**: Register commands with consistent naming convention: `voicepilot.*`
+- **PAT-003**: Register commands with consistent naming convention: `agentvoice.*`
 - **PAT-004**: Implement graceful degradation when dependencies are unavailable
 
 ## 2. Implementation Steps
@@ -69,9 +69,9 @@ This implementation plan refactors the existing VoicePilot extension to implemen
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-011 | Register voicepilot.startConversation command with validation | | |
-| TASK-012 | Register voicepilot.endConversation command with cleanup | | |
-| TASK-013 | Register voicepilot.openSettings command for configuration | | |
+| TASK-011 | Register agentvoice.startConversation command with validation | | |
+| TASK-012 | Register agentvoice.endConversation command with cleanup | | |
+| TASK-013 | Register agentvoice.openSettings command for configuration | | |
 | TASK-014 | Implement activity bar icon with state management (inactive, active, error) | | |
 | TASK-015 | Create sidebar view container and panel integration | | |
 
@@ -120,7 +120,7 @@ This implementation plan refactors the existing VoicePilot extension to implemen
 - **TEST-003**: Integration test service initialization dependency order (Config → Auth → Session → UI)
 - **TEST-004**: Performance test activation time under 5-second constraint
 - **TEST-005**: Error handling test for failed service initialization with graceful degradation
-- **TEST-006**: Command registration test for all voicepilot.* commands
+- **TEST-006**: Command registration test for all agentvoice.* commands
 - **TEST-007**: Activity bar integration test for icon states and sidebar activation
 - **TEST-008**: Memory leak test for proper disposal of all subscriptions and resources
 

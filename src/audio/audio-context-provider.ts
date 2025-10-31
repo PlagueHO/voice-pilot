@@ -2,9 +2,9 @@ import { Logger } from "../core/logger";
 import type { AudioCodecProfileId, AudioConfiguration } from "../types/webrtc";
 import type { AudioCodecProfile } from "./codec/audio-codec-profile";
 
-const IDENTITY_WORKLET_NAME = "voicepilot-identity-processor";
+const IDENTITY_WORKLET_NAME = "agentvoice-identity-processor";
 const IDENTITY_WORKLET_SOURCE = `
-class VoicePilotIdentityProcessor extends AudioWorkletProcessor {
+class AgentVoiceIdentityProcessor extends AudioWorkletProcessor {
   process(inputs, outputs) {
     const input = inputs[0];
     const output = outputs[0];
@@ -21,7 +21,7 @@ class VoicePilotIdentityProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('${IDENTITY_WORKLET_NAME}', VoicePilotIdentityProcessor);
+registerProcessor('${IDENTITY_WORKLET_NAME}', AgentVoiceIdentityProcessor,);
 `;
 
 const registeredContexts = new WeakSet<AudioContext>();

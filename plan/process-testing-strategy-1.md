@@ -1,9 +1,9 @@
 ---
-goal: Establish Execution Plan for VoicePilot Testing & QA Strategy (SP-039)
+goal: Establish Execution Plan for Agent Voice Testing & QA Strategy (SP-039)
 version: 1.0
 date_created: 2025-10-06
 last_updated: 2025-10-08
-owner: VoicePilot QA Guild
+owner: Agent Voice QA Guild
 status: 'Completed'
 tags: [process, testing, qa, ci, vscode-extension]
 ---
@@ -12,7 +12,7 @@ tags: [process, testing, qa, ci, vscode-extension]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan operationalizes specification `sp-039-spec-process-testing-strategy.md`, defining concrete tasks, sequencing, and validation required to realize the layered quality gates for the VoicePilot VS Code extension.
+This implementation plan operationalizes specification `sp-039-spec-process-testing-strategy.md`, defining concrete tasks, sequencing, and validation required to realize the layered quality gates for the Agent Voice VS Code extension.
 
 ## 1. Requirements & Constraints
 

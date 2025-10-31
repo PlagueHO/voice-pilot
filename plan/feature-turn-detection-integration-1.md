@@ -3,7 +3,7 @@ goal: Integrate Azure server-managed turn detection
 version: 1.0
 date_created: 2025-09-24
 last_updated: 2025-09-24
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, realtime, vad]
 ---
@@ -12,7 +12,7 @@ tags: [feature, audio, realtime, vad]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-Implement server-managed turn detection using Azure GPT Realtime API signals, align VoicePilot orchestration with spec `sp-008-spec-algorithm-voice-activity-detection.md`, and deliver resilient fallback behavior plus UI integration.
+Implement server-managed turn detection using Azure GPT Realtime API signals, align Agent Voice orchestration with spec `sp-008-spec-algorithm-voice-activity-detection.md`, and deliver resilient fallback behavior plus UI integration.
 
 ## 1. Requirements & Constraints
 
@@ -33,7 +33,7 @@ Implement server-managed turn detection using Azure GPT Realtime API signals, al
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Update `voicepilot.audio` configuration schema (`src/config/sections/audio-section.ts`, `src/types/configuration.ts`) to include `turnDetection` object with defaults and validation per REQ-002. | ✅ | 2025-09-24 |
+| TASK-001 | Update `agentvoice.audio` configuration schema (`src/config/sections/audio-section.ts`, `src/types/configuration.ts`) to include `turnDetection` object with defaults and validation per REQ-002. | ✅ | 2025-09-24 |
 | TASK-002 | Create `src/audio/turn-detection-coordinator.ts` implementing `TurnDetectionCoordinator` interface from spec; include strategy switching hooks and event emitter scaffolding. | ✅ | 2025-09-24 |
 | TASK-003 | Modify `src/audio/realtime-audio-service.ts` to call `session.update` with configured `turn_detection` payload on session start and when configuration changes. | ✅ | 2025-09-24 |
 

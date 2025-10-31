@@ -3,17 +3,17 @@ title: Text-to-Speech Output Service
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-27
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [tool, audio, tts, azure, realtime]
 ---
 <!-- markdownlint-disable-next-line MD025 -->
 # Introduction
 
-This specification defines the text-to-speech (TTS) output capability for VoicePilot, enabling Azure OpenAI Realtime models to synthesize natural speech for conversational responses inside the VS Code extension. It covers streaming synthesis, playback orchestration, interruption handling, and UI integration needed to deliver low-latency, full-duplex audio experiences that align with the project’s webview-based audio architecture.
+This specification defines the text-to-speech (TTS) output capability for Agent Voice, enabling Azure OpenAI Realtime models to synthesize natural speech for conversational responses inside the VS Code extension. It covers streaming synthesis, playback orchestration, interruption handling, and UI integration needed to deliver low-latency, full-duplex audio experiences that align with the project’s webview-based audio architecture.
 
 ## 1. Purpose & Scope
 
-This specification establishes the requirements and interfaces for converting generated text into audible speech within VoicePilot. Scope includes:
+This specification establishes the requirements and interfaces for converting generated text into audible speech within Agent Voice. Scope includes:
 
 - Invoking Azure OpenAI Realtime speech synthesis with ephemeral authentication.
 - Managing streaming audio buffers from the Realtime API in the webview context.
@@ -253,7 +253,7 @@ export interface PlaybackState {
 - **Test Levels**:
   - Unit: Validate state machine transitions, chunk scheduling, and voice profile validation with Jest/Mocha.
   - Integration: Stub Azure Realtime endpoints with WebSocket fixtures to verify streaming playback inside a headless browser (Playwright).
-  - End-to-End: Launch VS Code extension host tests validating UI state transitions (`voicepilot.speakingState`) via `@vscode/test-electron`.
+  - End-to-End: Launch VS Code extension host tests validating UI state transitions (`agentvoice.speakingState`) via `@vscode/test-electron`.
 - **Frameworks**: Mocha + ts-sinon for extension logic, Playwright for webview audio harness, jest-worker (or vitest) for web audio pipeline simulations.
 - **Test Data Management**: Use deterministic PCM fixtures (short tone, speech sample) and transcript JSON fixtures stored under `test/fixtures/tts`.
 - **CI/CD Integration**: Extend `Test Extension` task with optional `TTS_STUB_ENDPOINT` environment variable pointing to mocked Azure Realtime server.
@@ -264,7 +264,7 @@ export interface PlaybackState {
 
 ## 7. Rationale & Context
 
-Streaming TTS is essential to VoicePilot’s conversational UX, enabling full-duplex dialog where speech overlaps text responses. Aligning with SP-001 ensures services initialize and dispose predictably. Session Manager responsibilities in SP-005 orchestrate session restarts for voice changes and interruption sequencing, while SP-006 defines the transport primitives leveraged by this spec’s realtime events. Integration with SP-007 guarantees audio playback uses the same Web Audio infrastructure as capture, simplifying device management and echo prevention. UI design documents mandate distinct “Speaking” cues, so this spec enforces state propagation and accessible captions. Azure Realtime provides unified STT/TTS transport; using shared infrastructure minimizes latency and authentication complexity.
+Streaming TTS is essential to Agent Voice’s conversational UX, enabling full-duplex dialog where speech overlaps text responses. Aligning with SP-001 ensures services initialize and dispose predictably. Session Manager responsibilities in SP-005 orchestrate session restarts for voice changes and interruption sequencing, while SP-006 defines the transport primitives leveraged by this spec’s realtime events. Integration with SP-007 guarantees audio playback uses the same Web Audio infrastructure as capture, simplifying device management and echo prevention. UI design documents mandate distinct “Speaking” cues, so this spec enforces state propagation and accessible captions. Azure Realtime provides unified STT/TTS transport; using shared infrastructure minimizes latency and authentication complexity.
 
 ## 8. Dependencies & External Integrations
 
@@ -286,7 +286,7 @@ Streaming TTS is essential to VoicePilot’s conversational UX, enabling full-du
 ### Data Dependencies
 
 - **DAT-001**: Conversation transcripts stored in memory for the active session; used for caption alignment.
-- **DAT-002**: User configuration settings (`voicepilot.audio.voiceProfile`) persisted via Configuration Manager (SP-002).
+- **DAT-002**: User configuration settings (`agentvoice.audio.voiceProfile`) persisted via Configuration Manager (SP-002).
 
 ### Technology Platform Dependencies
 
@@ -327,7 +327,7 @@ await ttsService.initialize({
 
 ttsService.onPlaybackEvent((event) => {
   if (event.type === 'speaking-state-changed') {
-    vscode.commands.executeCommand('setContext', 'voicepilot.speaking', event.data?.state === 'speaking');
+    vscode.commands.executeCommand('setContext', 'agentvoice.speaking', event.data?.state === 'speaking');
   }
 });
 
@@ -384,7 +384,7 @@ try {
 - [SP-006: WebRTC Audio Transport Layer](sp-006-spec-architecture-webrtc-audio.md)
 - [SP-007: Audio Capture Pipeline Architecture](sp-007-spec-architecture-audio-capture-pipeline.md)
 - [SP-009: Speech-to-Text Integration](sp-009-spec-tool-realtime-stt.md)
-- [VoicePilot Extension UI Design](../docs/design/UI.md)
-- [VoicePilot Extension Components Design](../docs/design/COMPONENTS.md)
+- [Agent Voice Extension UI Design](../docs/design/UI.md)
+- [Agent Voice Extension Components Design](../docs/design/COMPONENTS.md)
 - Azure OpenAI GPT Realtime API documentation
 - [Web Audio API 1.1 Specification](https://webaudio.github.io/web-audio-api/)

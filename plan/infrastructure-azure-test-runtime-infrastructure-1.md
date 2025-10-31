@@ -3,7 +3,7 @@ goal: Azure Test & Runtime Infrastructure Implementation
 version: 1.0
 date_created: 2025-10-04
 last_updated: 2025-10-04
-owner: VoicePilot Security Architecture
+owner: Agent Voice Security Architecture
 status: 'Complete'
 tags: [infrastructure, azure, diagnostics, ci]
 ---
@@ -12,7 +12,7 @@ tags: [infrastructure, azure, diagnostics, ci]
 
 ![Status: Complete](https://img.shields.io/badge/status-Complete-green)
 
-This plan implements the Azure Test & Runtime Infrastructure defined in `spec/sp-031-spec-azure-test-runtime-infrastructure.md`, ensuring the VoicePilot project provisions Azure AI Foundry with GPT Realtime deployments, required diagnostics, and conditional role assignments for supplied principals.
+This plan implements the Azure Test & Runtime Infrastructure defined in `spec/sp-031-spec-azure-test-runtime-infrastructure.md`, ensuring the Agent Voice project provisions Azure AI Foundry with GPT Realtime deployments, required diagnostics, and conditional role assignments for supplied principals.
 
 ## 1. Requirements & Constraints
 

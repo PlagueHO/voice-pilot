@@ -292,7 +292,7 @@ export class CredentialManagerImpl implements CredentialManager {
 
     try {
       // Test basic secret storage functionality
-      const testKey = "voicepilot.test.access";
+      const testKey = "agentvoice.test.access";
       const testValue = "test-value";
 
       await this.context.secrets.store(testKey, testValue);
@@ -411,13 +411,13 @@ export class CredentialManagerImpl implements CredentialManager {
     if (action === actionButton) {
       // Open appropriate configuration UI
       vscode.commands.executeCommand(
-        "voicepilot.openCredentialSettings",
+        "agentvoice.openCredentialSettings",
         credentialType,
       );
     } else if (action === "Help") {
       // Open documentation
       vscode.env.openExternal(
-        vscode.Uri.parse("https://github.com/PlagueHO/voice-pilot/docs/setup"),
+        vscode.Uri.parse("https://github.com/PlagueHO/agent-voice/docs/setup"),
       );
     }
   }

@@ -1,8 +1,8 @@
-# VoicePilot
+# Agent Voice
 
-> VoicePilot is a VS Code extension that enables voice-driven interaction with GitHub Copilot and codebases. Built with TypeScript, it integrates Azure AI services for speech-to-text (GPT-Realtime), text-to-speech, and provides conversational coding assistance through natural language.
+> Agent Voice is a VS Code extension that enables voice-driven interaction with GitHub Copilot and codebases. Built with TypeScript, it integrates Azure AI services for speech-to-text (GPT-Realtime), text-to-speech, and provides conversational coding assistance through natural language.
 
-VoicePilot streamlines developer workflow by allowing voice interaction for ideation, feature scoping, and GitHub issue creation. The extension supports both speech-to-text and text-to-speech capabilities, making it accessible while maintaining developer flow during coding sessions.
+Agent Voice streamlines developer workflow by allowing voice interaction for ideation, feature scoping, and GitHub issue creation. The extension supports both speech-to-text and text-to-speech capabilities, making it accessible while maintaining developer flow during coding sessions.
 
 Key technical components include Azure AI Foundry GPT-Realtime for low-latency transcription and synthesis, GitHub Copilot Chat extension integration, VS Code API utilization for codebase context, and GitHub API integration for issue creation.
 

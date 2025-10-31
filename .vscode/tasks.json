@@ -190,7 +190,7 @@
       "type": "shell",
       "command": "echo",
       "args": [
-        "VoicePilot quality gate complete"
+        "Agent Voice quality gate complete"
       ],
       "dependsOn": [
         "Lint Extension",

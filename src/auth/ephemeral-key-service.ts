@@ -22,8 +22,8 @@ import type {
   RecoveryExecutionOptions,
   RecoveryExecutor,
   RecoveryPlan,
-  VoicePilotError,
-} from "../types/error/voice-pilot-error";
+  AgentVoiceError,
+} from "../types/error/agent-voice-error";
 import { CredentialManagerImpl } from "./credential-manager";
 
 /**
@@ -719,10 +719,10 @@ export class EphemeralKeyServiceImpl implements EphemeralKeyService {
 
   private mapAzureError(error: any): AuthenticationError {
     if (
-      (error as VoicePilotError)?.code &&
-      (error as VoicePilotError)?.remediation
+      (error as AgentVoiceError)?.code &&
+      (error as AgentVoiceError)?.remediation
     ) {
-      const voiceError = error as VoicePilotError;
+      const voiceError = error as AgentVoiceError;
       const retryable = voiceError.retryPlan
         ? voiceError.retryPlan.policy !== "none" &&
           voiceError.retryPlan.attempt < voiceError.retryPlan.maxAttempts

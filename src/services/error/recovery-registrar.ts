@@ -1,10 +1,10 @@
-import type { VoicePilotFaultDomain } from '../../types/error/error-taxonomy';
+import type { AgentVoiceFaultDomain } from '../../types/error/error-taxonomy';
 import type {
   RecoveryFallbackMode,
   RecoveryPlan,
   RecoveryRegistrar,
   RecoveryStep
-} from '../../types/error/voice-pilot-error';
+} from '../../types/error/agent-voice-error';
 
 /**
  * Maintains the recovery plan definition for a specific fault domain, capturing
@@ -22,7 +22,7 @@ class DomainRecoveryRegistrar implements RecoveryRegistrar {
    *
    * @param domain - Fault domain the registrar operates on.
    */
-  constructor(private readonly domain: VoicePilotFaultDomain) {}
+  constructor(private readonly domain: AgentVoiceFaultDomain) {}
 
   /**
    * Appends a recovery step that will be executed as part of the finalized
@@ -87,7 +87,7 @@ class DomainRecoveryRegistrar implements RecoveryRegistrar {
    *
    * @returns Fault domain identifier.
    */
-  getDomain(): VoicePilotFaultDomain {
+  getDomain(): AgentVoiceFaultDomain {
     return this.domain;
   }
 }
@@ -97,7 +97,7 @@ class DomainRecoveryRegistrar implements RecoveryRegistrar {
  * extension to retrieve and manage recovery strategies during runtime.
  */
 export class RecoveryRegistrationCenter {
-  private readonly plans = new Map<VoicePilotFaultDomain, RecoveryPlan>();
+  private readonly plans = new Map<AgentVoiceFaultDomain, RecoveryPlan>();
 
   /**
    * Registers a recovery plan for the supplied fault domain by delegating the
@@ -107,7 +107,7 @@ export class RecoveryRegistrationCenter {
    * @param configure - Callback that receives a registrar for plan setup.
    * @param defaults - Optional defaults merged into the resulting plan.
    */
-  register(domain: VoicePilotFaultDomain, configure: (registrar: RecoveryRegistrar) => void, defaults?: Partial<Omit<RecoveryPlan, 'steps'>>): void {
+  register(domain: AgentVoiceFaultDomain, configure: (registrar: RecoveryRegistrar) => void, defaults?: Partial<Omit<RecoveryPlan, 'steps'>>): void {
     const registrar = new DomainRecoveryRegistrar(domain);
     configure(registrar);
     const plan = registrar.toRecoveryPlan(defaults);
@@ -120,7 +120,7 @@ export class RecoveryRegistrationCenter {
    * @param domain - Fault domain whose plan should be returned.
    * @returns Matching recovery plan, or undefined if not registered.
    */
-  get(domain: VoicePilotFaultDomain): RecoveryPlan | undefined {
+  get(domain: AgentVoiceFaultDomain): RecoveryPlan | undefined {
     return this.plans.get(domain);
   }
 
@@ -129,7 +129,7 @@ export class RecoveryRegistrationCenter {
    *
    * @param domain - Fault domain whose plan should be cleared.
    */
-  clear(domain: VoicePilotFaultDomain): void {
+  clear(domain: AgentVoiceFaultDomain): void {
     this.plans.delete(domain);
   }
 
@@ -149,6 +149,6 @@ export class RecoveryRegistrationCenter {
  * @param domain - Fault domain to bind to the registrar.
  * @returns Configurable recovery registrar for the provided domain.
  */
-export function createDomainRegistrar(domain: VoicePilotFaultDomain): RecoveryRegistrar {
+export function createDomainRegistrar(domain: AgentVoiceFaultDomain): RecoveryRegistrar {
   return new DomainRecoveryRegistrar(domain);
 }

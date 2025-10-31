@@ -3,17 +3,17 @@ title: CI/CD Pipeline & Quality Gates Specification
 version: 1.0.0
 date_created: 2025-10-08
 last_updated: 2025-10-08
-owner: VoicePilot Engineering Productivity
+owner: Agent Voice Engineering Productivity
 tags: [process, cicd, testing, azure, governance]
 ---
 
 ## Introduction
 
-This specification defines the continuous integration and continuous delivery (CI/CD) pipeline for VoicePilot, establishing quality gates, workflow orchestration, deployment automation, and rollback controls that align with the VoicePilot testing strategy and Azure runtime infrastructure.
+This specification defines the continuous integration and continuous delivery (CI/CD) pipeline for Agent Voice, establishing quality gates, workflow orchestration, deployment automation, and rollback controls that align with the Agent Voice testing strategy and Azure runtime infrastructure.
 
 ## 1. Purpose & Scope
 
-The purpose of this specification is to prescribe the end-to-end CI/CD process for VoicePilot, including GitHub Actions workflow design, quality gate sequencing, Azure infrastructure provisioning, artifact management, and operational observability. The scope covers all automated pipelines triggered by source control events or manual approvals for testing and production environments. The intended audience includes developers, release managers, DevOps engineers, security reviewers, and infrastructure operators. Assumptions: all contributors use the repository-provided VS Code tasks, `azd up`/`azd down` are available in CI, and Azure resources follow SP-031 controls.
+The purpose of this specification is to prescribe the end-to-end CI/CD process for Agent Voice, including GitHub Actions workflow design, quality gate sequencing, Azure infrastructure provisioning, artifact management, and operational observability. The scope covers all automated pipelines triggered by source control events or manual approvals for testing and production environments. The intended audience includes developers, release managers, DevOps engineers, security reviewers, and infrastructure operators. Assumptions: all contributors use the repository-provided VS Code tasks, `azd up`/`azd down` are available in CI, and Azure resources follow SP-031 controls.
 
 > **Environment Model Update (2025-10-08):** `continuous-delivery.yml` now targets two environments: **testing** for full-stack validation (including ephemeral Azure provisioning) and **production** for marketplace publication only. Production deployments are limited to tagged releases on `main` and assume customers provision their own Azure infrastructure outside this pipeline.
 
@@ -85,7 +85,7 @@ The purpose of this specification is to prescribe the end-to-end CI/CD process f
 
 ## 7. Rationale & Context
 
-VoicePilot relies on deterministic service initialization (SP-039) and Azure diagnostics visibility (SP-031). Centralizing CI/CD specifications ensures consistent enforcement of quality gates, reproducible deployments, and secure Azure interactions. The reusable workflow chain prevents drift between infrastructure validation steps, while telemetry snapshots supply observability required for rapid incident response. Artifact retention and rollback patterns mitigate deployment risk for customer environments.
+Agent Voice relies on deterministic service initialization (SP-039) and Azure diagnostics visibility (SP-031). Centralizing CI/CD specifications ensures consistent enforcement of quality gates, reproducible deployments, and secure Azure interactions. The reusable workflow chain prevents drift between infrastructure validation steps, while telemetry snapshots supply observability required for rapid incident response. Artifact retention and rollback patterns mitigate deployment risk for customer environments.
 
 ## 8. Dependencies & External Integrations
 
@@ -96,7 +96,7 @@ VoicePilot relies on deterministic service initialization (SP-039) and Azure dia
 
 ### Third-Party Services
 
-- **SVC-001**: Azure AI Foundry – Target platform for VoicePilot GPT Realtime deployments validated during CD.
+- **SVC-001**: Azure AI Foundry – Target platform for Agent Voice GPT Realtime deployments validated during CD.
 - **SVC-002**: Azure Monitor Log Analytics – Stores telemetry snapshots and activity logs per SP-031.
 
 ### Infrastructure Dependencies
@@ -152,11 +152,11 @@ jobs:
     steps:
       - run: npm ci
       - run: npm run package
-      - run: npx vsce publish --packagePath voicepilot-${{ github.run_number }}.vsix --pre-release
+      - run: npx vsce publish --packagePath agentvoice-${{ github.run_number }}.vsix --pre-release
       - uses: actions/upload-artifact@v4
         with:
-          name: voicepilot-vsix
-          path: voicepilot-${{ github.run_number }}.vsix
+          name: agentvoice-vsix
+          path: agentvoice-${{ github.run_number }}.vsix
 ```
 
 Edge cases include runner interruptions mid-deployment (pipeline must retry idempotent steps), Azure quota exhaustion (pipeline should surface actionable diagnostics), and partial artifact uploads (pipeline must validate checksum before promotion).

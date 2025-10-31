@@ -3,7 +3,7 @@ goal: Implement SP-053 Resource Cleanup & Disposal Semantics
 version: 1.0
 date_created: 2025-10-11
 last_updated: 2025-10-13
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, lifecycle, cleanup]
 ---
@@ -52,7 +52,7 @@ This plan converts `spec/sp-053-spec-design-resource-cleanup.md` into executable
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-007 | Extend telemetry schema in `src/telemetry/events.ts` and `src/telemetry/logger.ts` to emit `voicepilot.cleanup.*` events carrying `DisposalReport` payloads. | Completed | 2025-10-13 |
+| TASK-007 | Extend telemetry schema in `src/telemetry/events.ts` and `src/telemetry/logger.ts` to emit `agentvoice.cleanup.*` events carrying `DisposalReport` payloads. | Completed | 2025-10-13 |
 | TASK-008 | Add automated diagnostics command in `src/commands/run-diagnostics.ts` (or existing diagnostics module) to invoke `disposeAll('config-reload')` in dry-run mode and report orphan snapshots. | Completed | 2025-10-13 |
 | TASK-009 | Implement unit tests in `test/unit/core/disposal-orchestrator.unit.test.ts` and integration tests in `test/integration/disposal/cleanup-telemetry.integration.test.ts` covering acceptance criteria AC-001..AC-005. | Completed | 2025-10-13 |
 

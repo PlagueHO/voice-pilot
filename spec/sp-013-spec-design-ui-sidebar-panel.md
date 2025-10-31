@@ -3,18 +3,18 @@ title: UI Sidebar Panel & Layout
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, ui, webview, accessibility, vscode]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # Introduction
 
-This specification defines the VoicePilot sidebar panel that delivers the primary conversational user interface inside VS Code. It covers the layout, interaction model, status semantics, accessibility expectations, and integration contracts that allow the panel to coordinate with session management, audio pipeline, and Copilot-aware services while respecting extension lifecycle guarantees.
+This specification defines the Agent Voice sidebar panel that delivers the primary conversational user interface inside VS Code. It covers the layout, interaction model, status semantics, accessibility expectations, and integration contracts that allow the panel to coordinate with session management, audio pipeline, and Copilot-aware services while respecting extension lifecycle guarantees.
 
 ## 1. Purpose & Scope
 
-The specification establishes authoritative requirements for the VoicePilot sidebar panel (`voicepilot.voiceControl`) including:
+The specification establishes authoritative requirements for the Agent Voice sidebar panel (`agentvoice.voiceControl`) including:
 
 - Activity bar container and webview lifecycle defined in SP-001 (extension activation) with lazy initialization.
 - Session-aware state presentation and controls coordinated with SP-005 (session management & renewal).
@@ -29,11 +29,11 @@ The specification establishes authoritative requirements for the VoicePilot side
 - Extension controller, session manager, and audio services expose the interfaces defined in SP-001, SP-005, and SP-007.
 - GitHub Copilot Chat extension may or may not be installed at runtime.
 - VS Code webview APIs and messaging infrastructure are available; no direct DOM access exists from the extension host.
-- VoicePilot relies on Azure OpenAI realtime transport for conversational flow; degraded mode must be communicated when unavailable.
+- Agent Voice relies on Azure OpenAI realtime transport for conversational flow; degraded mode must be communicated when unavailable.
 
 ## 2. Definitions
 
-- **Voice Control Panel**: Webview-backed sidebar registered under `voicepilot.voiceControl` providing conversational UI.
+- **Voice Control Panel**: Webview-backed sidebar registered under `agentvoice.voiceControl` providing conversational UI.
 - **Conversation State Indicator**: Visual element reflecting session state (Ready, Listening, Thinking, Speaking, Error, Copilot Unavailable).
 - **Transcript Stream**: Scrollable conversation history with speaker attribution and streaming deltas.
 - **Degraded Copilot Mode**: UI mode activated when GitHub Copilot Chat APIs are unavailable; panel offers install guidance.
@@ -44,13 +44,13 @@ The specification establishes authoritative requirements for the VoicePilot side
 
 ## 3. Requirements, Constraints & Guidelines
 
-- **REQ-001**: Panel SHALL register as a webview view provider with ID `voicepilot.voiceControl` and initialize lazily after extension activation.
+- **REQ-001**: Panel SHALL register as a webview view provider with ID `agentvoice.voiceControl` and initialize lazily after extension activation.
 - **REQ-002**: Panel SHALL render the activity bar icon states defined in `docs/design/UI.md`, including inactive, active, listening, speaking, thinking, and error.
 - **REQ-003**: Panel SHALL expose a header with status indicator, settings affordance, and session summary sourced from SessionManager events (SP-005).
 - **REQ-004**: Panel SHALL provide a primary action button that toggles between “Start Conversation” and “End Conversation” based on active session state.
-- **REQ-005**: Panel SHALL stream transcript entries with speaker attribution (👤 User, 🎤 VoicePilot, 🤖 Copilot) and support incremental updates.
+- **REQ-005**: Panel SHALL stream transcript entries with speaker attribution (👤 User, 🎤 Agent Voice, 🤖 Copilot) and support incremental updates.
 - **REQ-006**: Panel SHALL display WebRTC/audio feedback (listening, thinking, speaking) derived from Audio Capture Pipeline metrics (SP-007) without exposing raw device identifiers.
-- **REQ-007**: Panel SHALL surface a degraded Copilot banner when `voicepilot.copilotAvailable` context key is false, including CTA to install Copilot Chat.
+- **REQ-007**: Panel SHALL surface a degraded Copilot banner when `agentvoice.copilotAvailable` context key is false, including CTA to install Copilot Chat.
 - **REQ-008**: Panel SHALL persist the last 50 transcript entries per session in memory for quick redisplay; older entries MAY be truncated with user notification.
 - **REQ-009**: Panel SHALL respect VS Code theme tokens, supporting light, dark, and high-contrast themes without manual overrides.
 - **SEC-001**: Panel webview SHALL enforce a CSP that restricts scripts to inline hash-based bundles and connects only to approved Azure OpenAI domains listed in TECHNICAL-REFERENCE-INDEX.
@@ -88,7 +88,7 @@ export interface VoiceControlPanelState {
 
 export interface TranscriptEntry {
   entryId: string;
-  speaker: 'user' | 'voicepilot' | 'copilot';
+  speaker: 'user' | 'agentvoice' | 'copilot';
   content: string;
   timestamp: string; // ISO 8601
   confidence?: number;
@@ -122,13 +122,13 @@ export interface UserFacingError {
 | `ready` | Extension activation complete | Solid neutral icon, text “Ready” | No active session |
 | `listening` | Audio pipeline reports user speaking | Blue glow, subtle animation | Microphone capturing user speech |
 | `thinking` | Session manager awaiting AI response | Orange pulse, looping thinking tone | Waiting for Copilot or AI throughput |
-| `speaking` | VoicePilot audio output | Green glow, captioned text | VoicePilot narrating response |
+| `speaking` | Agent Voice audio output | Green glow, captioned text | Agent Voice narrating response |
 | `error` | Session or audio failure | Red banner, retry CTA | Recoverable failure encountered |
 | `copilot-unavailable` | Copilot context key false | Amber banner, “Install Copilot Chat” CTA | Copilot features unavailable |
 
 ## 5. Acceptance Criteria
 
-- **AC-001**: Given the extension activates, When the user opens the VoicePilot activity bar icon, Then the panel loads within 1.5 seconds and displays the “Ready” state.
+- **AC-001**: Given the extension activates, When the user opens the Agent Voice activity bar icon, Then the panel loads within 1.5 seconds and displays the “Ready” state.
 - **AC-002**: Given an active session, When the session manager transitions to `listening`, Then the panel updates the status indicator and ARIA live region within 250ms.
 - **AC-003**: Given transcript streaming, When partial entries arrive with `partial=true`, Then the panel shows incremental text and replaces it with finalized content once `transcript.commit` is received.
 - **AC-004**: Given Copilot Chat is not installed, When Copilot-dependent actions occur, Then the panel shows a degraded banner with an actionable install button.
@@ -154,7 +154,7 @@ export interface UserFacingError {
 - **Session Alignment**: Relies on SessionManager (SP-005) state machine to ensure UI reflects actual connection and renewal status, preventing user confusion.
 - **Audio Awareness**: Uses Audio Capture Pipeline (SP-007) metrics to communicate microphone availability and avoid redundant permission prompts.
 - **Extension Lifecycle Compatibility**: Follows SP-001 activation/disposal patterns, ensuring panel registration and teardown do not leak resources.
-- **Accessibility Leadership**: Supports hands-free and screen-reader workflows demanded by VoicePilot’s inclusive design goals.
+- **Accessibility Leadership**: Supports hands-free and screen-reader workflows demanded by Agent Voice’s inclusive design goals.
 - **Security Posture**: Maintains strict CSP and sanitization to prevent unsafe script execution in a permissive webview environment.
 
 ## 8. Dependencies & External Integrations
@@ -234,7 +234,7 @@ Edge cases to handle:
 
 ## 10. Validation Criteria
 
-- Panel registration confirmed via VS Code `when` context `voicepilot.activated` toggle.
+- Panel registration confirmed via VS Code `when` context `agentvoice.activated` toggle.
 - CSP validation ensures only whitelisted domains appear in webview network log.
 - Transcript sanitizer test suite passes for HTML and markdown inputs.
 - Accessibility tooling (axe-core) reports zero critical violations.

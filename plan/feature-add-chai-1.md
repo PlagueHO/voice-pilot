@@ -3,7 +3,7 @@ goal: Add Chai + chai-as-promised to test harness for expressive and promise-awa
 version: 1.0
 date_created: 2025-10-10
 last_updated: 2025-10-10
-owner: VoicePilot Team
+owner: Agent Voice Team
 status: 'Completed'
 tags: [feature, testing, chai, chai-as-promised]
 ---
@@ -12,7 +12,7 @@ tags: [feature, testing, chai, chai-as-promised]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This plan describes the deterministic, step-by-step addition of `chai` and `chai-as-promised` to the VoicePilot test toolchain and documentation. The goal is to provide a safer, incremental adoption path for expressive BDD-style assertions and Promise-handling utilities without breaking existing Mocha-based tests.
+This plan describes the deterministic, step-by-step addition of `chai` and `chai-as-promised` to the Agent Voice test toolchain and documentation. The goal is to provide a safer, incremental adoption path for expressive BDD-style assertions and Promise-handling utilities without breaking existing Mocha-based tests.
 
 ## 1. Requirements & Constraints
 
@@ -84,7 +84,7 @@ This plan describes the deterministic, step-by-step addition of `chai` and `chai
 
 ## 8. Related Specifications / Further Reading
 
-[VoicePilot Continuous Integration Pipeline](docs/CI-PIPELINE.md)
+[Agent Voice Continuous Integration Pipeline](docs/CI-PIPELINE.md)
 [Mocha documentation](https://mochajs.org/)
 [Chai documentation](https://www.chaijs.com/)
 [chai-as-promised documentation](https://www.chaijs.com/plugins/chai-as-promised/)

@@ -364,7 +364,7 @@ export interface AudioProcessingChain {
 }
 
 /**
- * Public interface for the audio capture pipeline used throughout VoicePilot.
+ * Public interface for the audio capture pipeline used throughout Agent Voice.
  */
 export interface AudioCapturePipeline extends ServiceInitializable {
   initialize(

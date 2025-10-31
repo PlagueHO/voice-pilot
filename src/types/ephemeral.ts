@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ServiceInitializable } from "../core/service-initializable";
-import type { VoicePilotError } from "./error/voice-pilot-error";
+import type { AgentVoiceError } from "./error/agent-voice-error";
 
 /**
  * Defines the contract for retrieving, managing, and monitoring ephemeral keys that
@@ -8,7 +8,7 @@ import type { VoicePilotError } from "./error/voice-pilot-error";
  */
 export interface EphemeralKeyService extends ServiceInitializable {
   /**
-   * Requests a fresh ephemeral key from Azure or the VoicePilot backend.
+   * Requests a fresh ephemeral key from Azure or the Agent Voice backend.
    *
    * @returns Metadata describing the newly issued key or the failure details.
    */
@@ -144,7 +144,7 @@ export interface EphemeralKeyInfo {
 }
 
 /**
- * Connection details required to establish a realtime VoicePilot session.
+ * Connection details required to establish a realtime Agent Voice session.
  */
 export interface RealtimeSessionInfo {
   /** Unique session identifier returned by the backend. */
@@ -201,8 +201,8 @@ export interface AuthenticationError {
   remediation: string;
   /** Raw Azure error payload for diagnostics. */
   azureErrorDetails?: any;
-  /** Optional VoicePilot-specific error wrapper. */
-  voicePilotError?: VoicePilotError;
+  /** Optional Agent Voice-specific error wrapper. */
+  voicePilotError?: AgentVoiceError;
 }
 
 /**

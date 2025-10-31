@@ -1,4 +1,4 @@
-import type { VoicePilotError } from '../../types/error/voice-pilot-error';
+import type { AgentVoiceError } from '../../types/error/agent-voice-error';
 
 /**
  * Set of case-insensitive keys that must be replaced to avoid leaking credentials or tokens.
@@ -70,13 +70,13 @@ function ensureJsonLike(value: unknown): JsonLike {
 }
 
 /**
- * Produces a sanitized copy of a {@link VoicePilotError} by removing or redacting sensitive metadata
+ * Produces a sanitized copy of a {@link AgentVoiceError,} by removing or redacting sensitive metadata
  * before it is persisted or emitted to telemetry.
  *
  * @param error - The error instance that may contain sensitive data.
  * @returns A shallow clone of the error with redacted metadata and telemetry context.
  */
-export function redactError(error: VoicePilotError): VoicePilotError {
+export function redactError(error: AgentVoiceError): AgentVoiceError {
 	return {
 		...error,
 		cause: undefined,
@@ -93,12 +93,12 @@ export function redactError(error: VoicePilotError): VoicePilotError {
 }
 
 /**
- * Converts a {@link VoicePilotError} into a loggable object with ISO string timestamps and redacted fields.
+ * Converts a {@link AgentVoiceError,} into a loggable object with ISO string timestamps and redacted fields.
  *
  * @param error - The sanitized or raw error that should be logged.
  * @returns A JSON-compatible structure safe for structured logging sinks.
  */
-export function sanitizeForLog(error: VoicePilotError): Record<string, unknown> {
+export function sanitizeForLog(error: AgentVoiceError): Record<string, unknown> {
 	const redacted = redactError(error);
 	const { cause, ...rest } = redacted;
 	return {

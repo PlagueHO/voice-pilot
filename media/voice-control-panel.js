@@ -199,7 +199,7 @@ function speakerLabel(speaker) {
     case 'copilot':
       return '🤖 Copilot';
     default:
-      return '🎤 VoicePilot';
+      return '🎤 Agent Voice';
   }
 }
 

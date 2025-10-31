@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Setting up VoicePilot development environment..."
+echo "🚀 Setting up Agent Voice development environment..."
 
 # Update package lists
 echo "📦 Updating package lists..."
@@ -155,8 +155,8 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 # Setup git if needed
 if [ ! -f ~/.gitconfig ]; then
     echo "⚙️ Setting up git configuration..."
-    git config --global user.name "VoicePilot Developer"
-    git config --global user.email "developer@voicepilot.dev"
+    git config --global user.name "Agent Voice Developer"
+    git config --global user.email "developer@agentvoice.dev"
     git config --global init.defaultBranch main
 fi
 

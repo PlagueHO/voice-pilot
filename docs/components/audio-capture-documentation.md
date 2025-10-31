@@ -4,14 +4,14 @@ component_path: src/audio/audio-capture.ts
 version: 1.0
 date_created: 2025-09-28
 last_updated: 2025-09-28
-owner: VoicePilot Audio Team
+owner: Agent Voice Audio Team
 tags: [component, audio, capture, pipeline, documentation, architecture]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # AudioCapture Documentation
 
-The `AudioCapture` service wraps browser media APIs and VoicePilot's processing chain to provide reliable microphone capture, adaptive metrics, and PCM output suitable for Azure OpenAI realtime sessions.
+The `AudioCapture` service wraps browser media APIs and Agent Voice's processing chain to provide reliable microphone capture, adaptive metrics, and PCM output suitable for Azure OpenAI realtime sessions.
 
 ## 1. Component Overview
 

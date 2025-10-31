@@ -11,7 +11,7 @@ import ConversationStateMachine, {
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
-import { createVoicePilotError } from "../helpers/error/envelope";
+import { createAgentVoiceError } from "../helpers/error/envelope";
 import { sanitizeForLog } from "../helpers/error/redaction";
 import { AudioFeedbackServiceImpl } from "../services/audio-feedback/audio-feedback-service";
 import { ConversationStorageServiceImpl } from "../services/conversation/conversation-storage-service";
@@ -33,8 +33,8 @@ import { InterruptionPolicyConfig } from "../types/conversation";
 import type { DisposalReason, DisposalReport } from "../types/disposal";
 import type {
   RecoveryPlan,
-  VoicePilotError,
-} from "../types/error/voice-pilot-error";
+  AgentVoiceError,
+} from "../types/error/agent-voice-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
 import { VoiceControlPanel } from "../ui/voice-control-panel";
@@ -62,7 +62,7 @@ const DISPOSAL_PRIORITY = {
 } as const;
 
 /**
- * Coordinates VoicePilot service initialization, lifecycle management, and
+ * Coordinates Agent Voice service initialization, lifecycle management, and
  * cross-cutting concerns such as recovery, telemetry, and UI updates.
  *
  * @remarks
@@ -102,7 +102,7 @@ export class ExtensionController implements ServiceInitializable {
    * Creates an {@link ExtensionController} with concrete service dependencies.
    *
    * @param context VS Code extension context used for subscriptions and secret storage.
-   * @param configurationManager Resolves and validates VoicePilot configuration sections.
+   * @param configurationManager Resolves and validates Agent Voice configuration sections.
    * @param sessionManager Manages realtime conversation sessions and their lifecycle.
    * @param voicePanel Handles sidebar UI rendering and transcript display.
    * @param privacyController Executes privacy operations such as transcript purges.
@@ -167,7 +167,7 @@ export class ExtensionController implements ServiceInitializable {
   }
 
   /**
-   * Initializes all VoicePilot services in dependency order and registers
+   * Initializes all Agent Voice services in dependency order and registers
    * command handlers.
    *
    * @remarks
@@ -584,7 +584,7 @@ export class ExtensionController implements ServiceInitializable {
 
     disposables.push(
       vscode.commands.registerCommand(
-        "voicepilot.startConversation",
+        "agentvoice.startConversation",
         async () => {
           try {
             await this.sessionManager.startSession();
@@ -600,7 +600,7 @@ export class ExtensionController implements ServiceInitializable {
 
     disposables.push(
       vscode.commands.registerCommand(
-        "voicepilot.endConversation",
+        "agentvoice.endConversation",
         async () => {
           try {
             await this.sessionManager.endSession();
@@ -614,17 +614,17 @@ export class ExtensionController implements ServiceInitializable {
     );
 
     disposables.push(
-      vscode.commands.registerCommand("voicepilot.openSettings", () => {
+      vscode.commands.registerCommand("agentvoice.openSettings", () => {
         vscode.commands.executeCommand(
           "workbench.action.openSettings",
-          "@ext:voicepilot",
+          "@ext:agentvoice",
         );
       }),
     );
 
     disposables.push(
       vscode.commands.registerCommand(
-        "voicepilot.runCleanupDiagnostics",
+        "agentvoice.runCleanupDiagnostics",
         async () => {
           try {
             return await this.runCleanupDiagnostics();
@@ -635,7 +635,7 @@ export class ExtensionController implements ServiceInitializable {
               error: message,
             });
             void vscode.window.showErrorMessage(
-              `VoicePilot cleanup diagnostics failed: ${message}`,
+              `Agent Voice cleanup diagnostics failed: ${message}`,
             );
             throw error;
           }
@@ -750,7 +750,7 @@ export class ExtensionController implements ServiceInitializable {
               return {
                 success: false,
                 durationMs: Date.now() - started,
-                error: createVoicePilotError({
+                error: createAgentVoiceError({
                   faultDomain: "auth",
                   code: "AUTH_REVOKE_KEY_FAILED",
                   message:
@@ -784,7 +784,7 @@ export class ExtensionController implements ServiceInitializable {
               return {
                 success: false,
                 durationMs: Date.now() - started,
-                error: createVoicePilotError({
+                error: createAgentVoiceError({
                   faultDomain: "auth",
                   code: "AUTH_SELF_TEST_FAILED",
                   message: error?.message ?? "Authentication self-test failed",
@@ -799,12 +799,12 @@ export class ExtensionController implements ServiceInitializable {
 
         registrar.addFallback("manual-intervention", async () => {
           const selection = await vscode.window.showErrorMessage(
-            "VoicePilot authentication is in a degraded state. Review Azure credentials?",
+            "Agent Voice authentication is in a degraded state. Review Azure credentials?",
             "Open Settings",
             "Dismiss",
           );
           if (selection === "Open Settings") {
-            await vscode.commands.executeCommand("voicepilot.openSettings");
+            await vscode.commands.executeCommand("agentvoice.openSettings");
           }
         });
 
@@ -839,18 +839,18 @@ export class ExtensionController implements ServiceInitializable {
 
   private registerErrorObservers(): void {
     const subscription = this.errorEventBus.subscribe(
-      async (error: VoicePilotError) => {
+      async (error: AgentVoiceError) => {
         const sanitized = sanitizeForLog(error);
         switch (error.severity) {
           case "critical":
           case "error":
-            this.logger.error("VoicePilot error", sanitized);
+            this.logger.error("Agent Voice error", sanitized);
             break;
           case "warning":
-            this.logger.warn("VoicePilot warning", sanitized);
+            this.logger.warn("Agent Voice warning", sanitized);
             break;
           default:
-            this.logger.info("VoicePilot event", sanitized);
+            this.logger.info("Agent Voice event", sanitized);
             break;
         }
 
@@ -953,7 +953,7 @@ export class ExtensionController implements ServiceInitializable {
     void vscode.commands
       .executeCommand(
         "setContext",
-        "voicepilot.conversationState",
+        "agentvoice.conversationState",
         this.conversationMachine.getState().state,
       )
       .then(undefined, (error: unknown) => {
@@ -1021,7 +1021,7 @@ export class ExtensionController implements ServiceInitializable {
       try {
         await vscode.commands.executeCommand(
           "setContext",
-          "voicepilot.interruptionState",
+          "agentvoice.interruptionState",
           event.state,
         );
       } catch (error: any) {
@@ -1037,7 +1037,7 @@ export class ExtensionController implements ServiceInitializable {
     void vscode.commands
       .executeCommand(
         "setContext",
-        "voicepilot.interruptionState",
+        "agentvoice.interruptionState",
         this.interruptionEngine.getConversationState(),
       )
       .then(undefined, (error: unknown) => {
@@ -1092,7 +1092,7 @@ export class ExtensionController implements ServiceInitializable {
     try {
       await vscode.commands.executeCommand(
         "setContext",
-        "voicepilot.conversationState",
+        "agentvoice.conversationState",
         event.transition.to,
       );
     } catch (error: any) {
@@ -1256,7 +1256,7 @@ export class ExtensionController implements ServiceInitializable {
         return "User turn";
       }
       if (turn.turnRole === "assistant") {
-        return "VoicePilot speaking";
+        return "Agent Voice speaking";
       }
     }
     if (state === "waitingForCopilot") {

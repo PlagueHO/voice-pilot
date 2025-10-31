@@ -11,7 +11,7 @@ const DEFAULT_TTS_VOICE: TtsConfig['voice'] = {
 
 export class AudioSection {
   read(): AudioConfig {
-    const c = vscode.workspace.getConfiguration('voicepilot.audio');
+    const c = vscode.workspace.getConfiguration('agentvoice.audio');
     const defaultTurnDetection: TurnDetectionConfig = createDefaultTurnDetectionConfig();
     const configuredType = c.get<string>('turnDetection.type');
     const legacyMode = c.get<string>('turnDetection.mode');

@@ -40,7 +40,7 @@ describe('Configuration Manager', () => {
       }
     });
 
-    const commands = vscode.workspace.getConfiguration('voicepilot.commands');
+    const commands = vscode.workspace.getConfiguration('agentvoice.commands');
     await commands.update('timeout', 42, vscode.ConfigurationTarget.Global);
 
     // Give event loop more time to process the change

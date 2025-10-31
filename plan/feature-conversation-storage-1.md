@@ -3,7 +3,7 @@ goal: Implement conversation persistence storage subsystem
 version: 1.0
 date_created: 2025-10-21
 last_updated: 2025-10-21
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: Planned
 tags: [feature, storage, conversation]
 ---
@@ -16,9 +16,9 @@ Plan the end-to-end implementation of the SP-061 conversation persistence storag
 
 ## 1. Requirements & Constraints
 
-- **REQ-001**: Persist conversation blobs under `ExtensionContext.storageUri/voicepilot/conversations` using deterministic hashed filenames.
+- **REQ-001**: Persist conversation blobs under `ExtensionContext.storageUri/agentvoice/conversations` using deterministic hashed filenames.
 - **REQ-002**: Provide CRUD APIs (`createRecord`, `updateRecord`, `getRecord`, `listRecords`, `deleteRecord`, `purgeAll`, `commitSnapshot`, `getSnapshot`, `commitConversation`) matching `spec/sp-061-spec-design-conversation-storage.md` Section 4.
-- **SEC-001**: Encrypt all serialized payloads with AES-256-GCM using per-workspace keys stored in VS Code `SecretStorage` under `voicepilot.conversation.key`.
+- **SEC-001**: Encrypt all serialized payloads with AES-256-GCM using per-workspace keys stored in VS Code `SecretStorage` under `agentvoice.conversation.key`.
 - **PRI-001**: Accept only privacy-sanitized transcripts and propagate redaction metadata without exposing raw sensitive tokens.
 - **CON-001**: Enforce <10 MB uncompressed payload limit per conversation and cap write latency to ≤150 ms p95 with telemetry warnings when exceeded.
 - **GUD-001**: Maintain an in-memory metadata index refreshed on initialization and invalidated on purge or schema migration.
@@ -34,7 +34,7 @@ Plan the end-to-end implementation of the SP-061 conversation persistence storag
 |------|-------------|-----------|------|
 | TASK-001 | Create `src/types/conversation-storage.ts` defining `ConversationRecord`, `ConversationRecordInput`, `ConversationRecordMutation`, `ConversationSummary`, `ConversationMetrics`, `RetentionInfo`, `PrivacyEnvelope`, `StorageEnvelope`, `RecoverySnapshot`, `PurgeReport`, and related TypeScript guards exactly as specified; export the module from `src/types/index.ts`. |  |  |
 | TASK-002 | Extend `src/types/privacy.ts` to add new `PurgeReason` literals (`"retention-expired"`, `"privacy-policy-change"`, `"workspace-reset"`, `"corruption-detected"`) while retaining legacy values, update `isPurgeCommand` validation accordingly, and add unit coverage under `test/unit/privacy/privacy-controller.spec.ts`. |  |  |
-| TASK-003 | Add `src/services/conversation/conversation-storage-crypto.ts` exporting deterministic helpers `loadOrCreateWorkspaceKey`, `encryptPayload`, and `decryptPayload` using `randomBytes(32)` plus AES-256-GCM with 12-byte IVs; persist keys via `context.secrets.store("voicepilot.conversation.key", base64Key)` and memoize in-memory. |  |  |
+| TASK-003 | Add `src/services/conversation/conversation-storage-crypto.ts` exporting deterministic helpers `loadOrCreateWorkspaceKey`, `encryptPayload`, and `decryptPayload` using `randomBytes(32)` plus AES-256-GCM with 12-byte IVs; persist keys via `context.secrets.store("agentvoice.conversation.key", base64Key)` and memoize in-memory. |  |  |
 
 ### Implementation Phase 2
 

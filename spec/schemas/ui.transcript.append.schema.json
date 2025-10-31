@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/ui.transcript.append.schema.json",
+  "$id": "https://agentvoice/spec/ui.transcript.append.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "UI Transcript Append Envelope",
-  "description": "Transcript entry append message delivered to the VoicePilot webview.",
+  "description": "Transcript entry append message delivered to the Agent Voice webview.",
   "allOf": [
-    { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+    { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {
@@ -20,7 +20,7 @@
               "required": ["entryId", "speaker", "content", "timestamp"],
               "properties": {
                 "entryId": { "type": "string", "minLength": 1 },
-                "speaker": { "type": "string", "enum": ["user", "voicepilot", "copilot"] },
+                "speaker": { "type": "string", "enum": ["user", "agentvoice", "copilot"] },
                 "content": { "type": "string" },
                 "timestamp": { "type": "string", "format": "date-time" },
                 "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },

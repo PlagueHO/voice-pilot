@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 /**
- * Manages the VoicePilot chat webview so messages stay in sync with the extension.
+ * Manages the Agent Voice chat webview so messages stay in sync with the extension.
  * @remarks
  *  Provides a singleton-style webview panel that can be revealed or created on
  *  demand, and exposes helpers for appending new chat messages from the
@@ -28,7 +28,7 @@ export class ChatPanel {
     } else {
       this.panel = vscode.window.createWebviewPanel(
         "voicePilotChat",
-        "VoicePilot Chat",
+        "Agent Voice Chat",
         vscode.ViewColumn.One,
         {
           enableScripts: true,
@@ -54,7 +54,7 @@ export class ChatPanel {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>VoicePilot Chat</title>
+            <title>Agent Voice Chat</title>
             <style>
                 body { font-family: Arial, sans-serif; }
                 #messages { height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }

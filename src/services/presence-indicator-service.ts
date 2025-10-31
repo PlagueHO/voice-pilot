@@ -10,7 +10,7 @@ import {
     PresenceDetails,
     PresenceStateDescriptor,
     PresenceUpdate,
-    VoicePilotPresenceState,
+    AgentVoicePresenceState,
     isPresenceStateEqual,
     normalizePresenceState,
     resolvePresenceDescriptor,
@@ -450,7 +450,7 @@ export class PresenceIndicatorService implements vscode.Disposable {
    * @returns Detailed presence descriptor used in UI surfaces.
    */
   private buildPresenceDetails(
-    state: VoicePilotPresenceState,
+    state: AgentVoicePresenceState,
     descriptor: PresenceStateDescriptor,
   ): PresenceDetails {
     const normalized = normalizePresenceState(state);
@@ -510,7 +510,7 @@ export class PresenceIndicatorService implements vscode.Disposable {
    * @returns Status mode string when applicable.
    */
   private computeStatusMode(
-    state: VoicePilotPresenceState,
+    state: AgentVoicePresenceState,
   ): string | undefined {
     const normalized = normalizePresenceState(state);
     if (normalized === "suspended") {
@@ -535,7 +535,7 @@ export class PresenceIndicatorService implements vscode.Disposable {
    *
    * @returns The resolved presence state string.
    */
-  private determinePresenceState(): VoicePilotPresenceState {
+  private determinePresenceState(): AgentVoicePresenceState {
     if (
       !this.sessionId ||
       this.sessionState === SessionState.Idle ||
@@ -581,7 +581,7 @@ export class PresenceIndicatorService implements vscode.Disposable {
    */
   private mapConversationState(
     state: ConversationState,
-  ): VoicePilotPresenceState {
+  ): AgentVoicePresenceState {
     switch (state) {
       case "idle":
         return "idle";
