@@ -1,5 +1,5 @@
 name: "🧹 Chore request"
-description: Log a general maintenance, refactoring, or hygiene task for the VoicePilot VS Code extension
+description: Log a general maintenance, refactoring, or hygiene task for the Agent Voice VS Code extension
 labels: [chore]
 title: "[Chore]: "
 body:
