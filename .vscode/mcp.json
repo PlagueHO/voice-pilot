@@ -1,38 +1,38 @@
 {
-	"servers": {
-		"context7": {
-			"type": "stdio",
-			"command": "npx",
-			"args": [
-				"-y",
-				"@upstash/context7-mcp@latest"
-			]
-		},
-		"github": {
-			"url": "https://api.githubcopilot.com/mcp/",
-			"type": "http"
-		},
-		"playwright": {
-			"command": "npx",
-			"args": [
-				"-y",
-				"@playwright/mcp@latest"
-			],
-			"type": "stdio",
-			"env": {}
-		},
-		"azure-verified-module-docs": {
-			"type": "http",
-			"url": "https://gitmcp.io/Azure/bicep-registry-modules"
-		},
-		"playwright-test": {
-			"type": "stdio",
-			"command": "npx",
-			"args": [
-				"playwright",
-				"run-test-mcp-server"
-			]
-		}
-	},
-	"inputs": []
+  "servers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ]
+    },
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "type": "http"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "type": "stdio",
+      "env": {}
+    },
+    "azure-verified-module-docs": {
+      "type": "http",
+      "url": "https://gitmcp.io/Azure/bicep-registry-modules"
+    },
+    "playwright-test": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "playwright",
+        "run-test-mcp-server"
+      ]
+    }
+  },
+  "inputs": []
 }
