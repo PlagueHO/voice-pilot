@@ -1,27 +1,27 @@
 ---
-title: Testing & QA Strategy for VoicePilot
+title: Testing & QA Strategy for Agent Voice
 version: 0.1.0
 date_created: 2025-10-06
 last_updated: 2025-10-06
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [process, testing, quality, vscode-extension]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
-# Testing & QA Strategy for VoicePilot
+# Testing & QA Strategy for Agent Voice
 
 ## Introduction
 
-This specification defines the end-to-end testing and quality assurance strategy for the VoicePilot VS Code extension. It prescribes the layered test architecture, automation workflow, coverage targets, and quality gates required to safeguard the extension lifecycle described in `sp-001-spec-architecture-extension-lifecycle.md`.
+This specification defines the end-to-end testing and quality assurance strategy for the Agent Voice VS Code extension. It prescribes the layered test architecture, automation workflow, coverage targets, and quality gates required to safeguard the extension lifecycle described in `sp-001-spec-architecture-extension-lifecycle.md`.
 
 ## 1. Purpose & Scope
 
-The purpose of this specification is to standardize testing practices, tooling, and success criteria for VoicePilot. It covers unit, integration, end-to-end, performance, and regression testing across the extension host and supporting services. The intended audience includes extension developers, QA engineers, release managers, and CI/CD maintainers. Assumptions: contributors use the provided VS Code tasks, follow the dependency-injection architecture, and have access to the dev container toolchain (Node.js 22+, Mocha, `@vscode/test-electron`).
+The purpose of this specification is to standardize testing practices, tooling, and success criteria for Agent Voice. It covers unit, integration, end-to-end, performance, and regression testing across the extension host and supporting services. The intended audience includes extension developers, QA engineers, release managers, and CI/CD maintainers. Assumptions: contributors use the provided VS Code tasks, follow the dependency-injection architecture, and have access to the dev container toolchain (Node.js 22+, Mocha, `@vscode/test-electron`).
 
 ## 2. Definitions
 
 - **CI**: Continuous Integration; automated pipelines triggered by commits or pull requests.
-- **DI**: Dependency Injection; service orchestration pattern used by VoicePilot controllers.
+- **DI**: Dependency Injection; service orchestration pattern used by Agent Voice controllers.
 - **E2E Test**: End-to-end test executed against a packaged extension in a VS Code instance.
 - **Fixture Workspace**: Minimal project folder provisioned for integration and E2E tests.
 - **Gate Task**: A VS Code task that must succeed before code can merge.
@@ -88,7 +88,7 @@ The purpose of this specification is to standardize testing practices, tooling, 
 
 ## 7. Rationale & Context
 
-VoicePilot depends on deterministic service orchestration; testing must verify lifecycle contracts to prevent regressions that violate SP-001. Layered testing reduces feedback loops, while performance and regression suites protect the five-second activation budget and resource hygiene. Enforcing VS Code tasks ensures consistent developer workflows inside the dev container and CI environments.
+Agent Voice depends on deterministic service orchestration; testing must verify lifecycle contracts to prevent regressions that violate SP-001. Layered testing reduces feedback loops, while performance and regression suites protect the five-second activation budget and resource hygiene. Enforcing VS Code tasks ensures consistent developer workflows inside the dev container and CI environments.
 
 ## 8. Dependencies & External Integrations
 

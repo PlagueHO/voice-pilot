@@ -47,7 +47,7 @@ var azureAiFoundryModels = loadJsonContent('./azure-ai-foundry-models.json')
 var tags = {
   // Tag all resources with the environment name.
   'azd-env-name': environmentName
-  project: 'voice-pilot'
+  project: 'agent-voice'
 }
 
 // Generate a unique token to be used in naming resources.

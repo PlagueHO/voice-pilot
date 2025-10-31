@@ -7,7 +7,7 @@ import { Logger } from "../core/logger";
  * Metadata used when dispatching prompts to GitHub Copilot.
  */
 export interface CopilotPromptOptions {
-  /** Maps the prompt to an existing VoicePilot conversation. */
+  /** Maps the prompt to an existing Agent Voice conversation. */
   conversationId?: string;
   /** Associates the prompt with a specific conversation turn. */
   turnId?: string;
@@ -16,7 +16,7 @@ export interface CopilotPromptOptions {
 }
 
 /**
- * Bridges VoicePilot conversation events to the Copilot Chat APIs.
+ * Bridges Agent Voice conversation events to the Copilot Chat APIs.
  *
  * @remarks
  * This implementation currently emits placeholder responses while the

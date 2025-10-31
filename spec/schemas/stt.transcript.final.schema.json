@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/stt.transcript.final.schema.json",
+  "$id": "https://agentvoice/spec/stt.transcript.final.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "STT Transcript Final Envelope",
   "description": "Finalized transcript segment emitted by the transcription service.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

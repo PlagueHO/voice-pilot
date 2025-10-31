@@ -3,7 +3,7 @@ goal: Implement Interruption & Turn-Taking Engine per SP-011
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, realtime, azure]
 ---
@@ -19,7 +19,7 @@ This plan defines the deterministic implementation steps required to deliver the
 - **REQ-001**: Implement an `InterruptionEngine` service that enforces single active speaker state and exposes event subscriptions as defined in SP-011 Section 4.
 - **REQ-002**: Propagate conversation state updates to UI context keys and telemetry consumers within 50 ms of state change.
 - **REQ-003**: Cancel active TTS playback within 250 ms when user barge-in is detected using Azure VAD events.
-- **REQ-004**: Persist configurable policy profiles via Configuration Manager keys `voicepilot.conversation.policyProfile` and `voicepilot.conversation.interruptionBudgetMs`.
+- **REQ-004**: Persist configurable policy profiles via Configuration Manager keys `agentvoice.conversation.policyProfile` and `agentvoice.conversation.interruptionBudgetMs`.
 - **SEC-001**: Prevent leakage of raw audio or sensitive interruption metadata outside trusted extension channels; ensure logs redact audio payloads.
 - **SEC-002**: Validate configuration inputs to enforce minimum silence duration (≥150 ms) and maximum interruption budget (≤750 ms).
 - **CON-001**: Ensure handler execution latency per event remains ≤5 ms by using non-blocking async patterns.
@@ -47,7 +47,7 @@ This plan defines the deterministic implementation steps required to deliver the
 |------|-------------|-----------|------|
 | TASK-004 | Wire Azure VAD events from `src/audio/turn-detection-coordinator.ts` (or new module if required) into `InterruptionEngine.handleSpeechEvent`, ensuring message schemas match SP-011 `SpeechActivityEvent`. |  |  |
 | TASK-005 | Connect TTS playback callbacks in `src/audio/tts-service.ts` to invoke `handlePlaybackEvent` and apply cancellation logic using `response.cancel` / `output_audio_buffer.clear` to satisfy REQ-003. |  |  |
-| TASK-006 | Update `src/ui/voice-control-panel.ts` messaging handlers to react to turn events, set `voicepilot.conversationState` context, and surface fallback notifications when state = `recovering`. |  |  |
+| TASK-006 | Update `src/ui/voice-control-panel.ts` messaging handlers to react to turn events, set `agentvoice.conversationState` context, and surface fallback notifications when state = `recovering`. |  |  |
 
 ### Implementation Phase 3
 

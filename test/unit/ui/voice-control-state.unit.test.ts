@@ -55,7 +55,7 @@ suite("Unit: VoiceControlState", () => {
     const baseState = createInitialPanelState();
     const existing: TranscriptEntry = {
       entryId: "merge-id",
-      speaker: "voicepilot",
+      speaker: "agentvoice",
       content: "Partial text",
       timestamp: new Date().toISOString(),
       confidence: 0.3,
@@ -68,7 +68,7 @@ suite("Unit: VoiceControlState", () => {
 
     const update: TranscriptEntry = {
       entryId: "merge-id",
-      speaker: "voicepilot",
+      speaker: "agentvoice",
       content: "Final text",
       timestamp: existing.timestamp,
       confidence: 0.92,

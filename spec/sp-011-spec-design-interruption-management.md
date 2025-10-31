@@ -3,14 +3,14 @@ title: Interruption & Turn-Taking Engine Specification
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, conversation, audio, realtime, azure]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # Introduction
 
-This specification defines the interruption and turn-taking engine that coordinates conversational control across VoicePilot’s realtime audio pipeline. The engine orchestrates user and assistant turns, manages barge-in behaviour, synchronizes with Azure OpenAI GPT Realtime API signals, and keeps UI states aligned with speech activity. It bridges voice activity detection (SP-008), realtime transcription (SP-009), text-to-speech playback (SP-010), and the forthcoming conversation state machine (SP-012) to deliver a natural, low-latency dialogue experience consistent with the UI principles documented in `docs/design/UI.md` and the component responsibilities in `docs/design/COMPONENTS.md`.
+This specification defines the interruption and turn-taking engine that coordinates conversational control across Agent Voice’s realtime audio pipeline. The engine orchestrates user and assistant turns, manages barge-in behaviour, synchronizes with Azure OpenAI GPT Realtime API signals, and keeps UI states aligned with speech activity. It bridges voice activity detection (SP-008), realtime transcription (SP-009), text-to-speech playback (SP-010), and the forthcoming conversation state machine (SP-012) to deliver a natural, low-latency dialogue experience consistent with the UI principles documented in `docs/design/UI.md` and the component responsibilities in `docs/design/COMPONENTS.md`.
 
 ## 1. Purpose & Scope
 
@@ -20,11 +20,11 @@ The specification covers the functional rules, interfaces, and operational workf
 - Coordinate Azure server VAD events, local heuristics, and manual overrides to detect turn boundaries and interruptions.
 - Control speech synthesis playback and transcription flow to support barge-in, polite handoffs, and conversation pausing.
 - Provide deterministic state propagation to UI components, Copilot orchestration, and downstream analytics.
-- Enforce security, accessibility, and performance constraints consistent with VoicePilot architecture.
+- Enforce security, accessibility, and performance constraints consistent with Agent Voice architecture.
 
 The scope excludes the detailed state machine specification (covered by SP-012 once authored) and low-level audio capture/decoding (SP-007). The ITE depends on those components but focuses on orchestration and policy.
 
-**Intended Audience**: VoicePilot extension engineers, audio/session orchestrators, QA automation engineers, and interaction designers.
+**Intended Audience**: Agent Voice extension engineers, audio/session orchestrators, QA automation engineers, and interaction designers.
 
 **Assumptions**:
 
@@ -160,7 +160,7 @@ Messaging payloads exchanged between the webview and extension host SHALL follow
 
 ```json
 {
-  "type": "voicepilot.turn.event",
+  "type": "agentvoice.turn.event",
   "payload": {
     "state": "listening",
     "turn": {
@@ -187,7 +187,7 @@ Messaging payloads exchanged between the webview and extension host SHALL follow
 
 ## 6. Test Automation Strategy
 
-- **Test Levels**: Unit tests for state machine transitions and policy application; integration tests with simulated Azure realtime events and mocked TTS/STT services; VS Code extension host tests verifying UI context updates (`voicepilot.conversationState`).
+- **Test Levels**: Unit tests for state machine transitions and policy application; integration tests with simulated Azure realtime events and mocked TTS/STT services; VS Code extension host tests verifying UI context updates (`agentvoice.conversationState`).
 - **Frameworks**: Mocha + Sinon for unit/integration (Node context), Playwright for webview event sequencing, `@vscode/test-electron` for end-to-end interruption scenarios.
 - **Test Data Management**: JSON fixtures representing Azure event sequences (normal, barge-in, degraded), audio playback mocks, and configuration permutations stored under `test/fixtures/turn-engine`.
 - **CI/CD Integration**: Include deterministic interruption suites in `npm run test:unit`; gate release builds with integration scenarios executed via `Test Extension`. Provide optional `TURN_ENGINE_TRACE=1` env flag to emit verbose logs during CI diagnostics.
@@ -198,7 +198,7 @@ Messaging payloads exchanged between the webview and extension host SHALL follow
 
 ## 7. Rationale & Context
 
-Azure’s GPT Realtime API provides authoritative turn detection signals and supports interruption features such as `interrupt_response` and `output_audio_buffer.clear`. Leveraging these capabilities (per the Technical Reference Index quickstart and reference documents) minimizes custom DSP complexity while enabling synchronized captions and playback control. The ITE centralizes policy decisions so that STT (SP-009) and TTS (SP-010) remain focused on streaming, while Session Manager (SP-005) handles lifecycle. UI guidelines demand immediate, accessible feedback when users interrupt VoicePilot, and component architecture (COMPONENTS.md) assigns coordination responsibilities to the session layer; this spec formalizes the contracts ensuring cohesive behaviour. Future state machine work (SP-012) will refine transitions, but the patterns and interfaces defined here ensure forward compatibility.
+Azure’s GPT Realtime API provides authoritative turn detection signals and supports interruption features such as `interrupt_response` and `output_audio_buffer.clear`. Leveraging these capabilities (per the Technical Reference Index quickstart and reference documents) minimizes custom DSP complexity while enabling synchronized captions and playback control. The ITE centralizes policy decisions so that STT (SP-009) and TTS (SP-010) remain focused on streaming, while Session Manager (SP-005) handles lifecycle. UI guidelines demand immediate, accessible feedback when users interrupt Agent Voice, and component architecture (COMPONENTS.md) assigns coordination responsibilities to the session layer; this spec formalizes the contracts ensuring cohesive behaviour. Future state machine work (SP-012) will refine transitions, but the patterns and interfaces defined here ensure forward compatibility.
 
 ## 8. Dependencies & External Integrations
 
@@ -220,12 +220,12 @@ Azure’s GPT Realtime API provides authoritative turn detection signals and sup
 
 - **DAT-001**: Transcript events from STT service (SP-009) for turn validation and captions.
 - **DAT-002**: Playback metrics from TTS service (SP-010) to determine speaking state and latency.
-- **DAT-003**: Configuration settings (`voicepilot.conversation.policyProfile`, etc.) managed by Configuration Manager (SP-002).
+- **DAT-003**: Configuration settings (`agentvoice.conversation.policyProfile`, etc.) managed by Configuration Manager (SP-002).
 
 ### Technology Platform Dependencies
 
 - **PLT-001**: VS Code webview messaging channel for real-time state propagation.
-- **PLT-002**: Extension host command registry for manual interruption controls (`voicepilot.stopSession`, future `voicepilot.interruptAssistant`).
+- **PLT-002**: Extension host command registry for manual interruption controls (`agentvoice.stopSession`, future `agentvoice.interruptAssistant`).
 - **PLT-003**: Upcoming Conversation State Machine module (SP-012) for deterministic transitions.
 
 ### Compliance Dependencies
@@ -250,7 +250,7 @@ await engine.configure({
 engine.onEvent(event => {
   if (event.type === 'interruption') {
     logger.info('User barge-in detected', event.diagnostics);
-    vscode.commands.executeCommand('setContext', 'voicepilot.conversationState', event.state);
+    vscode.commands.executeCommand('setContext', 'agentvoice.conversationState', event.state);
   }
 });
 
@@ -304,7 +304,7 @@ await engine.handleSpeechEvent({
 
 - Comprehensive test suite covers acceptance criteria AC-001 through AC-008 with automated assertions.
 - Latency metrics collected during integration tests confirm interruption budget adherence (<250 ms) and assistant start delay (<300 ms) across sample dialogs.
-- UI state context (`voicepilot.conversationState`) mirrors engine state transitions during manual and automated tests.
+- UI state context (`agentvoice.conversationState`) mirrors engine state transitions during manual and automated tests.
 - Fallback and recovery pathways execute without leaving dangling playback sessions or inconsistent turns.
 - Configuration validation rejects unsafe values and logs remediation guidance.
 - Structured logs redact sensitive content while preserving diagnostics for troubleshooting.

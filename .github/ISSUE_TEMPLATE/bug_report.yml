@@ -1,5 +1,5 @@
 name: "\U0001F41B Bug report"
-description: Report a bug or unexpected behavior in the VoicePilot VS Code extension
+description: Report a bug or unexpected behavior in the Agent Voice VS Code extension
 title: "[Bug]: "
 labels: [bug]
 body:
@@ -58,7 +58,7 @@ body:
     attributes:
       label: Environment Details
       description: OS, VS Code version, Node.js version, extension version, etc.
-      placeholder: "e.g., Windows 11, VS Code 1.92.0, Node.js 20.15.0, VoicePilot 1.0.0"
+      placeholder: "e.g., Windows 11, VS Code 1.92.0, Node.js 20.15.0, Agent Voice 1.0.0"
     validations:
       required: false
   - type: textarea

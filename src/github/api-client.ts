@@ -1,7 +1,7 @@
 import axios from "axios";
 
 /**
- * Thin wrapper around the GitHub REST API used by VoicePilot to manage issues.
+ * Thin wrapper around the GitHub REST API used by Agent Voice to manage issues.
  */
 export class ApiClient {
   /** GitHub API base URL (enterprise or public). */

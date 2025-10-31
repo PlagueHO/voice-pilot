@@ -12,7 +12,7 @@ const DEFAULT_POLICY: ConversationConfig = {
 
 export class ConversationSection {
   read(): ConversationConfig {
-    const config = vscode.workspace.getConfiguration('voicepilot.conversation');
+    const config = vscode.workspace.getConfiguration('agentvoice.conversation');
     return {
       policyProfile: config.get('policyProfile', DEFAULT_POLICY.policyProfile) as ConversationConfig['policyProfile'],
       interruptionBudgetMs: config.get('interruptionBudgetMs', DEFAULT_POLICY.interruptionBudgetMs),

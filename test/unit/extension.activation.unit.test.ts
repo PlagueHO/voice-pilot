@@ -96,12 +96,12 @@ suite('Unit: extension activation lifecycle', () => {
     expect(availability, 'voice panel should reflect Copilot availability').to.deep.equal([true]);
     expect(
       executed.some(
-        (entry) => entry.command === 'setContext' && entry.args[0] === 'voicepilot.copilotAvailable' && entry.args[1] === true,
+        (entry) => entry.command === 'setContext' && entry.args[0] === 'agentvoice.copilotAvailable' && entry.args[1] === true,
       ),
     ).to.equal(true);
     expect(
       executed.some(
-        (entry) => entry.command === 'setContext' && entry.args[0] === 'voicepilot.activated' && entry.args[1] === true,
+        (entry) => entry.command === 'setContext' && entry.args[0] === 'agentvoice.activated' && entry.args[1] === true,
       ),
     ).to.equal(true);
     expect(context.subscriptions.length >= 2, 'disposables should be registered on the context').to.equal(true);
@@ -166,7 +166,7 @@ suite('Unit: extension activation lifecycle', () => {
     expect(ensureCalls, 'ensure install should be attempted when Copilot is unavailable').to.equal(1);
     expect(availability, 'voice panel should mark Copilot as unavailable').to.deep.equal([false]);
     const availabilityContext = executed.find(
-      (entry) => entry.command === 'setContext' && entry.args[0] === 'voicepilot.copilotAvailable',
+      (entry) => entry.command === 'setContext' && entry.args[0] === 'agentvoice.copilotAvailable',
     );
     expect(Boolean(availabilityContext), 'setContext for copilot availability should be executed').to.equal(true);
     expect(availabilityContext?.args[1]).to.equal(false);
@@ -206,7 +206,7 @@ suite('Unit: extension activation lifecycle', () => {
 
     expect(disposeCalls, 'controller.dispose should be invoked after failure').to.equal(1);
     expect(
-      errorMessages.some((msg) => msg.includes('VoicePilot activation failed: controller init failed')),
+      errorMessages.some((msg) => msg.includes('Agent Voice activation failed: controller init failed')),
       'user-facing error should be shown',
     ).to.equal(true);
     expect(recorded.includes('activation.failed'), 'lifecycle telemetry should record activation failure').to.equal(true);

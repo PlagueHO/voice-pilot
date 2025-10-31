@@ -17,7 +17,7 @@ describe('Configuration Validation', () => {
   }
 
   it('Detects invalid endpoint format', async () => {
-    const cfg = vscode.workspace.getConfiguration('voicepilot.azureOpenAI');
+    const cfg = vscode.workspace.getConfiguration('agentvoice.azureOpenAI');
     await cfg.update('endpoint', 'http://bad-endpoint', vscode.ConfigurationTarget.Global);
     const mgr = await createManager();
     const result = mgr.getDiagnostics();
@@ -27,12 +27,12 @@ describe('Configuration Validation', () => {
   });
 
   it('Valid sensitivity range passes', async () => {
-    const commands = vscode.workspace.getConfiguration('voicepilot.commands');
+    const commands = vscode.workspace.getConfiguration('agentvoice.commands');
     await commands.update('sensitivity', 0.9, vscode.ConfigurationTarget.Global);
     const mgr = await createManager();
     const result = mgr.getDiagnostics();
     assert.ok(result);
-    const sensErrors = result!.errors.filter(e => e.path === 'voicepilot.commands.sensitivity');
+    const sensErrors = result!.errors.filter(e => e.path === 'agentvoice.commands.sensitivity');
     assert.strictEqual(sensErrors.length, 0, 'No sensitivity errors expected for 0.9');
   });
 });

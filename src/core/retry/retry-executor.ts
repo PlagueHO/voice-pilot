@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
-import type { VoicePilotFaultDomain } from "../../types/error/error-taxonomy";
+import type { AgentVoiceFaultDomain } from "../../types/error/error-taxonomy";
 import type {
     CircuitBreakerState,
-    VoicePilotError,
-} from "../../types/error/voice-pilot-error";
+    AgentVoiceError,
+} from "../../types/error/agent-voice-error";
 import { Logger } from "../logger";
 import type {
     RetryExecutionContext,
@@ -37,7 +37,7 @@ const cloneCircuit = (state: CircuitBreakerState | undefined): CircuitBreakerSta
 
 export class RetryExecutorImpl implements RetryExecutor {
   private initialized = false;
-  private readonly breakers = new Map<VoicePilotFaultDomain, CircuitBreakerState>();
+  private readonly breakers = new Map<AgentVoiceFaultDomain, CircuitBreakerState>();
 
   constructor(private readonly logger: Logger) {}
 
@@ -54,11 +54,11 @@ export class RetryExecutorImpl implements RetryExecutor {
     this.initialized = false;
   }
 
-  getCircuitBreakerState(domain: VoicePilotFaultDomain): CircuitBreakerState | undefined {
+  getCircuitBreakerState(domain: AgentVoiceFaultDomain): CircuitBreakerState | undefined {
     return cloneCircuit(this.breakers.get(domain));
   }
 
-  reset(domain: VoicePilotFaultDomain): void {
+  reset(domain: AgentVoiceFaultDomain): void {
     this.breakers.delete(domain);
   }
 
@@ -80,7 +80,7 @@ export class RetryExecutorImpl implements RetryExecutor {
     let attempt = 0;
     let totalDuration = 0;
     let previousDelay = 0;
-    let lastError: VoicePilotError | undefined;
+    let lastError: AgentVoiceError | undefined;
 
     while (attempt < envelope.maxAttempts) {
       if (this.isCircuitOpen(breaker, context.clock.now())) {
@@ -205,7 +205,7 @@ export class RetryExecutorImpl implements RetryExecutor {
   }
 
   private ensureBreaker(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
     cooldownMs: number,
     maxAttempts: number,
   ): CircuitBreakerState {
@@ -250,12 +250,12 @@ export class RetryExecutorImpl implements RetryExecutor {
   private async resolveCircuitOpenError(
     context: RetryExecutionContext,
     breaker: CircuitBreakerState,
-  ): Promise<VoicePilotError> {
+  ): Promise<AgentVoiceError> {
     const error = await context.onCircuitOpen?.(cloneCircuit(breaker)!);
     if (error) {
       return error;
     }
-    const fallback: VoicePilotError = {
+    const fallback: AgentVoiceError = {
       id: randomUUID(),
       faultDomain: context.envelope.domain,
       severity: context.severity ?? "error",
@@ -359,7 +359,7 @@ export class RetryExecutorImpl implements RetryExecutor {
       }
     }
 
-    const fallbackError: VoicePilotError = {
+    const fallbackError: AgentVoiceError = {
       id: randomUUID(),
       faultDomain: context.envelope.domain,
       severity: context.severity ?? "error",
@@ -379,7 +379,7 @@ export class RetryExecutorImpl implements RetryExecutor {
   }
 
   private updateBreakerOnFailure(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
     breaker: CircuitBreakerState,
     attempt: number,
     envelope: RetryExecutionContext["envelope"],

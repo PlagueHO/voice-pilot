@@ -3,18 +3,18 @@ title: Error Handling & Recovery Framework
 version: 1.0
 date_created: 2025-09-27
 last_updated: 2025-09-27
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, reliability, error-handling, recovery]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # Introduction
 
-This specification defines the unified error handling and recovery framework for VoicePilot. The framework delivers a consistent taxonomy, propagation model, and remediation workflow across the extension host, webview audio stack, Azure integrations, and user interface surfaces. It coordinates fault detection, structured logging, user feedback, and automated retries so real-time voice conversations stay resilient while protecting sensitive credentials and minimizing user friction.
+This specification defines the unified error handling and recovery framework for Agent Voice. The framework delivers a consistent taxonomy, propagation model, and remediation workflow across the extension host, webview audio stack, Azure integrations, and user interface surfaces. It coordinates fault detection, structured logging, user feedback, and automated retries so real-time voice conversations stay resilient while protecting sensitive credentials and minimizing user friction.
 
 ## 1. Purpose & Scope
 
-This specification covers the architectural requirements for fault detection, classification, mitigation, and communication throughout VoicePilot, including:
+This specification covers the architectural requirements for fault detection, classification, mitigation, and communication throughout Agent Voice, including:
 
 - Standardized error taxonomy spanning authentication (SP-004), session lifecycle (SP-005), WebRTC transport (SP-006), and audio capture (SP-007).
 - Cross-component recovery orchestration with dependency-aware retry envelopes and escalation pathways.
@@ -47,12 +47,12 @@ Assumptions:
 ## 3. Requirements, Constraints & Guidelines
 
 - **REQ-001**: The framework SHALL define a shared error taxonomy covering severity, fault domain, and user impact across host and webview contexts.
-- **REQ-002**: All VoicePilot services SHALL wrap thrown exceptions in the canonical error envelope before propagation.
+- **REQ-002**: All Agent Voice services SHALL wrap thrown exceptions in the canonical error envelope before propagation.
 - **REQ-003**: Error envelopes SHALL include remediation instructions localized for UI consumption.
 - **REQ-004**: Recovery plans SHALL be idempotent and observable, exposing completion and failure states to the session manager.
 - **REQ-005**: Automated retries SHALL respect per-domain envelopes (authentication, network, audio) with configurable caps from configuration manager.
 - **REQ-006**: The framework SHALL emit structured logs compatible with existing logger patterns and append correlation identifiers shared with Azure requests.
-- **REQ-007**: User notifications SHALL comply with VoicePilot accessibility guidance (UI.md) and avoid overwhelming users via suppression windows.
+- **REQ-007**: User notifications SHALL comply with Agent Voice accessibility guidance (UI.md) and avoid overwhelming users via suppression windows.
 - **SEC-001**: Sensitive credentials, transcripts, or personal data SHALL be redacted prior to logging or UI display in accordance with SP-003 and SP-027.
 - **SEC-002**: Error channels crossing host ↔ webview SHALL validate payload schemas to prevent injection or malformed message attacks (COMPONENTS.md).
 - **RCV-001**: Recovery flows SHALL coordinate with session state machine (SP-012) to avoid conflicting transitions (e.g., ending while renewing).
@@ -71,8 +71,8 @@ Assumptions:
 ## 4. Interfaces & Data Contracts
 
 ```typescript
-// Canonical error envelope exchanged across VoicePilot services
-export interface VoicePilotError {
+// Canonical error envelope exchanged across Agent Voice services
+export interface Agent VoiceError {
   id: string; // UUID for correlation
   faultDomain: 'auth' | 'session' | 'transport' | 'audio' | 'ui' | 'copilot' | 'infrastructure';
   severity: 'info' | 'warning' | 'error' | 'critical';
@@ -116,7 +116,7 @@ export interface RecoveryStep {
 export interface RecoveryOutcome {
   success: boolean;
   durationMs: number;
-  error?: VoicePilotError;
+  error?: Agent VoiceError;
 }
 
 export interface TelemetryContext {
@@ -134,31 +134,31 @@ export interface TelemetryContext {
 
 // Publish/subscribe contract for error events
 export interface ErrorEventBus extends ServiceInitializable {
-  publish(error: VoicePilotError): Promise<void>;
+  publish(error: Agent VoiceError): Promise<void>;
   subscribe(handler: ErrorEventHandler, options?: SubscriptionOptions): vscode.Disposable;
 }
 
 export interface ErrorEventHandler {
-  (error: VoicePilotError): Promise<void> | void;
+  (error: Agent VoiceError): Promise<void> | void;
 }
 
 export interface SubscriptionOptions {
-  domains?: VoicePilotError['faultDomain'][];
-  severities?: VoicePilotError['severity'][];
+  domains?: Agent VoiceError['faultDomain'][];
+  severities?: Agent VoiceError['severity'][];
   once?: boolean;
 }
 
 // UI adapter contract aligning with UI.md patterns
 export interface ErrorPresentationAdapter {
-  showStatusBarBadge(error: VoicePilotError): Promise<void>;
-  showPanelBanner(error: VoicePilotError): Promise<void>;
-  appendTranscriptNotice(error: VoicePilotError): Promise<void>;
-  clearSuppressedNotifications(domain: VoicePilotError['faultDomain']): Promise<void>;
+  showStatusBarBadge(error: Agent VoiceError): Promise<void>;
+  showPanelBanner(error: Agent VoiceError): Promise<void>;
+  appendTranscriptNotice(error: Agent VoiceError): Promise<void>;
+  clearSuppressedNotifications(domain: Agent VoiceError['faultDomain']): Promise<void>;
 }
 
 // Integration points for dependent services
 export interface RecoverableService {
-  domain: VoicePilotError['faultDomain'];
+  domain: Agent VoiceError['faultDomain'];
   withRecovery<T>(operation: () => Promise<T>, context: RecoveryContext): Promise<T>;
   registerRecoveryActions(registrar: RecoveryRegistrar): void;
 }
@@ -179,7 +179,7 @@ export interface RecoveryContext {
 
 ## 5. Acceptance Criteria
 
-- **AC-001**: Given a fault within the Ephemeral Key Service, When the service throws an error, Then the framework wraps it in `VoicePilotError` with domain `auth`, assigns remediation guidance, and publishes it to subscribers within 50ms.
+- **AC-001**: Given a fault within the Ephemeral Key Service, When the service throws an error, Then the framework wraps it in `Agent VoiceError` with domain `auth`, assigns remediation guidance, and publishes it to subscribers within 50ms.
 - **AC-002**: Given three consecutive network failures for WebRTC negotiation, When recovery plans execute, Then the circuit breaker opens and the UI displays a degraded mode banner while metrics record the transition.
 - **AC-003**: Given an audio device disconnection, When the audio pipeline triggers recovery, Then a retry plan attempts device reset twice before surfacing an interactive notification aligned with UI.md accessibility requirements.
 - **AC-004**: Given a Copilot dependency outage, When fallback to transcription-only mode is required, Then session state transitions to `degraded` without dropping the active conversation and the user receives actionable guidance.
@@ -199,7 +199,7 @@ export interface RecoveryContext {
 
 ## 7. Rationale & Context
 
-Consolidating error handling into a single architectural framework ensures VoicePilot meets reliability, security, and accessibility goals while supporting Azure real-time workloads:
+Consolidating error handling into a single architectural framework ensures Agent Voice meets reliability, security, and accessibility goals while supporting Azure real-time workloads:
 
 1. **Alignment with Dependencies**: SP-004, SP-005, SP-006, and SP-007 each define specific failure scenarios; this spec harmonizes their outputs into a predictable pipeline for the conversation state machine (SP-012) and UI design system.
 2. **User Trust**: Consistent messaging and remediation, guided by UI.md, prevent confusion during outages and reinforce transparency.
@@ -257,8 +257,8 @@ async function startRealtimeSession() {
 }
 
 errorEventBus.subscribe(async (error) => {
-  await logger.error('VoicePilot error', redact(error));
-  await metrics.increment(`voicepilot.errors.${error.faultDomain}.${error.severity}`);
+  await logger.error('Agent Voice error', redact(error));
+  await metrics.increment(`agentvoice.errors.${error.faultDomain}.${error.severity}`);
 
   if (error.userImpact !== 'transparent') {
     await uiAdapter.showPanelBanner(error);
@@ -292,6 +292,6 @@ Edge cases handled:
 - [SP-006 — WebRTC Audio Transport Layer](./sp-006-spec-architecture-webrtc-audio.md)
 - [SP-007 — Audio Capture Pipeline Architecture](./sp-007-spec-architecture-audio-capture-pipeline.md)
 - [SP-012 — Conversation State Machine](./sp-012-spec-architecture-conversation-state-machine.md)
-- [VoicePilot UI Design](../docs/design/UI.md)
-- [VoicePilot Components Overview](../docs/design/COMPONENTS.md)
+- [Agent Voice UI Design](../docs/design/UI.md)
+- [Agent Voice Components Overview](../docs/design/COMPONENTS.md)
 - [Azure OpenAI Realtime API Reference](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/realtime-audio-reference)

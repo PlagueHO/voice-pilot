@@ -3,18 +3,18 @@ title: Retry & Backoff Strategy Framework
 version: 1.0
 date_created: 2025-10-05
 last_updated: 2025-10-05
-owner: VoicePilot Reliability Engineering
+owner: Agent Voice Reliability Engineering
 tags: [process, reliability, retry, backoff, resilience]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # Introduction
 
-This specification defines the standardized retry and backoff strategy used by VoicePilot services when recovering from transient faults. It establishes uniform envelopes, jitter policies, instrumentation hooks, and integration touchpoints with the error handling framework so that automated remediation behaves predictably across authentication, transport, audio, and Copilot domains.
+This specification defines the standardized retry and backoff strategy used by Agent Voice services when recovering from transient faults. It establishes uniform envelopes, jitter policies, instrumentation hooks, and integration touchpoints with the error handling framework so that automated remediation behaves predictably across authentication, transport, audio, and Copilot domains.
 
 ## 1. Purpose & Scope
 
-The purpose of this specification is to prescribe how retries are planned, executed, observed, and escalated throughout the VoicePilot architecture. It applies to all host and webview services that perform recoverable operations, including Azure OpenAI interactions, session lifecycle management, WebRTC transport setup, audio pipelines, and Copilot adapters. The intended audience includes reliability engineers, service owners, and extension developers integrating with the `VoicePilotError` recovery contracts defined in SP-028. Assumptions:
+The purpose of this specification is to prescribe how retries are planned, executed, observed, and escalated throughout the Agent Voice architecture. It applies to all host and webview services that perform recoverable operations, including Azure OpenAI interactions, session lifecycle management, WebRTC transport setup, audio pipelines, and Copilot adapters. The intended audience includes reliability engineers, service owners, and extension developers integrating with the `Agent VoiceError` recovery contracts defined in SP-028. Assumptions:
 
 - The error handling and recovery framework (SP-028) is available and initialized before retry execution.
 - Services expose typed errors and integrate with the session state machine per SP-005 and SP-012.
@@ -34,7 +34,7 @@ The purpose of this specification is to prescribe how retries are planned, execu
 ## 3. Requirements, Constraints & Guidelines
 
 - **REQ-001**: The framework SHALL provide predefined retry envelopes for each fault domain with default values covering attempts, delays, and backoff multipliers.
-- **REQ-002**: The retry executor SHALL integrate with the `VoicePilotError.retryPlan` contract, updating attempt counts, next attempt timestamps, and circuit breaker state.
+- **REQ-002**: The retry executor SHALL integrate with the `Agent VoiceError.retryPlan` contract, updating attempt counts, next attempt timestamps, and circuit breaker state.
 - **REQ-003**: Retry execution SHALL emit structured telemetry aligned with OBS-001/OBS-002 of SP-028, including correlation identifiers and duration metrics.
 - **REQ-004**: Jitter SHALL be applied using deterministic seeding derived from the correlation identifier to prevent synchronized retries across services.
 - **REQ-005**: Workspace configuration SHALL permit overriding domain envelopes while respecting minimum and maximum guardrails enforced by this specification.
@@ -56,7 +56,7 @@ The purpose of this specification is to prescribe how retries are planned, execu
 
 ```typescript
 export interface RetryEnvelope {
-  domain: VoicePilotError['faultDomain'];
+  domain: Agent VoiceError['faultDomain'];
   policy: 'none' | 'immediate' | 'exponential' | 'linear' | 'hybrid';
   initialDelayMs: number;
   multiplier: number;
@@ -83,25 +83,25 @@ export interface RetryOutcome {
   success: boolean;
   attempts: number;
   totalDurationMs: number;
-  lastError?: VoicePilotError;
+  lastError?: Agent VoiceError;
   fallbackMode?: RecoveryPlan['fallbackMode'];
   circuitBreakerOpened?: boolean;
 }
 
 export interface RetryExecutor extends ServiceInitializable {
   execute<T>(fn: () => Promise<T>, context: RetryExecutionContext): Promise<T>;
-  getCircuitBreakerState(domain: VoicePilotError['faultDomain']): CircuitBreakerState | undefined;
-  reset(domain: VoicePilotError['faultDomain']): void;
+  getCircuitBreakerState(domain: Agent VoiceError['faultDomain']): CircuitBreakerState | undefined;
+  reset(domain: Agent VoiceError['faultDomain']): void;
 }
 
 export interface RetryMetricsSink {
-  incrementAttempt(domain: VoicePilotError['faultDomain'], severity: VoicePilotError['severity']): Promise<void>;
-  recordOutcome(domain: VoicePilotError['faultDomain'], outcome: RetryOutcome): Promise<void>;
+  incrementAttempt(domain: Agent VoiceError['faultDomain'], severity: Agent VoiceError['severity']): Promise<void>;
+  recordOutcome(domain: Agent VoiceError['faultDomain'], outcome: RetryOutcome): Promise<void>;
 }
 
 export interface RetryConfigurationProvider {
-  getEnvelope(domain: VoicePilotError['faultDomain']): RetryEnvelope;
-  getOverride(domain: VoicePilotError['faultDomain'], operation?: string): RetryEnvelope | undefined;
+  getEnvelope(domain: Agent VoiceError['faultDomain']): RetryEnvelope;
+  getOverride(domain: Agent VoiceError['faultDomain'], operation?: string): RetryEnvelope | undefined;
   validateEnvelope(envelope: RetryEnvelope): ValidationResult;
 }
 ```
@@ -117,7 +117,7 @@ Integration points:
 - **AC-001**: Given a transient Azure authentication failure, When the retry executor runs under the auth envelope, Then it shall perform exponential backoff with deterministic jitter, update `retryPlan.attempt`, and stop after the configured maximum attempts while emitting telemetry for each attempt.
 - **AC-002**: Given three consecutive WebRTC negotiation failures within the failure budget, When the circuit breaker opens, Then the framework shall mark the domain as `degraded`, trigger the associated fallback recovery plan, and suppress further retries until the cool-down elapses.
 - **AC-003**: Given a configuration override that exceeds guardrails, When the configuration manager loads settings, Then the framework shall reject the override, log a warning, and revert to the default envelope without throwing an unhandled error.
-- **AC-004**: Given a retry sequence that exceeds 120 seconds, When the failure budget is reached, Then the framework shall abort the operation, publish a `VoicePilotError` with updated remediation guidance, and transition to safe mode if defined by the recovery plan.
+- **AC-004**: Given a retry sequence that exceeds 120 seconds, When the failure budget is reached, Then the framework shall abort the operation, publish a `Agent VoiceError` with updated remediation guidance, and transition to safe mode if defined by the recovery plan.
 - **AC-005**: Given an operation that succeeds after retries, When the final attempt completes, Then the retry executor shall reset the circuit breaker state, record success metrics, and notify subscribers via the event bus within 50 milliseconds.
 
 ## 6. Test Automation Strategy

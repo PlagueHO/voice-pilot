@@ -136,7 +136,7 @@ export function createAudioFeedbackPlayer({ postMessage }) {
         payload,
       });
     } catch (error) {
-      console.warn("VoicePilot: Failed to emit audio feedback event", error);
+      console.warn("Agent Voice: Failed to emit audio feedback event", error);
     }
   }
 

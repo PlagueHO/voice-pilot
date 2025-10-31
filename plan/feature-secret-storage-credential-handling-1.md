@@ -1,9 +1,9 @@
 ---
-goal: Implement Secret Storage & Credential Handling System for VoicePilot Extension
+goal: Implement Secret Storage & Credential Handling System for Agent Voice Extension
 version: 1.0
 date_created: 2025-09-20
 last_updated: 2025-09-20
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, security, credentials, secret-storage, authentication]
 ---

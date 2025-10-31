@@ -17,7 +17,7 @@ outcome: "PROCEED - Cross-platform audio support confirmed feasible with unified
 
 **Spike Objective:** Validate that audio capture and playback works consistently across Windows, macOS, and Linux within VS Code extension contexts, with consistent user experience for permissions and audio quality.
 
-**Why This Matters:** VoicePilot must work reliably across all platforms that VS Code supports. Inconsistent audio behavior or permission handling would create a fragmented user experience and limit adoption on certain platforms.
+**Why This Matters:** Agent Voice must work reliably across all platforms that VS Code supports. Inconsistent audio behavior or permission handling would create a fragmented user experience and limit adoption on certain platforms.
 
 **Timebox:** 2 weeks
 
@@ -71,7 +71,7 @@ outcome: "PROCEED - Cross-platform audio support confirmed feasible with unified
 - Web Audio API implementation across platforms
 - MediaStream API platform variations
 - Operating system audio subsystems (WASAPI, Core Audio, ALSA/PulseAudio)
-- VoicePilot Audio Capture Service
+- Agent Voice Audio Capture Service
 - Audio Processing Pipeline
 
 **Dependencies:**
@@ -350,7 +350,7 @@ ms-vscode.vscode-speech,ark-tik.multiline-cursor-audio-visualizer,0xluffyb.inter
 - [ ] Implement cross-platform testing strategy covering Windows, macOS, and Linux
 - [ ] Design platform-agnostic user experience with graceful permission handling
 - [ ] Plan deployment strategy for cross-platform extension distribution
-- [ ] Update VoicePilot architecture to reflect unified cross-platform approach
+- [ ] Update Agent Voice architecture to reflect unified cross-platform approach
 - [ ] Create platform-specific troubleshooting guides for edge cases
 
 ## Status History

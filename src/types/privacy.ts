@@ -1,7 +1,7 @@
 import type { RedactionMatch, RedactionRule } from "./speech-to-text";
 
 /**
- * Classification tiers for data handled inside the VoicePilot extension.
+ * Classification tiers for data handled inside the Agent Voice extension.
  * Defaults to `Sensitive` until explicitly downgraded by a privacy control.
  */
 export type DataClassification = "Sensitive" | "Confidential" | "Operational";

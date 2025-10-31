@@ -1,9 +1,9 @@
 ---
-goal: Implement VoicePilot UI Sidebar Panel per SP-013
+goal: Implement Agent Voice UI Sidebar Panel per SP-013
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, ui, webview]
 ---
@@ -12,11 +12,11 @@ tags: [feature, ui, webview]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan defines the deterministic steps required to deliver the VoicePilot sidebar panel described in `spec/sp-013-spec-design-ui-sidebar-panel.md`, ensuring alignment with Azure OpenAI realtime integration guidance and VS Code extension lifecycle contracts.
+This implementation plan defines the deterministic steps required to deliver the Agent Voice sidebar panel described in `spec/sp-013-spec-design-ui-sidebar-panel.md`, ensuring alignment with Azure OpenAI realtime integration guidance and VS Code extension lifecycle contracts.
 
 ## 1. Requirements & Constraints
 
-- **REQ-001**: Register `voicepilot.voiceControl` webview provider with lazy initialization as mandated in SP-013 §3.
+- **REQ-001**: Register `agentvoice.voiceControl` webview provider with lazy initialization as mandated in SP-013 §3.
 - **REQ-002**: Render status indicators, transcript stream, and primary action button conforming to SP-013 §3 iconography and behavior.
 - **REQ-003**: Implement host ↔ panel message schema defined in SP-013 §4, including `panel.action`, `session.update`, and `copilot.availability` payloads.
 - **SEC-001**: Enforce CSP and DOM sanitization per SP-013 §3 (SEC-001, SEC-002) using Azure OpenAI endpoints referenced in `docs/design/TECHNICAL-REFERENCE-INDEX.md`.
@@ -33,7 +33,7 @@ This implementation plan defines the deterministic steps required to deliver the
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Update `src/ui/voice-control-panel.ts` to register `voicepilot.voiceControl` provider via `ExtensionController` initialization sequence, ensuring lazy activation hook. |  |  |
+| TASK-001 | Update `src/ui/voice-control-panel.ts` to register `agentvoice.voiceControl` provider via `ExtensionController` initialization sequence, ensuring lazy activation hook. |  |  |
 | TASK-002 | Create `src/ui/voice-control-state.ts` exporting `VoiceControlPanelState`, `TranscriptEntry`, and reducer utilities exactly matching SP-013 §4 type definitions. |  |  |
 | TASK-003 | Implement CSP-compliant HTML scaffold in `src/ui/templates/voice-control-panel.html.ts` with hashed script registration and allowed domains from TECHNICAL-REFERENCE-INDEX Azure entries. |  |  |
 | TASK-004 | Add DOMPurify (or existing sanitization util) integration in webview script to sanitize transcript content prior to render. |  |  |

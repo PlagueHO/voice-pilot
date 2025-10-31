@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/audio.stream.frame.schema.json",
+  "$id": "https://agentvoice/spec/audio.stream.frame.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Audio Stream Frame Envelope",
   "description": "PCM frame payload streamed across the realtime audio channel.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

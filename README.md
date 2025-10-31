@@ -1,12 +1,12 @@
-# VoicePilot: Hands/Eyes Free Planning and Specification Assistant for VS Code
+# Agent Voice: Hands/Eyes Free Planning and Specification Assistant for VS Code
 
 [![Continuous Integration][ci-badge]][ci-url] [![Continuous Delivery][cd-badge]][cd-url]
 
 ## Project Overview
 
-VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management. It enables natural conversation for ideation, feature scoping, architecture planning, and GitHub issue creation through speech-to-text and text-to-speech. The tool serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or when maintaining conversational flow is more important than precise code editing).
+Agent Voice is a desktop-based VS Code extension designed to enable hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management. It enables natural conversation for ideation, feature scoping, architecture planning, and GitHub issue creation through speech-to-text and text-to-speech. The tool serves both accessibility needs (visual impairments, conditions like Bell's Palsy) and enables fluid conversational workflows in situations where traditional keyboard/screen interaction isn't practical (e.g., commuting, walking, or when maintaining conversational flow is more important than precise code editing).
 
-**Implementation Approach**: VoicePilot functions as an AI manager agent that orchestrates the VS Code GitHub Copilot Agent, acting as an intelligent translator between voice interactions and Copilot's planning and specification capabilities. This design enables 100% hands/eyes free communication by converting spoken planning discussions into appropriate Copilot prompts and translating responses back into natural speech. By leveraging Copilot's existing system context awareness and MCP server integrations, VoicePilot can help with specification writing and planning that considers existing codebases, design documents, and external system knowledge without reimplementing these complex integrations.
+**Implementation Approach**: Agent Voice functions as an AI manager agent that orchestrates the VS Code GitHub Copilot Agent, acting as an intelligent translator between voice interactions and Copilot's planning and specification capabilities. This design enables 100% hands/eyes free communication by converting spoken planning discussions into appropriate Copilot prompts and translating responses back into natural speech. By leveraging Copilot's existing system context awareness and MCP server integrations, Agent Voice can help with specification writing and planning that considers existing codebases, design documents, and external system knowledge without reimplementing these complex integrations.
 
 ## System Requirements
 
@@ -22,7 +22,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - Dependencies and technology stack
 - Code quality standards and conventions
 
-**MCP Server Access**: Rather than reimplementing integrations with external systems, VoicePilot leverages GitHub Copilot's existing MCP (Model Context Protocol) server connections. This provides access to:
+**MCP Server Access**: Rather than reimplementing integrations with external systems, Agent Voice leverages GitHub Copilot's existing MCP (Model Context Protocol) server connections. This provides access to:
 
 - GitHub repositories and issue tracking
 - Documentation systems and wikis
@@ -30,7 +30,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - External APIs and services
 - Custom organizational knowledge bases
 
-**Proven AI Planning Capabilities**: GitHub Copilot has already invested heavily in understanding software planning workflows, requirement analysis, and architectural decision-making. VoicePilot amplifies these capabilities through natural voice interaction rather than rebuilding them from scratch.
+**Proven AI Planning Capabilities**: GitHub Copilot has already invested heavily in understanding software planning workflows, requirement analysis, and architectural decision-making. Agent Voice amplifies these capabilities through natural voice interaction rather than rebuilding them from scratch.
 
 ## Key Features
 
@@ -128,7 +128,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 ### Azure-dependent suites
 
 - Integration tests that rely on live Azure resources are tagged with `[requiresAzure]` and skip automatically when credentials are absent.
-- To opt-in locally, provide `voicepilot.azureOpenAI.apiKey` via the extension secret store (`VoicePilot: Configure Azure Credentials`) or set `AZURE_OPENAI_API_KEY` before running the quality gate.
+- To opt-in locally, provide `agentvoice.azureOpenAI.apiKey` via the extension secret store (`Agent Voice: Configure Azure Credentials`) or set `AZURE_OPENAI_API_KEY` before running the quality gate.
 - Regression suites validate failure handling and cleanup using fixtures under `test/fixtures/activation-failure`, with outputs sanitized via `test/utils/sanitizers.ts`.
 
 ## Reference Projects & APIs
@@ -139,7 +139,7 @@ VoicePilot is a desktop-based VS Code extension designed to enable hands/eyes fr
 - [VS Code API](https://code.visualstudio.com/api)
 - [Octokit.js](https://github.com/octokit/octokit.js)
 
-[ci-badge]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-integration.yml/badge.svg
-[ci-url]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-integration.yml
-[cd-badge]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-delivery.yml/badge.svg
-[cd-url]: https://github.com/PlagueHO/voice-pilot/actions/workflows/continuous-delivery.yml
+[ci-badge]: https://github.com/PlagueHO/agent-voice/actions/workflows/continuous-integration.yml/badge.svg
+[ci-url]: https://github.com/PlagueHO/agent-voice/actions/workflows/continuous-integration.yml
+[cd-badge]: https://github.com/PlagueHO/agent-voice/actions/workflows/continuous-delivery.yml/badge.svg
+[cd-url]: https://github.com/PlagueHO/agent-voice/actions/workflows/continuous-delivery.yml

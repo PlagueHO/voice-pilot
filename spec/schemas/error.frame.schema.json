@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/error.frame.schema.json",
+  "$id": "https://agentvoice/spec/error.frame.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Error Frame Envelope",
-  "description": "Error payload propagated through the VoicePilot error event bus.",
+  "description": "Error payload propagated through the Agent Voice error event bus.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

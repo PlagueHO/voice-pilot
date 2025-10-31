@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the VoicePilot VS Code extension will be documented in this file.
+All notable changes to the Agent Voice VS Code extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Initial release of VoicePilot extension
+- Initial release of Agent Voice extension
 - Voice interaction with GitHub Copilot using Azure OpenAI Realtime API
 - Basic voice session management
 - Configuration management for Azure services
@@ -89,6 +89,6 @@ Use this template when adding new releases:
 
 ## Links
 
-- [Repository](https://github.com/PlagueHO/voice-pilot)
-- [Issues](https://github.com/PlagueHO/voice-pilot/issues)
-- [Releases](https://github.com/PlagueHO/voice-pilot/releases)
+- [Repository](https://github.com/PlagueHO/agent-voice)
+- [Issues](https://github.com/PlagueHO/agent-voice/issues)
+- [Releases](https://github.com/PlagueHO/agent-voice/releases)

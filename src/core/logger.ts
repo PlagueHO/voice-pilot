@@ -27,7 +27,7 @@ interface LogEvent {
  *
  * @remarks
  * Logger instances share output channels by name. Most consumers should rely on the
- * default "VoicePilot" channel to keep telemetry and diagnostics consolidated.
+ * default "Agent Voice" channel to keep telemetry and diagnostics consolidated.
  */
 export class Logger {
   private static readonly channelRegistry = new Map<
@@ -54,7 +54,7 @@ export class Logger {
    *
    * @param name - The output channel name. Loggers with matching names share the same channel instance.
    */
-  constructor(name = "VoicePilot") {
+  constructor(name = "Agent Voice") {
     this.channelName = name;
     const registryEntry = Logger.channelRegistry.get(name);
     if (registryEntry) {
@@ -268,7 +268,7 @@ export class Logger {
   private static getFallbackChannel(): vscode.OutputChannel {
     if (!Logger.fallbackChannel) {
       Logger.fallbackChannel = {
-        name: "VoicePilotFallbackLogger",
+        name: "Agent VoiceFallbackLogger",
         append() {
           /* noop */
         },

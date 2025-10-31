@@ -3,17 +3,17 @@ title: Status & Presence Indicator Semantics
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, ui, telemetry, accessibility, realtime]
 ---
 
 ## Introduction
 
-This specification defines the unified status and presence indicator system for the VoicePilot extension. Indicators provide real-time feedback across the activity bar, sidebar panel, status bar, and webview so that users always understand the current voice conversation state, Azure session health, and Copilot availability. The specification aligns session lifecycle signals (SP-005), conversation state machine transitions (SP-012), and UI design principles (`docs/design/UI.md`, `docs/design/COMPONENTS.md`) to deliver consistent, accessible, and low-latency feedback.
+This specification defines the unified status and presence indicator system for the Agent Voice extension. Indicators provide real-time feedback across the activity bar, sidebar panel, status bar, and webview so that users always understand the current voice conversation state, Azure session health, and Copilot availability. The specification aligns session lifecycle signals (SP-005), conversation state machine transitions (SP-012), and UI design principles (`docs/design/UI.md`, `docs/design/COMPONENTS.md`) to deliver consistent, accessible, and low-latency feedback.
 
 ## 1. Purpose & Scope
 
-The purpose of this specification is to standardise indicator semantics, update rules, and delivery mechanisms across all VoicePilot surfaces.
+The purpose of this specification is to standardise indicator semantics, update rules, and delivery mechanisms across all Agent Voice surfaces.
 
 Scope includes:
 
@@ -35,9 +35,9 @@ Scope includes:
 
 ## 2. Definitions
 
-- **Indicator Surface**: A UI region that communicates status (activity bar, status bar, VoicePilot sidebar header, transcript area badges).
+- **Indicator Surface**: A UI region that communicates status (activity bar, status bar, Agent Voice sidebar header, transcript area badges).
 - **Presence State**: Aggregated status representing the conversation state, session health, and service availability.
-- **Context Key**: VS Code command palette boolean or string value that gates UI behaviour (`voicepilot.state`, `voicepilot.copilotAvailable`).
+- **Context Key**: VS Code command palette boolean or string value that gates UI behaviour (`agentvoice.state`, `agentvoice.copilotAvailable`).
 - **Composite Status Message**: Structured payload combining session, conversation, and dependency states for distribution to UI consumers.
 - **Degraded Mode**: Operational mode where full functionality is not available (e.g., Copilot missing, session suspended) but the UI remains responsive and instructive.
 - **Latency Budget**: Maximum allowed delay between an upstream event and its rendered indicator update.
@@ -50,7 +50,7 @@ Scope includes:
 - **REQ-001**: The system SHALL define a canonical list of presence states (`idle`, `listening`, `processing`, `waitingForCopilot`, `speaking`, `suspended`, `error`, `offline`) mapped from the Conversation State Machine transitions (SP-012).
 - **REQ-002**: Indicator updates SHALL occur within 150 ms of receiving a state machine event under nominal conditions.
 - **REQ-003**: Each presence state SHALL specify localized text, icon glyph, animation profile, and ARIA label consistent across all surfaces.
-- **REQ-004**: Indicators SHALL expose a `voicepilot.state` context key reflecting the current presence state string.
+- **REQ-004**: Indicators SHALL expose a `agentvoice.state` context key reflecting the current presence state string.
 - **REQ-005**: Status updates SHALL remain idempotent; duplicate events MUST NOT trigger additional animations or flicker.
 
 ### Session & Dependency Requirements
@@ -61,13 +61,13 @@ Scope includes:
 
 ### Copilot Availability Requirements
 
-- **COP-001**: When the GitHub Copilot Chat extension is unavailable, the VoicePilot panel SHALL display `⋯ Waiting for Copilot (not installed)` and provide an actionable “Install Copilot Chat” command.
-- **COP-002**: The `voicepilot.copilotAvailable` context key SHALL be updated synchronously with indicator changes so dependent commands hide gracefully.
+- **COP-001**: When the GitHub Copilot Chat extension is unavailable, the Agent Voice panel SHALL display `⋯ Waiting for Copilot (not installed)` and provide an actionable “Install Copilot Chat” command.
+- **COP-002**: The `agentvoice.copilotAvailable` context key SHALL be updated synchronously with indicator changes so dependent commands hide gracefully.
 - **COP-003**: When Copilot requests exceed timeout thresholds, the presence state SHALL remain `waitingForCopilot` and display a retry hint until the Conversation State Machine transitions back to `listening`.
 
 ### Accessibility & UX Requirements
 
-- **ACC-001**: All indicators SHALL provide ARIA labels and live-region announcements (“VoicePilot listening”, “VoicePilot suspended for renewal”).
+- **ACC-001**: All indicators SHALL provide ARIA labels and live-region announcements (“Agent Voice listening”, “Agent Voice suspended for renewal”).
 - **ACC-002**: Activity bar animations SHALL offer reduced motion variants respecting VS Code `window.autoDetectColorScheme` and `workbench.reduceMotion` settings.
 - **ACC-003**: Status bar text SHALL adhere to a maximum of 32 characters to preserve screen reader clarity.
 - **ACC-004**: Color usage SHALL meet WCAG 2.1 AA contrast ratios in both light and dark themes.
@@ -103,7 +103,7 @@ Scope includes:
 
 ```json
 {
-  "type": "voicepilot.status",
+  "type": "agentvoice.status",
   "payload": {
     "state": "listening",
     "sessionId": "sess-123",
@@ -123,7 +123,7 @@ Scope includes:
 ### TypeScript Contracts
 
 ```typescript
-export type VoicePilotPresenceState =
+export type Agent VoicePresenceState =
   | 'idle'
   | 'listening'
   | 'processing'
@@ -135,7 +135,7 @@ export type VoicePilotPresenceState =
   | 'interrupted'; // legacy alias that maps to 'listening' visuals
 
 export interface PresenceUpdate {
-  state: VoicePilotPresenceState;
+  state: Agent VoicePresenceState;
   sessionId?: string;
   since: string; // ISO timestamp
   copilotAvailable: boolean;
@@ -163,24 +163,24 @@ export interface IndicatorPresenter {
 
 | Presence State | Trigger Source | Sidebar Label | Status Bar Text | Activity Bar Icon | Tooltip / Guidance |
 | --- | --- | --- | --- | --- | --- |
-| `idle` | Session inactive | "Hands/Eyes Free Planning" | `$(mic) VoicePilot` | Static mic | "Start Conversation" |
-| `listening` | CSM → Listening | "● Listening" | `$(unmute) Listening…` | Blue glow | "VoicePilot is listening. Speak anytime." |
+| `idle` | Session inactive | "Hands/Eyes Free Planning" | `$(mic) Agent Voice` | Static mic | "Start Conversation" |
+| `listening` | CSM → Listening | "● Listening" | `$(unmute) Listening…` | Blue glow | "Agent Voice is listening. Speak anytime." |
 | `processing` | CSM → Processing | "⋯ Thinking" | `$(sync) Processing…` | Orange pulse | "Analyzing your request." |
 | `waitingForCopilot` | CSM Waiting + Copilot pending | "⋯ Waiting for Copilot" | `$(clock) Waiting for Copilot…` | Orange pulse w/ badge | "Copilot is responding. You may interrupt." |
-| `speaking` | TTS streaming | "● Speaking" | `$(megaphone) Responding…` | Green glow | "VoicePilot is responding. Speak to interrupt." |
+| `speaking` | TTS streaming | "● Speaking" | `$(megaphone) Responding…` | Green glow | "Agent Voice is responding. Speak to interrupt." |
 | `suspended` | Session renewal / diagnostics | "◌ Paused" | `$(debug-pause) Suspended…` | Grey pulse | "Renewing connection. This may take a moment." |
-| `error` | Faulted conversation state | "⚠️ Attention Needed" | `$(error) VoicePilot issue` | Red badge | "Check logs. Run diagnostics command." |
+| `error` | Faulted conversation state | "⚠️ Attention Needed" | `$(error) Agent Voice issue` | Red badge | "Check logs. Run diagnostics command." |
 | `offline` | Network loss / Azure unreachable | "✖ Offline" | `$(cloud-offline) Offline` | Hollow mic | "Reconnect to resume voice control." |
 
 ## 5. Acceptance Criteria
 
 - **AC-001**: Given the conversation transitions to `listening`, When a presence update is emitted, Then the sidebar, status bar, and activity bar icon update within 150 ms and share the label “Listening”.
 - **AC-002**: Given the session renews, When Session Manager emits a renewal event, Then indicators enter `suspended`, disable the Start/Stop button via context keys, and resume the previous state after renewal completes.
-- **AC-003**: Given Copilot is not installed, When a user attempts a Copilot-dependent action, Then the panel displays the install affordance and the command palette hides Copilot actions by setting `voicepilot.copilotAvailable = false`.
+- **AC-003**: Given Copilot is not installed, When a user attempts a Copilot-dependent action, Then the panel displays the install affordance and the command palette hides Copilot actions by setting `agentvoice.copilotAvailable = false`.
 - **AC-004**: Given a network outage, When Session Manager reports `connectionStatus = 'failed'`, Then the presence state becomes `offline`, a persistent status bar warning appears, and the user is offered a retry action.
-- **AC-005**: Given reduced motion mode is enabled, When VoicePilot enters `speaking`, Then the activity bar uses the static green icon without animation while the textual labels remain unchanged.
+- **AC-005**: Given reduced motion mode is enabled, When Agent Voice enters `speaking`, Then the activity bar uses the static green icon without animation while the textual labels remain unchanged.
 - **AC-006**: Given multiple rapid state changes occur within 100 ms, When the presenter receives batched updates, Then only the latest presence state renders and no flicker is observed.
-- **AC-007**: Given a faulted state, When the user opens the VoicePilot panel, Then the header displays remediation guidance sourced from the PresenceDetails tooltip.
+- **AC-007**: Given a faulted state, When the user opens the Agent Voice panel, Then the header displays remediation guidance sourced from the PresenceDetails tooltip.
 
 ## 6. Test Automation Strategy
 
@@ -197,7 +197,7 @@ export interface IndicatorPresenter {
 - Consistent indicator semantics reduce cognitive load, satisfying the minimal interface goals outlined in `docs/design/UI.md`.
 - Tight integration with Session Manager (SP-005) ensures users understand credential renewal pauses and degraded states without losing trust.
 - Aligning presence mapping with the Conversation State Machine (SP-012) prevents divergence between backend state and UI cues, especially during interruptions.
-- Accessibility requirements ensure VoicePilot remains usable for screen reader users and those sensitive to motion, matching project inclusivity goals.
+- Accessibility requirements ensure Agent Voice remains usable for screen reader users and those sensitive to motion, matching project inclusivity goals.
 - Observer-based distribution (PAT-001) supports future expansion (e.g., floating mini-controller, telemetry dashboards) without coupling UI layers.
 
 ## 8. Dependencies & External Integrations
@@ -245,7 +245,7 @@ presenceBus.publish([
     details: { conversationTurnId: 'turn-92', retry: false, renewal: false }
   },
   {
-    state: 'interrupted' as VoicePilotPresenceState, // backwards-compatible alias
+    state: 'interrupted' as Agent VoicePresenceState, // backwards-compatible alias
     since: new Date().toISOString(),
     copilotAvailable: true,
     message: '● Listening',
@@ -258,7 +258,7 @@ presenceBus.publish([
 
 ```json
 {
-  "type": "voicepilot.status",
+  "type": "agentvoice.status",
   "payload": {
     "state": "offline",
     "since": "2025-09-26T18:55:12.902Z",

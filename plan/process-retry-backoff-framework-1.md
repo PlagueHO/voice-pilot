@@ -3,7 +3,7 @@ goal: Implement Retry & Backoff Strategy Framework
 version: 1.0
 date_created: 2025-10-05
 last_updated: 2025-10-05
-owner: VoicePilot Reliability Engineering
+owner: Agent Voice Reliability Engineering
 status: 'Planned'
 tags: [process, reliability, retry, backoff]
 ---
@@ -12,12 +12,12 @@ tags: [process, reliability, retry, backoff]
 
 ![Status: Planned](https://img.shields.io/badge/status-Planned-1E90FF)
 
-This plan operationalizes SP-037 by delivering reusable retry envelopes, deterministic jitter calculations, circuit breaker controls, and telemetry hooks across VoicePilot services, ensuring alignment with SP-028 error recovery contracts.
+This plan operationalizes SP-037 by delivering reusable retry envelopes, deterministic jitter calculations, circuit breaker controls, and telemetry hooks across Agent Voice services, ensuring alignment with SP-028 error recovery contracts.
 
 ## 1. Requirements & Constraints
 
 - **REQ-001**: Provide default retry envelopes per fault domain as defined in `spec/sp-037-spec-process-retry-backoff.md`.
-- **REQ-002**: Update `VoicePilotError.retryPlan` metadata after every attempt to maintain observability compliance with SP-028.
+- **REQ-002**: Update `Agent VoiceError.retryPlan` metadata after every attempt to maintain observability compliance with SP-028.
 - **REQ-003**: Emit correlation-aware telemetry for retries without exposing sensitive payloads (SEC-001 in SP-037, SEC-001 in SP-028).
 - **CON-001**: Enforce cumulative retry duration ≤120 seconds unless configuration explicitly increases the limit.
 - **CON-002**: Complete backoff computations within 2 ms to preserve activation budgets.
@@ -59,7 +59,7 @@ This plan operationalizes SP-037 by delivering reusable retry envelopes, determi
 ## 3. Alternatives
 
 - **ALT-001**: Implement retries directly within each service — rejected due to code duplication and inconsistent telemetry.
-- **ALT-002**: Use third-party retry libraries — rejected to preserve deterministic jitter requirements and tighter integration with VoicePilot error envelopes.
+- **ALT-002**: Use third-party retry libraries — rejected to preserve deterministic jitter requirements and tighter integration with Agent Voice error envelopes.
 
 ## 4. Dependencies
 

@@ -37,7 +37,7 @@ export type MessageSource =
 export type PrivacyTier = "public" | "customer" | "sensitive";
 
 /**
- * Canonical wire format exchanged between VoicePilot services.
+ * Canonical wire format exchanged between Agent Voice services.
  *
  * @remarks
  * The envelope guarantees a stable metadata contract for routing, auditing, and
@@ -98,7 +98,7 @@ export interface TransportChunkPayload {
 
 const DEFAULT_CHUNK_VERSION = "1.0.0";
 const MAX_ENVELOPE_BYTES = 256 * 1024;
-const BASE_SCHEMA_ID = "https://voicepilot/spec/envelope.schema.json";
+const BASE_SCHEMA_ID = "https://agentvoice/spec/envelope.schema.json";
 const CHUNK_TYPE = "transport.chunk";
 
 export class MessageValidationError extends Error {

@@ -4,20 +4,20 @@ component_path: src/session/session-manager.ts
 version: 1.0
 date_created: 2025-09-27
 last_updated: 2025-09-27
-owner: VoicePilot Core Team
-tags: [component, session-management, voicepilot, azure]
+owner: Agent Voice Core Team
+tags: [component, session-management, agentvoice, azure]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # SessionManager Documentation
 
-The `SessionManagerImpl` (exported as `SessionManager`) governs the full lifecycle of realtime VoicePilot conversations. It coordinates Azure OpenAI ephemeral credential exchange, timer-driven renewals, health monitoring, privacy purges, and recovery orchestration so the voice session remains resilient, policy-compliant, and observable inside the VS Code extension host.
+The `SessionManagerImpl` (exported as `SessionManager`) governs the full lifecycle of realtime Agent Voice conversations. It coordinates Azure OpenAI ephemeral credential exchange, timer-driven renewals, health monitoring, privacy purges, and recovery orchestration so the voice session remains resilient, policy-compliant, and observable inside the VS Code extension host.
 
 ## 1. Component Overview
 
 ### Purpose/Responsibility
 
-- **OVR-001**: Maintain authoritative state for all VoicePilot voice sessions, including lifecycle transitions (starting → active → renewing → ending → disposed) and associated statistics.
+- **OVR-001**: Maintain authoritative state for all Agent Voice voice sessions, including lifecycle transitions (starting → active → renewing → ending → disposed) and associated statistics.
 - **OVR-002**: Scope includes credential acquisition/renewal, timer scheduling, event emission, recovery integration, and privacy cleanup. Audio capture, Copilot coordination, and UI rendering remain in adjacent services.
 - **OVR-003**: Positioned within the extension host runtime. Collaborates with authentication, configuration, privacy, and recovery subsystems while notifying UI/presence components about session health and state.
 
@@ -159,7 +159,7 @@ import { SessionTimerManagerImpl } from "../session/session-timer-manager";
 import { ConfigurationManager } from "../config/configuration-manager";
 import { Logger } from "../core/logger";
 
-const logger = new Logger("VoicePilotExtension");
+const logger = new Logger("Agent VoiceExtension");
 const configurationManager = new ConfigurationManager(context, logger);
 const keyService = new EphemeralKeyServiceImpl(credentialManager, configurationManager, logger);
 const timerManager = new SessionTimerManagerImpl(
@@ -187,7 +187,7 @@ await sessionManager.endSession(session.sessionId);
 ### Advanced Usage
 
 ```typescript
-import type { RecoveryExecutor } from "../types/error/voice-pilot-error";
+import type { RecoveryExecutor } from "../types/error/agent-voice-error";
 
 sessionManager.setRecoveryExecutor(recoveryExecutor as RecoveryExecutor, defaultRecoveryPlan);
 sessionManager.setPrivacyController(privacyController);
@@ -256,7 +256,7 @@ if (!renewalResult.success) {
 | `SessionTimerManagerImpl` | `src/session/session-timer-manager.ts` | Renewal, heartbeat, and inactivity scheduling. |
 | `ConfigurationManager` | `src/config/configuration-manager.ts` | Provides validated settings for session policies. |
 | `PrivacyController` (optional) | `src/services/privacy/privacy-controller.ts` | Purges cached transcripts & diagnostics per policy. |
-| `RecoveryExecutor` (optional) | `src/types/error/voice-pilot-error.ts` | Coordinates retries, fallback plans, and telemetry. |
+| `RecoveryExecutor` (optional) | `src/types/error/agent-voice-error.ts` | Coordinates retries, fallback plans, and telemetry. |
 
 ### Configuration Options
 

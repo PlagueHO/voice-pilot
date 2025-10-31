@@ -1,9 +1,9 @@
 ---
-goal: Implement Configuration & Settings Management System for VoicePilot Extension
+goal: Implement Configuration & Settings Management System for Agent Voice Extension
 version: 1.0
 date_created: 2025-09-20
 last_updated: 2025-09-20
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, configuration, settings, validation, security]
 ---
@@ -12,11 +12,11 @@ tags: [feature, configuration, settings, validation, security]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan executes the SP-002 Configuration & Settings Management specification. It establishes a comprehensive configuration system with VS Code settings integration, validation framework, change handling, and secure credential management for the VoicePilot extension.
+This implementation plan executes the SP-002 Configuration & Settings Management specification. It establishes a comprehensive configuration system with VS Code settings integration, validation framework, change handling, and secure credential management for the Agent Voice extension.
 
 ## 1. Requirements & Constraints
 
-- **REQ-001**: Extension SHALL use `voicepilot.*` namespace for all settings
+- **REQ-001**: Extension SHALL use `agentvoice.*` namespace for all settings
 - **REQ-002**: Configuration SHALL be organized into logical sections (azureOpenAI, audio, github)
 - **REQ-003**: All settings SHALL have defined JSON schema with type validation
 - **SEC-001**: API keys and secrets SHALL NOT be stored in VS Code settings
@@ -98,7 +98,7 @@ This implementation plan executes the SP-002 Configuration & Settings Management
 
 ## 5. Files
 
-- **FILE-001**: package.json - Add contributes.configuration section with all voicepilot.* settings
+- **FILE-001**: package.json - Add contributes.configuration section with all agentvoice.* settings
 - **FILE-002**: src/types/configuration.ts - Create typed configuration interfaces and validation types
 - **FILE-003**: src/config/ConfigurationManager.ts - Enhance existing stub with full implementation
 - **FILE-004**: src/config/sections/AzureOpenAIConfigSection.ts - Azure OpenAI configuration section class

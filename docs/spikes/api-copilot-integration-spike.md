@@ -25,7 +25,7 @@ tags: ["technical-spike", "api-integration", "research", "copilot"]
 
 **Spike Objective:** Determine if GitHub Copilot Chat extension exposes programmatic APIs that allow other VS Code extensions to call Copilot Agent modes and integrate with chat functionality.
 
-**Why This Matters:** The entire VoicePilot architecture depends on being able to programmatically interact with GitHub Copilot. If direct API access isn't available, we may need to redesign the approach or find alternative integration methods.
+**Why This Matters:** The entire Agent Voice architecture depends on being able to programmatically interact with GitHub Copilot. If direct API access isn't available, we may need to redesign the approach or find alternative integration methods.
 
 **Timebox:** 2 weeks
 
@@ -72,13 +72,13 @@ tags: ["technical-spike", "api-integration", "research", "copilot"]
 **Related Components:**
 - VS Code Extension Host
 - GitHub Copilot Chat Extension
-- VoicePilot AI Manager Agent
+- Agent Voice AI Manager Agent
 - Chat Integration Layer
 - Prompt Processing Pipeline
 
 **Dependencies:**
 - All other technical spikes depend on the outcome of this research
-- Architecture decisions for the entire VoicePilot system
+- Architecture decisions for the entire Agent Voice system
 - Choice between VS Code extension vs. external tool approach
 
 **Constraints:**
@@ -182,7 +182,7 @@ github.copilot,github.copilot-chat,mongodb.mongodb-vscode,ms-azuretools.vscode-a
 
 **Implementation Patterns Discovered:**
 
-- **Chat Participants**: Register with unique ID (e.g., @voicepilot) and handler function
+- **Chat Participants**: Register with unique ID (e.g., @agentvoice) and handler function
 - **Language Model Integration**: Request Copilot models with specific families (gpt-4o, gpt-3.5-turbo)
 - **Tool Contributions**: Extensions can contribute tools that appear in Agent mode
 - **Slash Commands**: Custom commands can be registered for quick prompt insertion
@@ -191,7 +191,7 @@ github.copilot,github.copilot-chat,mongodb.mongodb-vscode,ms-azuretools.vscode-a
 
 1. **Direct Language Model Access** (RECOMMENDED):
    - Use `vscode.lm.selectChatModels({ vendor: 'copilot' })` for model access
-   - Register chat participant for @voicepilot integration
+   - Register chat participant for @agentvoice integration
    - Leverage existing Copilot authentication and permissions
 
 2. **Command-Based Integration**:
@@ -253,19 +253,19 @@ github.copilot,github.copilot-chat,mongodb.mongodb-vscode,ms-azuretools.vscode-a
 
 **✅ PROCEED WITH VS CODE EXTENSION APPROACH**
 
-GitHub Copilot Chat extension provides **comprehensive programmatic APIs** that fully support the VoicePilot integration requirements. The VS Code extension approach is **technically feasible and recommended**.
+GitHub Copilot Chat extension provides **comprehensive programmatic APIs** that fully support the Agent Voice integration requirements. The VS Code extension approach is **technically feasible and recommended**.
 
 ### Rationale
 
 **API Availability Confirmed:**
 - **Language Model Access**: Direct access to Copilot models via `vscode.lm.selectChatModels({ vendor: 'copilot' })`
-- **Chat Participant Integration**: Full support for custom participants (e.g., @voicepilot) through `vscode.chat.createChatParticipant()`
+- **Chat Participant Integration**: Full support for custom participants (e.g., @agentvoice) through `vscode.chat.createChatParticipant()`
 - **Extension Communication**: Robust inter-extension APIs for command execution and dependency management
 - **Authentication Integration**: Built-in GitHub authentication via `vscode.authentication.getSession('github')`
 
 **Multiple Integration Patterns Available:**
 1. **Direct Language Model API** (Primary recommendation)
-2. **Chat Participant Registration** (For @voicepilot agent)
+2. **Chat Participant Registration** (For @agentvoice agent)
 3. **Tool Contribution** (For Agent mode integration)
 4. **Command-based Integration** (Fallback approach)
 
@@ -283,7 +283,7 @@ const [model] = await vscode.lm.selectChatModels({
 });
 
 // Chat Participant Registration
-const participant = vscode.chat.createChatParticipant('voicepilot', handler);
+const participant = vscode.chat.createChatParticipant('agentvoice', handler);
 
 // GitHub Authentication
 const session = await vscode.authentication.getSession('github', ['repo']);
@@ -291,7 +291,7 @@ const session = await vscode.authentication.getSession('github', ['repo']);
 
 **Recommended Implementation Sequence:**
 1. **Phase 1**: Implement direct language model integration for voice prompt processing
-2. **Phase 2**: Register @voicepilot chat participant for conversational interface
+2. **Phase 2**: Register @agentvoice chat participant for conversational interface
 3. **Phase 3**: Add language model tools for Agent mode integration
 4. **Phase 4**: Implement advanced features (context awareness, conversation history)
 
@@ -304,7 +304,7 @@ const session = await vscode.authentication.getSession('github', ['repo']);
 ### Follow-up Actions
 
 - [x] ✅ **RESEARCH COMPLETE**: GitHub Copilot integration APIs fully documented and validated
-- [ ] **Update VoicePilot Architecture**: Revise system design to leverage confirmed integration patterns
+- [ ] **Update Agent Voice Architecture**: Revise system design to leverage confirmed integration patterns
 - [ ] **Implementation Planning**: Create detailed technical specifications for Copilot integration
 - [ ] **Prototype Development**: Build minimal viable integration using discovered APIs
 - [ ] **Testing Strategy**: Design integration testing approach with mock and live Copilot services
@@ -318,7 +318,7 @@ const session = await vscode.authentication.getSession('github', ['repo']);
 - ✅ Real-world implementation examples: **VALIDATED**
 - ✅ VS Code extension viability: **CONFIRMED**
 
-**DECISION: VoicePilot VS Code extension integration with GitHub Copilot is technically feasible and strongly recommended.**
+**DECISION: Agent Voice VS Code extension integration with GitHub Copilot is technically feasible and strongly recommended.**
 
 ## Status History
 
@@ -333,7 +333,7 @@ const session = await vscode.authentication.getSession('github', ['repo']);
 - **APIs Validated**: VS Code Chat API, Language Model API, Extension Communication
 - **Examples Found**: 15+ working Copilot integrations analyzed
 - **Technical Patterns**: Direct model access, chat participants, tool registration confirmed
-- **Decision**: VoicePilot integration with GitHub Copilot is **technically feasible and recommended**
+- **Decision**: Agent Voice integration with GitHub Copilot is **technically feasible and recommended**
 
 ---
 

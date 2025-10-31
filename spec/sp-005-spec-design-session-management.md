@@ -3,17 +3,17 @@ title: Session Management & Renewal
 version: 1.0
 date_created: 2025-09-21
 last_updated: 2025-09-21
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, session, lifecycle, timer, renewal]
 ---
 
 ## Introduction
 
-This specification defines the session management and renewal system for VoicePilot voice interactions, including session lifecycle coordination, automatic renewal mechanisms, and timer-based state management. The session manager acts as the central coordinator between ephemeral key services, WebRTC connections, and UI components to ensure uninterrupted voice conversations through automated credential renewal and connection management.
+This specification defines the session management and renewal system for Agent Voice voice interactions, including session lifecycle coordination, automatic renewal mechanisms, and timer-based state management. The session manager acts as the central coordinator between ephemeral key services, WebRTC connections, and UI components to ensure uninterrupted voice conversations through automated credential renewal and connection management.
 
 ## 1. Purpose & Scope
 
-This specification defines the session management requirements for VoicePilot's voice interaction system, covering:
+This specification defines the session management requirements for Agent Voice's voice interaction system, covering:
 
 - Voice session lifecycle management and state coordination
 - Integration with ephemeral key service for automatic credential renewal

@@ -3,7 +3,7 @@ goal: Implement Audio Feedback and Sound Design System
 version: 1.0
 date_created: 2025-10-01
 last_updated: 2025-10-01
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, accessibility]
 ---

@@ -112,8 +112,8 @@ function createAudioConfig(
       latencyHint: "interactive",
     },
     workletModules: [
-      "resource://voicepilot/processors/vad-processor.js",
-      "resource://voicepilot/processors/gain-processor.js",
+      "resource://agentvoice/processors/vad-processor.js",
+      "resource://agentvoice/processors/gain-processor.js",
     ],
     turnDetection: {
       type: "server_vad",
@@ -219,9 +219,9 @@ suite("Unit: WebRTCConfigFactory", () => {
     const { manager } = createConfigManagerStub({
       audio: {
         workletModules: [
-          "resource://voicepilot/processors/vad-processor.js",
-          "resource://voicepilot/processors/vad-processor.js",
-          "resource://voicepilot/processors/gain-processor.js",
+          "resource://agentvoice/processors/vad-processor.js",
+          "resource://agentvoice/processors/vad-processor.js",
+          "resource://agentvoice/processors/gain-processor.js",
         ],
       },
     });
@@ -239,8 +239,8 @@ suite("Unit: WebRTCConfigFactory", () => {
     expect(config.audioConfig.sampleRate).to.equal(24000);
     expect(config.audioConfig.codecProfileId).to.equal("pcm16-24k-mono");
     expect(config.audioConfig.workletModuleUrls).to.deep.equal([
-      "resource://voicepilot/processors/vad-processor.js",
-      "resource://voicepilot/processors/gain-processor.js",
+      "resource://agentvoice/processors/vad-processor.js",
+      "resource://agentvoice/processors/gain-processor.js",
     ]);
     expect(
       Object.isFrozen(config.audioConfig.workletModuleUrls),

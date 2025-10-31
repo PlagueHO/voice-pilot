@@ -3,17 +3,17 @@ title: WebRTC Audio Transport Layer
 version: 1.0
 date_created: 2025-09-22
 last_updated: 2025-09-22
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, webrtc, audio, transport, realtime]
 ---
 
 # Introduction
 
-This specification defines the WebRTC Audio Transport Layer for VoicePilot's real-time voice interaction system, enabling low-latency, full-duplex audio communication with Azure OpenAI's GPT Realtime API. The WebRTC transport layer establishes peer connections, manages SDP negotiation, handles connection recovery, and provides a robust foundation for bidirectional audio streaming in VS Code webview contexts. The transport works in tandem with a Web Audio API 1.1 graph to orchestrate microphone capture, in-browser processing, and playback within the webview sandbox.
+This specification defines the WebRTC Audio Transport Layer for Agent Voice's real-time voice interaction system, enabling low-latency, full-duplex audio communication with Azure OpenAI's GPT Realtime API. The WebRTC transport layer establishes peer connections, manages SDP negotiation, handles connection recovery, and provides a robust foundation for bidirectional audio streaming in VS Code webview contexts. The transport works in tandem with a Web Audio API 1.1 graph to orchestrate microphone capture, in-browser processing, and playback within the webview sandbox.
 
 ## 1. Purpose & Scope
 
-This specification defines the WebRTC transport layer requirements for VoicePilot's voice interaction system, covering:
+This specification defines the WebRTC transport layer requirements for Agent Voice's voice interaction system, covering:
 
 - WebRTC peer connection establishment and management with Azure OpenAI Realtime API
 - SDP (Session Description Protocol) offer/answer negotiation for audio-only sessions

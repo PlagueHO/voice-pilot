@@ -2,7 +2,7 @@
 goal: Deliver Web Audio API 1.1 & Azure Realtime Compliance Updates
 version: 1.0
 date_created: 2025-09-30
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Planned'
 tags: [feature, audio, realtime, compliance]
 ---
@@ -11,7 +11,7 @@ tags: [feature, audio, realtime, compliance]
 
 ![Status: Planned](https://img.shields.io/badge/status-Planned-blue)
 
-This implementation plan schedules the VoicePilot runtime updates required to satisfy the Web Audio API 1.1 contract and Azure GPT Realtime WebRTC guidance. The deliverable aligns `WebRTCAudioService`, session orchestration, and transcript handling with the official TypeScript quickstart and WebRTC how-to documentation while preserving existing extension integrations.
+This implementation plan schedules the Agent Voice runtime updates required to satisfy the Web Audio API 1.1 contract and Azure GPT Realtime WebRTC guidance. The deliverable aligns `WebRTCAudioService`, session orchestration, and transcript handling with the official TypeScript quickstart and WebRTC how-to documentation while preserving existing extension integrations.
 
 ## 1. Requirements & Constraints
 
@@ -38,7 +38,7 @@ This implementation plan schedules the VoicePilot runtime updates required to sa
 
 ### Implementation Phase 2
 
-- GOAL-002: Introduce a realtime speech-to-text service that bridges Azure events to VoicePilot conversation components.
+- GOAL-002: Introduce a realtime speech-to-text service that bridges Azure events to Agent Voice conversation components.
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
@@ -75,7 +75,7 @@ This implementation plan schedules the VoicePilot runtime updates required to sa
 
 - **DEP-001**: Microsoft Learn GPT Realtime API TypeScript quickstart (`realtime-audio-quickstart`).
 - **DEP-002**: Microsoft Learn GPT Realtime API WebRTC how-to (`realtime-audio-webrtc`).
-- **DEP-003**: VoicePilot specifications `sp-006`, `sp-007`, and `sp-009` for transport, audio pipeline, and realtime STT obligations.
+- **DEP-003**: Agent Voice specifications `sp-006`, `sp-007`, and `sp-009` for transport, audio pipeline, and realtime STT obligations.
 
 ## 5. Files
 

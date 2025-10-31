@@ -1,8 +1,8 @@
-# VoicePilot VS Code Extension Development Guide
+# Agent Voice VS Code Extension Development Guide
 
 ## Project Overview
 
-VoicePilot is a VS Code extension that turns Azure OpenAI GPT Realtime into a full-duplex voice copilot for GitHub Copilot Chat. The extension orchestrates configuration, authentication, realtime audio streaming, and Copilot prompt delivery through a service-based dependency injection layer. Treat this guide as the single source for automated agents working in this repository.
+Agent Voice is a VS Code extension that turns Azure OpenAI GPT Realtime into a full-duplex voice copilot for GitHub Copilot Chat. The extension orchestrates configuration, authentication, realtime audio streaming, and Copilot prompt delivery through a service-based dependency injection layer. Treat this guide as the single source for automated agents working in this repository.
 
 ## Tech Stack
 
@@ -33,7 +33,7 @@ Optional: `npm install -g @vscode/vsce` for packaging.
 ## Project Structure
 
 ```text
-voice-pilot/
+agent-voice/
 ├── src/
 │   ├── extension.ts                     # Activation entry point
 │   ├── core/                            # ExtensionController, retry utilities, logger
@@ -66,7 +66,7 @@ voice-pilot/
 - `ExtensionController` orchestrates dependency initialization, error orchestration, privacy purges, and UI wiring.
 - Boot sequence: `ConfigurationManager` → `CredentialManagerImpl`/`EphemeralKeyServiceImpl` → `SessionManagerImpl` (with timers + recovery) → UI surfaces (`VoiceControlPanel`, `StatusBar`, `ErrorPresenter`).
 - Conversation execution flows through `ConversationStateMachine`, `ChatIntegration`, `TranscriptPrivacyAggregator`, `AudioFeedbackServiceImpl`, and `InterruptionEngineImpl`.
-- Error handling relies on `ErrorEventBusImpl`, `RecoveryOrchestrator`, retry providers/executors, and typed `VoicePilotError` envelopes.
+- Error handling relies on `ErrorEventBusImpl`, `RecoveryOrchestrator`, retry providers/executors, and typed `Agent VoiceError` envelopes.
 - Privacy controls (`PrivacyController`) manage transcript lifecycle, purge commands, and policy enforcement.
 
 ## TypeScript & Code Quality
@@ -92,8 +92,8 @@ voice-pilot/
 
 ## VS Code Extension Patterns
 
-- Activation ensures Copilot Chat extension availability (`ensureCopilotChatInstalled`) and sets `voicepilot.copilotAvailable`/`voicepilot.activated` contexts.
-- Commands registered in `package.json`: `voicepilot.startConversation`, `voicepilot.endConversation`, `voicepilot.openSettings`. Keep command IDs stable for tests and UI bindings.
+- Activation ensures Copilot Chat extension availability (`ensureCopilotChatInstalled`) and sets `agentvoice.copilotAvailable`/`agentvoice.activated` contexts.
+- Commands registered in `package.json`: `agentvoice.startConversation`, `agentvoice.endConversation`, `agentvoice.openSettings`. Keep command IDs stable for tests and UI bindings.
 - Webview assets live in `media/`; sanitize outbound HTML via `media/sanitize-html.js` and keep scripts CSP-compliant.
 
 ## UI and User Experience
@@ -104,13 +104,13 @@ voice-pilot/
 
 ## Configuration Management
 
-- `ConfigurationManager` loads `voicepilot.*` settings, validates sections, and debounces change propagation.
+- `ConfigurationManager` loads `agentvoice.*` settings, validates sections, and debounces change propagation.
 - Update config schemas in `package.json` plus matching validator rules under `src/config/validators/`.
 - Use `ConfigSection` implementations for new namespaces; register them in `ConfigurationManager`.
 
 ## Secret Storage Pattern
 
-- `CredentialManagerImpl` stores Azure keys/tokens in `SecretStorage`; use descriptive keys under the `voicepilot.*` namespace.
+- `CredentialManagerImpl` stores Azure keys/tokens in `SecretStorage`; use descriptive keys under the `agentvoice.*` namespace.
 - The `EphemeralKeyServiceImpl` handles lifecycle, renewal, and error events for short-lived WebRTC credentials.
 
 ## Testing and Quality Assurance
@@ -208,7 +208,7 @@ async function createRealtimeClient({ endpoint, deployment, apiVersion }: {
 
 ```typescript
 context.subscriptions.push(
-  vscode.commands.registerCommand("voicepilot.startConversation", async () => {
+  vscode.commands.registerCommand("agentvoice.startConversation", async () => {
     await controller?.startConversation();
   }),
 );

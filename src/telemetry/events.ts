@@ -6,8 +6,8 @@ import type {
 } from "../types/disposal";
 
 export type TelemetryEventName =
-  | "voicepilot.cleanup.report"
-  | "voicepilot.cleanup.step";
+  | "agentvoice.cleanup.report"
+  | "agentvoice.cleanup.step";
 
 export interface CleanupStepTelemetry {
   name: string;
@@ -32,11 +32,11 @@ export interface CleanupReportTelemetry {
 
 export type TelemetryEvent =
   | {
-      name: "voicepilot.cleanup.report";
+      name: "agentvoice.cleanup.report";
       properties: CleanupReportTelemetry;
     }
   | {
-      name: "voicepilot.cleanup.step";
+      name: "agentvoice.cleanup.step";
       properties: CleanupStepTelemetry & {
         reason: DisposalReason;
         auditTrailId?: string;

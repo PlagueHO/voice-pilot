@@ -1,8 +1,8 @@
-# VoicePilot Extension Components Design
+# Agent Voice Extension Components Design
 
 ## Overview
 
-VoicePilot is a VS Code extension that enables hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management using Azure OpenAI's GPT Realtime API via WebRTC. This document outlines the component architecture and interaction flows required for voice-driven planning sessions, document creation, and project ideation that leverages Copilot's existing system context and MCP server integrations.
+Agent Voice is a VS Code extension that enables hands/eyes free interaction with GitHub Copilot for specification writing, project planning, and task management using Azure OpenAI's GPT Realtime API via WebRTC. This document outlines the component architecture and interaction flows required for voice-driven planning sessions, document creation, and project ideation that leverages Copilot's existing system context and MCP server integrations.
 
 ## Architecture Principles
 
@@ -135,7 +135,7 @@ class EphemeralKeyService {
 **Responsibilities:**
 
 - Interface with VS Code Language Model API (`vscode.lm`) for direct Copilot access
-- Register as chat participant (@voicepilot) for conversational interface
+- Register as chat participant (@agentvoice) for conversational interface
 - Convert voice planning discussions to language model prompts
 - Handle specification and planning responses for optimal voice delivery
 - Leverage Copilot's existing system context and MCP server integrations
@@ -160,7 +160,7 @@ class LanguageModelAdapter {
     });
 
     // Register chat participant
-    const participant = vscode.chat.createChatParticipant('voicepilot', this.handleChatRequest);
+    const participant = vscode.chat.createChatParticipant('agentvoice', this.handleChatRequest);
   }
 }
 ```
@@ -299,7 +299,7 @@ sequenceDiagram
     participant AuthMgr as Ephemeral Key Manager
     participant SessionMgr as Session Manager
 
-    User->>VSCode: Activate VoicePilot Extension
+    User->>VSCode: Activate Agent Voice Extension
     VSCode->>Extension: activate()
     Extension->>ConfigMgr: loadConfiguration()
     ConfigMgr-->>Extension: Configuration loaded
@@ -498,9 +498,9 @@ graph TD
 
 ### Azure OpenAI Settings
 
-- `voicepilot.azureOpenAI.endpoint`: Azure OpenAI resource endpoint
-- `voicepilot.azureOpenAI.deploymentName`: Realtime model deployment name
-- `voicepilot.azureOpenAI.region`: Azure region (eastus2 or swedencentral)
+- `agentvoice.azureOpenAI.endpoint`: Azure OpenAI resource endpoint
+- `agentvoice.azureOpenAI.deploymentName`: Realtime model deployment name
+- `agentvoice.azureOpenAI.region`: Azure region (eastus2 or swedencentral)
 - **API Key Storage**: Stored securely in VS Code secret storage, never in settings
 
 ### Webview Security Configuration
@@ -520,17 +520,17 @@ graph TD
 
 ### Audio Settings
 
-- `voicepilot.audio.inputDevice`: Preferred microphone device
-- `voicepilot.audio.outputDevice`: Preferred speaker device
-- `voicepilot.audio.noiseReduction`: Enable noise reduction
-- `voicepilot.audio.echoCancellation`: Enable echo cancellation
-- `voicepilot.audio.sampleRate`: Audio sample rate (default: 24000)
+- `agentvoice.audio.inputDevice`: Preferred microphone device
+- `agentvoice.audio.outputDevice`: Preferred speaker device
+- `agentvoice.audio.noiseReduction`: Enable noise reduction
+- `agentvoice.audio.echoCancellation`: Enable echo cancellation
+- `agentvoice.audio.sampleRate`: Audio sample rate (default: 24000)
 
 ### Voice Command Settings
 
-- `voicepilot.commands.wakeWord`: Wake word for activation
-- `voicepilot.commands.sensitivity`: Voice detection sensitivity
-- `voicepilot.commands.timeout`: Command timeout in seconds
+- `agentvoice.commands.wakeWord`: Wake word for activation
+- `agentvoice.commands.sensitivity`: Voice detection sensitivity
+- `agentvoice.commands.timeout`: Command timeout in seconds
 
 ## Security Considerations
 
@@ -582,4 +582,4 @@ graph TD
 3. Error recovery mechanisms
 4. Performance optimizations
 
-This design provides a solid foundation for implementing the VoicePilot extension with proper separation of concerns, secure authentication, and efficient real-time audio processing.
+This design provides a solid foundation for implementing the Agent Voice extension with proper separation of concerns, secure authentication, and efficient real-time audio processing.

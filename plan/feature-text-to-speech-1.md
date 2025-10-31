@@ -1,9 +1,9 @@
 ---
-goal: Implement Azure Realtime TTS service for VoicePilot
+goal: Implement Azure Realtime TTS service for Agent Voice
 version: 1.0
 date_created: 2025-09-26
 last_updated: 2025-09-26
-owner: VoicePilot Audio Team
+owner: Agent Voice Audio Team
 status: 'Completed'
 tags: [feature, audio, azure, tts]
 ---

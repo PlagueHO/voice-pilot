@@ -3,15 +3,15 @@ title: Audio Capture Pipeline Architecture
 version: 1.0
 date_created: 2025-09-23
 last_updated: 2025-09-23
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, audio, capture, pipeline, microphone, webapi]
 ---
 
-This specification defines the Audio Capture Pipeline architecture for VoicePilot's real-time voice interaction system. The pipeline coordinates microphone access, audio processing, and stream management to provide high-quality audio input for Azure OpenAI Realtime API integration. The architecture ensures efficient audio capture with noise reduction, echo cancellation, and format conversion while maintaining low latency for conversational AI interactions.
+This specification defines the Audio Capture Pipeline architecture for Agent Voice's real-time voice interaction system. The pipeline coordinates microphone access, audio processing, and stream management to provide high-quality audio input for Azure OpenAI Realtime API integration. The architecture ensures efficient audio capture with noise reduction, echo cancellation, and format conversion while maintaining low latency for conversational AI interactions.
 
 ## 1. Purpose & Scope
 
-This specification defines the audio capture pipeline requirements for VoicePilot, covering:
+This specification defines the audio capture pipeline requirements for Agent Voice, covering:
 
 - Microphone access and permission management through Web Audio API 1.1 in VS Code webview context
 - Real-time audio processing including noise reduction, echo cancellation, and gain control
@@ -632,7 +632,7 @@ private async handlePermissionDenied(): Promise<void> {
 
   // Provide recovery guidance through VS Code UI
   const action = await vscode.window.showErrorMessage(
-    'VoicePilot needs microphone access for voice interaction. Please grant permission in your browser.',
+    'Agent Voice needs microphone access for voice interaction. Please grant permission in your browser.',
     'Try Again',
     'Settings Help'
   );
@@ -642,7 +642,7 @@ private async handlePermissionDenied(): Promise<void> {
     setTimeout(() => this.startCapture(), 1000);
   } else if (action === 'Settings Help') {
     // Open help documentation
-    vscode.env.openExternal(vscode.Uri.parse('https://docs.voicepilot.dev/permissions'));
+    vscode.env.openExternal(vscode.Uri.parse('https://docs.agentvoice.dev/permissions'));
   }
 }
 ```

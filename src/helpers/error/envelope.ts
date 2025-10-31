@@ -10,11 +10,11 @@ import type {
   RecoveryExecutor,
   RecoveryPlan,
   RetryPlan,
-  VoicePilotError
-} from '../../types/error/voice-pilot-error';
+  AgentVoiceError,
+} from '../../types/error/agent-voice-error';
 
 /**
- * Describes the information required to construct a normalized {@link VoicePilotError}.
+ * Describes the information required to construct a normalized {@link AgentVoiceError,}.
  * @remarks
  * Prefer capturing the earliest relevant context (fault domain, user impact, correlation) so downstream
  * recovery strategies and telemetry pipelines can make well-informed decisions.
@@ -36,11 +36,11 @@ export interface WrapErrorOptions {
 }
 
 /**
- * Creates a {@link VoicePilotError} with normalized severity, impact, and telemetry context.
+ * Creates a {@link AgentVoiceError,} with normalized severity, impact, and telemetry context.
  * @param options - Error envelope data describing the failure and recommended recovery paths.
- * @returns A structured {@link VoicePilotError} instance suitable for logging, telemetry, and recovery orchestration.
+ * @returns A structured {@link AgentVoiceError,} instance suitable for logging, telemetry, and recovery orchestration.
  */
-export function createVoicePilotError(options: WrapErrorOptions): VoicePilotError {
+export function createAgentVoiceError(options: WrapErrorOptions): AgentVoiceError {
   const severity = options.severity ?? DEFAULT_SEVERITY_FOR_DOMAIN[options.faultDomain];
   const userImpact = options.userImpact ?? DEFAULT_USER_IMPACT_FOR_DOMAIN[options.faultDomain];
 
@@ -80,14 +80,14 @@ export interface WrapUnknownErrorOptions extends WrapErrorOptions {
 }
 
 /**
- * Normalizes an unknown error into a {@link VoicePilotError}, ensuring the original error is preserved as the cause.
+ * Normalizes an unknown error into a {@link AgentVoiceError,}, ensuring the original error is preserved as the cause.
  * @param options - Error details plus the raw error value thrown by the failing operation.
  */
-export function wrapError(options: WrapUnknownErrorOptions): VoicePilotError {
+export function wrapError(options: WrapUnknownErrorOptions): AgentVoiceError {
   const cause = options.error instanceof Error
     ? options.error
     : new Error(typeof options.error === 'string' ? options.error : JSON.stringify(options.error));
-  return createVoicePilotError({
+  return createAgentVoiceError({
     ...options,
     cause
   });

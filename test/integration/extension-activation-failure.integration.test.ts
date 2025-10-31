@@ -154,7 +154,7 @@ suite("Integration: Activation Failure Handling", () => {
     ).to.be.instanceOf(Error);
 
     const failureLog = captured.find((entry) =>
-      entry.message.includes("VoicePilot activation failed"),
+      entry.message.includes("Agent Voice activation failed"),
     );
     expect(failureLog, "Expected activation failure log entry").to.exist;
 

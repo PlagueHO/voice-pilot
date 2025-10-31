@@ -1,9 +1,9 @@
 ---
-goal: Implement VoicePilot Error Handling & Recovery Framework
+goal: Implement Agent Voice Error Handling & Recovery Framework
 version: 1.0
 date_created: 2025-09-27
 last_updated: 2025-09-27
-owner: VoicePilot Reliability Team
+owner: Agent Voice Reliability Team
 status: 'Completed'
 tags: [architecture, reliability, error-handling, recovery, vscode, azure]
 ---
@@ -12,7 +12,7 @@ tags: [architecture, reliability, error-handling, recovery, vscode, azure]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan delivers the architecture, services, and UI integrations required by SP-028 to standardize error handling, recovery orchestration, and observability across the VoicePilot extension while aligning with the technical references catalogued in `docs/design/TECHNICAL-REFERENCE-INDEX.md`.
+This implementation plan delivers the architecture, services, and UI integrations required by SP-028 to standardize error handling, recovery orchestration, and observability across the Agent Voice extension while aligning with the technical references catalogued in `docs/design/TECHNICAL-REFERENCE-INDEX.md`.
 
 ## 1. Requirements & Constraints
 
@@ -41,7 +41,7 @@ This implementation plan delivers the architecture, services, and UI integration
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Create `src/types/error/voice-pilot-error.ts` defining `VoicePilotError`, `RetryPlan`, `RecoveryPlan`, `RecoveryStep`, and related interfaces per SP-028 §4. |  |  |
+| TASK-001 | Create `src/types/error/agent-voice-error.ts` defining `Agent VoiceError`, `RetryPlan`, `RecoveryPlan`, `RecoveryStep`, and related interfaces per SP-028 §4. |  |  |
 | TASK-002 | Add `src/types/error/error-taxonomy.ts` exporting enumerations and strongly typed fault domains, severities, and user impact constants. |  |  |
 | TASK-003 | Implement `src/helpers/error/redaction.ts` with deterministic redaction utilities satisfying SEC-001 and unit coverage targets. |  |  |
 | TASK-004 | Provide `src/helpers/error/envelope.ts` with `wrapError`, `withRecovery` signatures aligning with GUD-001 and injecting correlation metadata. |  |  |
@@ -65,7 +65,7 @@ This implementation plan delivers the architecture, services, and UI integration
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-011 | Update `src/auth/EphemeralKeyService.ts` to use `withRecovery` and publish `VoicePilotError` instances for authentication faults. |  |  |
+| TASK-011 | Update `src/auth/EphemeralKeyService.ts` to use `withRecovery` and publish `Agent VoiceError` instances for authentication faults. |  |  |
 | TASK-012 | Extend `src/session/SessionManager.ts` and transport/audio services to register recovery actions and degraded modes via `RecoveryRegistrar`. |  |  |
 | TASK-013 | Implement `src/ui/status-bar.ts` and `src/ui/VoiceControlPanel.ts` adapters invoking new error presentation methods with suppression logic. |  |  |
 | TASK-014 | Ensure host ↔ webview messaging schemas for error payloads are validated by adding shared schema definitions under `src/ui/transcriptView.ts` (or adjacent modules). |  |  |
@@ -98,7 +98,7 @@ This implementation plan delivers the architecture, services, and UI integration
 
 ## 5. Files
 
-- **FILE-001**: `src/types/error/voice-pilot-error.ts` — canonical error envelope definitions.
+- **FILE-001**: `src/types/error/agent-voice-error.ts` — canonical error envelope definitions.
 - **FILE-002**: `src/services/error/error-event-bus.ts` — central publish/subscribe service.
 - **FILE-003**: `src/services/error/recovery-orchestrator.ts` — retry envelopes and recovery execution.
 - **FILE-004**: `src/helpers/error/envelope.ts` — helper utilities for wrapping operations with recovery.

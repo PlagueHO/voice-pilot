@@ -3,7 +3,7 @@ goal: Implement SP-017 Intent Processing Pipeline
 version: 1.0
 date_created: 2025-10-31
 last_updated: 2025-10-31
-owner: VoicePilot Engineering
+owner: Agent Voice Engineering
 status: In progress
 tags: [feature, intent, nlp]
 ---

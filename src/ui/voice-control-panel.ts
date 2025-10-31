@@ -54,7 +54,7 @@ interface TurnStatusUpdateOptions {
 }
 
 /**
- * Provides the VoicePilot control surface within the VS Code sidebar.
+ * Provides the Agent Voice control surface within the VS Code sidebar.
  *
  * @remarks
  * The panel maintains its own UI state and communicates with the webview via
@@ -67,7 +67,7 @@ export class VoiceControlPanel
     vscode.WebviewViewProvider,
     AudioFeedbackPanelAdapter
 {
-  public static readonly viewType = "voicepilot.voiceControl";
+  public static readonly viewType = "agentvoice.voiceControl";
 
   private readonly actionHandlers = new Set<PanelActionHandler>();
   private readonly feedbackHandlers = new Set<PanelFeedbackHandler>();
@@ -169,7 +169,7 @@ export class VoiceControlPanel
   }
 
   /**
-   * Reveals the view within the VoicePilot sidebar container.
+   * Reveals the view within the Agent Voice sidebar container.
    *
    * @param preserveFocus - When true, avoids shifting focus to the panel.
    */
@@ -181,7 +181,7 @@ export class VoiceControlPanel
         this.currentView.show?.(preserveFocus);
       } catch (error) {
         console.warn(
-          "VoicePilot: Failed to reveal voice control panel view",
+          "Agent Voice: Failed to reveal voice control panel view",
           error,
         );
       }
@@ -190,11 +190,11 @@ export class VoiceControlPanel
 
     try {
       await vscode.commands.executeCommand(
-        "workbench.view.extension.voicepilot",
+        "workbench.view.extension.agentvoice",
       );
     } catch (error) {
       console.warn(
-        "VoicePilot: Failed to execute reveal command for panel",
+        "Agent Voice: Failed to execute reveal command for panel",
         error,
       );
     }
@@ -669,7 +669,7 @@ export class VoiceControlPanel
           try {
             handler(message);
           } catch (error) {
-            console.warn("VoicePilot: Feedback handler failed", error);
+            console.warn("Agent Voice: Feedback handler failed", error);
           }
         });
         break;
@@ -678,7 +678,7 @@ export class VoiceControlPanel
           try {
             handler(message);
           } catch (error) {
-            console.warn("VoicePilot: Audio feedback handler failed", error);
+            console.warn("Agent Voice: Audio feedback handler failed", error);
           }
         });
         break;
@@ -880,7 +880,7 @@ export class VoiceControlPanel
       try {
         release();
       } catch (error) {
-        console.warn("VoicePilot: Failed to release tracked disposable", error);
+        console.warn("Agent Voice: Failed to release tracked disposable", error);
       }
     }
     this.trackedDisposables.clear();

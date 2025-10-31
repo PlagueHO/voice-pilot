@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://voicepilot/spec/threat-register.schema.json",
-  "title": "VoicePilot Threat Register Schema",
+  "$id": "https://agentvoice/spec/threat-register.schema.json",
+  "title": "Agent Voice Threat Register Schema",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "lastUpdated", "threats"],

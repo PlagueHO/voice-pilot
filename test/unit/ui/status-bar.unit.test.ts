@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
-import type { VoicePilotError } from "../../../src/types/error/voice-pilot-error";
+import type { AgentVoiceError } from "../../../src/types/error/agent-voice-error";
 import { StatusBar } from "../../../src/ui/status-bar";
 import { expect } from "../../helpers/chai-setup";
 import { after, afterEach, before, beforeEach, suite, test } from "../../mocha-globals";
 
 class StatusBarItemTestDouble {
-  readonly id = "voicepilot.status-bar";
+  readonly id = "agentvoice.status-bar";
   alignment = vscode.StatusBarAlignment.Right;
   priority: number | undefined = undefined;
   name: string | undefined;
@@ -146,8 +146,8 @@ suite("Unit: StatusBar", () => {
     expect(factoryInvocations).to.deep.equal([
       { alignment: vscode.StatusBarAlignment.Right, priority: 100 },
     ]);
-    expect(item.text).to.equal("$(mic) VoicePilot: Ready");
-    expect(item.tooltip).to.equal("VoicePilot voice assistant");
+    expect(item.text).to.equal("$(mic) Agent Voice: Ready");
+    expect(item.tooltip).to.equal("Agent Voice voice assistant");
     expect(item.showCalls).to.equal(1);
     expect(item.backgroundColor).to.be.undefined;
     expect(item.color).to.be.undefined;
@@ -159,12 +159,12 @@ suite("Unit: StatusBar", () => {
 
     item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
     item.color = new vscode.ThemeColor("statusBarItem.prominentForeground");
-    item.command = "voicepilot.startConversation";
+    item.command = "agentvoice.startConversation";
 
     statusBar.showReady("Listening");
 
-    expect(item.text).to.equal("$(mic) VoicePilot: Listening");
-    expect(item.tooltip).to.equal("VoicePilot voice assistant");
+    expect(item.text).to.equal("$(mic) Agent Voice: Listening");
+    expect(item.tooltip).to.equal("Agent Voice voice assistant");
     expect(item.backgroundColor).to.be.undefined;
     expect(item.color).to.be.undefined;
     expect(item.command).to.be.undefined;
@@ -175,8 +175,8 @@ suite("Unit: StatusBar", () => {
 
     statusBar.showInfo("Connecting");
 
-    expect(item.text).to.equal("$(comment-discussion) VoicePilot: Connecting");
-    expect(item.tooltip).to.equal("VoicePilot status");
+    expect(item.text).to.equal("$(comment-discussion) Agent Voice: Connecting");
+    expect(item.tooltip).to.equal("Agent Voice status");
     expect(item.backgroundColor).to.be.undefined;
     expect(item.color).to.be.undefined;
     expect(item.command).to.be.undefined;
@@ -187,14 +187,14 @@ suite("Unit: StatusBar", () => {
 
     statusBar.showInfo("Retrying", "Retrying session setup");
 
-    expect(item.text).to.equal("$(comment-discussion) VoicePilot: Retrying");
+    expect(item.text).to.equal("$(comment-discussion) Agent Voice: Retrying");
     expect(item.tooltip).to.equal("Retrying session setup");
   });
 
   test("showError applies theme colors and remediation tooltip", () => {
     const { statusBar, item } = instantiate();
 
-    const error: VoicePilotError = {
+    const error: AgentVoiceError = {
       id: "session-recovery-failed",
       faultDomain: "session",
       severity: "error",
@@ -207,7 +207,7 @@ suite("Unit: StatusBar", () => {
 
     statusBar.showError(error);
 
-    expect(item.text).to.equal("$(error) VoicePilot issue");
+    expect(item.text).to.equal("$(error) Agent Voice issue");
     expect(item.tooltip).to.equal(
       `${error.message}\n${error.remediation}`,
     );

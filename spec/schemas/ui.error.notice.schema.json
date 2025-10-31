@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/ui.error.notice.schema.json",
+  "$id": "https://agentvoice/spec/ui.error.notice.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "UI Error Notice Envelope",
-  "description": "Recoverable error notification delivered to the VoicePilot webview UI.",
+  "description": "Recoverable error notification delivered to the Agent Voice webview UI.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {

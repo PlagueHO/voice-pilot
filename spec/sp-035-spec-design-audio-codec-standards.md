@@ -1,17 +1,17 @@
 ---
-title: Audio Codec Standards for VoicePilot Realtime Streams
+title: Audio Codec Standards for Agent Voice Realtime Streams
 version: 1.0
 date_created: 2025-10-04
 last_updated: 2025-10-04
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [design, audio, codec, realtime, webrtc]
 ---
 
-This specification defines the canonical audio formats, codec behaviors, adaptation rules, and negotiation workflows required for VoicePilot's realtime voice interaction system. It ensures consistent capture, processing, transport, and playback across the VS Code extension host, webview audio pipeline, and Azure OpenAI GPT Realtime endpoints.
+This specification defines the canonical audio formats, codec behaviors, adaptation rules, and negotiation workflows required for Agent Voice's realtime voice interaction system. It ensures consistent capture, processing, transport, and playback across the VS Code extension host, webview audio pipeline, and Azure OpenAI GPT Realtime endpoints.
 
 ## 1. Purpose & Scope
 
-This document establishes normative requirements for audio encoding, sample rate management, channel configuration, framing, payload sizing, and compatibility guarantees spanning capture (SP-007), transport (SP-006), and downstream AI services. It applies to all components that produce, transform, or consume audio within VoicePilot, including unit test fixtures and diagnostic tooling. Intended readers are extension developers, audio engineers, QA specialists, and infrastructure operators responsible for realtime audio reliability.
+This document establishes normative requirements for audio encoding, sample rate management, channel configuration, framing, payload sizing, and compatibility guarantees spanning capture (SP-007), transport (SP-006), and downstream AI services. It applies to all components that produce, transform, or consume audio within Agent Voice, including unit test fixtures and diagnostic tooling. Intended readers are extension developers, audio engineers, QA specialists, and infrastructure operators responsible for realtime audio reliability.
 
 Assumptions:
 
@@ -33,7 +33,7 @@ Assumptions:
 
 ## 3. Requirements, Constraints & Guidelines
 
-- **REQ-001**: VoicePilot SHALL define a primary PCM16/24 kHz mono codec profile for microphone capture, transport, and Azure ingestion.
+- **REQ-001**: Agent Voice SHALL define a primary PCM16/24 kHz mono codec profile for microphone capture, transport, and Azure ingestion.
 - **REQ-002**: The system SHALL expose a secondary 16 kHz profile for low-bandwidth recovery while preserving PCM16 semantics.
 - **REQ-003**: Codec negotiation SHALL complete during WebRTC SDP offer/answer exchange and be reflected in Web Audio `AudioContext.sampleRate`.
 - **REQ-004**: All recorded fixtures and automated tests SHALL use canonical PCM16 WAV containers aligned with the active codec profile.
@@ -130,7 +130,7 @@ All services SHALL exchange codec identifiers via structured events:
 
 ## 7. Rationale & Context
 
-VoicePilot prioritizes human-in-the-loop conversations where latency and intelligibility dominate user perception. Standardizing on PCM16 aligns with Azure OpenAI GPT Realtime ingestion expectations and simplifies signal processing in AudioWorklet nodes. Defining precise packet sizing, fallback behaviors, and diagnostic emission ensures audio capture (SP-007) and WebRTC transport (SP-006) remain interoperable without ad-hoc tuning.
+Agent Voice prioritizes human-in-the-loop conversations where latency and intelligibility dominate user perception. Standardizing on PCM16 aligns with Azure OpenAI GPT Realtime ingestion expectations and simplifies signal processing in AudioWorklet nodes. Defining precise packet sizing, fallback behaviors, and diagnostic emission ensures audio capture (SP-007) and WebRTC transport (SP-006) remain interoperable without ad-hoc tuning.
 
 ## 8. Dependencies & External Integrations
 
@@ -144,7 +144,7 @@ VoicePilot prioritizes human-in-the-loop conversations where latency and intelli
 
 ### Infrastructure Dependencies
 
-- **INF-001**: VoicePilot WebRTC signaling service – must relay codec negotiation metadata and propagate fallback decisions.
+- **INF-001**: Agent Voice WebRTC signaling service – must relay codec negotiation metadata and propagate fallback decisions.
 
 ### Data Dependencies
 

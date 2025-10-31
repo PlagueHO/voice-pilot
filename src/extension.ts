@@ -15,7 +15,7 @@ import { VoiceControlPanel } from './ui/voice-control-panel';
 let controller: ExtensionController | undefined;
 
 /**
- * Activates the VoicePilot extension following the documented configuration → auth → session → UI boot order.
+ * Activates the Agent Voice extension following the documented configuration → auth → session → UI boot order.
  *
  * @remarks
  * Registers shared resources on the {@link vscode.ExtensionContext.subscriptions | extension context} so they
@@ -61,9 +61,9 @@ export async function activate(context: vscode.ExtensionContext) {
       isCopilotChatAvailable() ||
       (await ensureCopilotChatInstalled({ logger }));
     voicePanel.setCopilotAvailable(!!copilotInstalled);
-    await vscode.commands.executeCommand('setContext', 'voicepilot.copilotAvailable', !!copilotInstalled);
+    await vscode.commands.executeCommand('setContext', 'agentvoice.copilotAvailable', !!copilotInstalled);
     await controller.initialize();
-    await vscode.commands.executeCommand('setContext', 'voicepilot.activated', true);
+    await vscode.commands.executeCommand('setContext', 'agentvoice.activated', true);
     const duration = performance.now() - start;
     logger.info(`Activation completed in ${duration.toFixed(2)}ms`);
     if (duration > 5000) {
@@ -71,9 +71,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error('VoicePilot activation failed', { error: error.message });
+    logger.error('Agent Voice activation failed', { error: error.message });
     lifecycleTelemetry.record('activation.failed');
-    vscode.window.showErrorMessage(`VoicePilot activation failed: ${error.message}`);
+    vscode.window.showErrorMessage(`Agent Voice activation failed: ${error.message}`);
     controller?.dispose();
     controller = undefined;
     throw error;

@@ -1,6 +1,6 @@
 # Technical Reference Index
 
-Centralized catalog of authoritative external documentation for VoicePilot design and implementation. Reference this table from other project guides (for example, `AGENTS.md`).
+Centralized catalog of authoritative external documentation for Agent Voice design and implementation. Reference this table from other project guides (for example, `AGENTS.md`).
 
 | Title | URL | Description |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ Centralized catalog of authoritative external documentation for VoicePilot desig
 | Azure Identity for JavaScript | [learn.microsoft.com](https://learn.microsoft.com/en-us/javascript/api/overview/azure/identity-readme) | Overview of `DefaultAzureCredential` and token acquisition flows used for keyless auth. |
 | VS Code Extension API | [code.visualstudio.com](https://code.visualstudio.com/api) | Authoritative documentation for building VS Code extensions, including activation, commands, and webviews. |
 | Testing VS Code Extensions | [code.visualstudio.com](https://code.visualstudio.com/api/working-with-extensions/testing-extension) | Guidance for running integration tests with `@vscode/test-electron` and structuring extension test suites. |
-| Web Audio API (MDN) | [developer.mozilla.org](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) | Reference for working with PCM audio in the browser, used by the VoicePilot webview playback pipeline. |
+| Web Audio API (MDN) | [developer.mozilla.org](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) | Reference for working with PCM audio in the browser, used by the Agent Voice webview playback pipeline. |
 | Web Audio API – AudioWorklet | [webaudio.github.io](https://webaudio.github.io/web-audio-api/#AudioWorklet) | Normative description of the AudioWorklet interface, module loading, and processor registration lifecycle. |
 | Web Audio API – AudioWorkletNode | [webaudio.github.io](https://webaudio.github.io/web-audio-api/#AudioWorkletNode) | Details node construction, channel configuration, and messaging surfaces for custom audio processors. |
 | Web Audio API – AudioWorkletProcessor | [webaudio.github.io](https://webaudio.github.io/web-audio-api/#AudioWorkletProcessor) | Specifies processor execution semantics, process() contract, and parameter descriptor behavior. |

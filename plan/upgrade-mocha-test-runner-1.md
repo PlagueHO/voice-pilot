@@ -3,7 +3,7 @@ goal: Upgrade Mocha test runner to v11.7.4 with compliant toolchain
 version: 1.0
 date_created: 2025-10-09
 last_updated: 2025-10-10
-owner: VoicePilot Engineering
+owner: Agent Voice Engineering
 status: 'Completed'
 tags: ['upgrade', 'testing']
 ---
@@ -12,7 +12,7 @@ tags: ['upgrade', 'testing']
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all local and CI runtimes with Mocha 11's Node.js requirements, and validates that VoicePilot's lint, unit, integration, and coverage workflows remain green after the migration.
+This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all local and CI runtimes with Mocha 11's Node.js requirements, and validates that Agent Voice's lint, unit, integration, and coverage workflows remain green after the migration.
 
 ## 1. Requirements & Constraints
 
@@ -91,4 +91,4 @@ This plan upgrades the repository test harness to `mocha@11.7.4`, aligns all loc
 ## 8. Related Specifications / Further Reading
 
 - [Mocha Changelog 11.x](https://github.com/mochajs/mocha/blob/main/CHANGELOG.md)
-- [VoicePilot Continuous Integration Pipeline](../docs/CI-PIPELINE.md)
+- [Agent Voice Continuous Integration Pipeline](../docs/CI-PIPELINE.md)

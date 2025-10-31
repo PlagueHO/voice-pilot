@@ -9,8 +9,8 @@ import type {
     RetryMetricsSink,
 } from "../../core/retry/retry-types";
 import type { ServiceInitializable } from "../../core/service-initializable";
-import { createVoicePilotError } from "../../helpers/error/envelope";
-import type { VoicePilotFaultDomain } from "../../types/error/error-taxonomy";
+import { createAgentVoiceError } from "../../helpers/error/envelope";
+import type { AgentVoiceFaultDomain } from "../../types/error/error-taxonomy";
 import {
     DEFAULT_SEVERITY_FOR_DOMAIN,
     DEFAULT_USER_IMPACT_FOR_DOMAIN,
@@ -21,8 +21,8 @@ import type {
     RecoveryExecutionOptions,
     RecoveryExecutor,
     RetryPlan,
-    VoicePilotError,
-} from "../../types/error/voice-pilot-error";
+    AgentVoiceError,
+} from "../../types/error/agent-voice-error";
 import type { RetryEnvelope, RetryPolicy } from "../../types/retry";
 import type { RecoveryRegistrationCenter } from "./recovery-registrar";
 
@@ -80,11 +80,11 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
     this.initialized = false;
   }
 
-  getCircuitBreakerState(domain: VoicePilotFaultDomain): CircuitBreakerState | undefined {
+  getCircuitBreakerState(domain: AgentVoiceFaultDomain): CircuitBreakerState | undefined {
     return this.deps.retryExecutor.getCircuitBreakerState(domain);
   }
 
-  reset(domain: VoicePilotFaultDomain): void {
+  reset(domain: AgentVoiceFaultDomain): void {
     this.deps.retryExecutor.reset(domain);
   }
 
@@ -192,7 +192,7 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
     return envelope;
   }
 
-  private async runRecoveryPlan(error: VoicePilotError, options: RecoveryExecutionOptions): Promise<void> {
+  private async runRecoveryPlan(error: AgentVoiceError, options: RecoveryExecutionOptions): Promise<void> {
     const plan =
       error.recoveryPlan ??
       options.recoveryPlan ??
@@ -245,7 +245,7 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
     const recoveryPlan =
       options.recoveryPlan ?? this.deps.registry?.get(options.faultDomain);
 
-    const voiceError = createVoicePilotError({
+    const voiceError = createAgentVoiceError({
       faultDomain: options.faultDomain,
       code: options.code,
       message: options.message,
@@ -284,8 +284,8 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
   private handleCircuitOpen(
     options: RecoveryExecutionOptions,
     state: CircuitBreakerState,
-  ): VoicePilotError {
-    const error = createVoicePilotError({
+  ): AgentVoiceError {
+    const error = createAgentVoiceError({
       faultDomain: options.faultDomain,
       code: `${options.code}_CIRCUIT_OPEN`,
       message: `${options.message} (circuit breaker open)`,
@@ -306,11 +306,11 @@ export class RecoveryOrchestrator implements RecoveryExecutor, ServiceInitializa
   private normalizeError(
     error: unknown,
     options: RecoveryExecutionOptions,
-  ): VoicePilotError {
+  ): AgentVoiceError {
     if (error && typeof error === "object" && "code" in (error as any)) {
-      return error as VoicePilotError;
+      return error as AgentVoiceError;
     }
-    return createVoicePilotError({
+    return createAgentVoiceError({
       faultDomain: options.faultDomain,
       code: `${options.code}_UNKNOWN_FAILURE`,
       message: `${options.message} failed for an unknown reason`,

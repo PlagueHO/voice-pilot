@@ -44,7 +44,7 @@ jobs:
     with:
       ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}
       AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || vars.AZURE_LOCATION || 'eastus2' }}
-      AZURE_ENV_NAME: voicepilot-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}-${{ github.run_id }}
+      AZURE_ENV_NAME: agentvoice-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'test') }}-${{ github.run_id }}
 
   package_extension:
     name: Package extension artefacts
@@ -162,7 +162,7 @@ jobs:
     secrets: inherit
     with:
       ENVIRONMENT: test
-      AZURE_ENV_NAME: voicepilot-test-${{ github.run_id }}
+      AZURE_ENV_NAME: agentvoice-test-${{ github.run_id }}
       AZURE_LOCATION: ${{ github.event_name == 'workflow_dispatch' && inputs.azure_location || vars.AZURE_LOCATION || 'eastus2' }}
 
   rollback_application_test:

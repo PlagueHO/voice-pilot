@@ -3,17 +3,17 @@ title: Core Extension Activation & Lifecycle
 version: 1.0
 date_created: 2025-09-19
 last_updated: 2025-09-19
-owner: VoicePilot Project
+owner: Agent Voice Project
 tags: [architecture, extension, lifecycle, vscode]
 ---
 
 # Introduction
 
-This specification defines the core VS Code extension activation lifecycle for VoicePilot, including activation events, command registration, component initialization, and proper teardown procedures. It establishes the foundation for all other extension components and ensures proper integration with the VS Code extension host.
+This specification defines the core VS Code extension activation lifecycle for Agent Voice, including activation events, command registration, component initialization, and proper teardown procedures. It establishes the foundation for all other extension components and ensures proper integration with the VS Code extension host.
 
 ## 1. Purpose & Scope
 
-This specification defines the activation and lifecycle management requirements for the VoicePilot VS Code extension. It covers:
+This specification defines the activation and lifecycle management requirements for the Agent Voice VS Code extension. It covers:
 
 - Extension activation triggers and events
 - Component initialization sequence
@@ -43,8 +43,8 @@ This specification defines the activation and lifecycle management requirements 
 
 ### Activation Requirements
 
-- **REQ-001**: Extension SHALL activate on first user interaction with VoicePilot commands
-- **REQ-002**: Extension SHALL activate when VoicePilot sidebar panel is opened
+- **REQ-001**: Extension SHALL activate on first user interaction with Agent Voice commands
+- **REQ-002**: Extension SHALL activate when Agent Voice sidebar panel is opened
 - **REQ-003**: Extension SHALL register all commands during activation
 - **REQ-004**: Extension SHALL initialize core services in dependency order
 - **REQ-005**: Extension SHALL display activity bar icon after successful activation
@@ -73,7 +73,7 @@ This specification defines the activation and lifecycle management requirements 
 
 - **PAT-001**: Initialize services in order: Configuration → Authentication → Session → UI
 - **PAT-002**: Use VS Code's built-in disposal pattern for cleanup
-- **PAT-003**: Register commands with consistent naming convention: `voicepilot.*`
+- **PAT-003**: Register commands with consistent naming convention: `agentvoice.*`
 - **PAT-004**: Implement graceful degradation when dependencies are unavailable
 
 ## 4. Interfaces & Data Contracts
@@ -88,32 +88,32 @@ This specification defines the activation and lifecycle management requirements 
   "contributes": {
     "commands": [
       {
-        "command": "voicepilot.startConversation",
-        "title": "VoicePilot: Start Conversation"
+        "command": "agentvoice.startConversation",
+        "title": "Agent Voice: Start Conversation"
       },
       {
-        "command": "voicepilot.endConversation",
-        "title": "VoicePilot: End Conversation"
+        "command": "agentvoice.endConversation",
+        "title": "Agent Voice: End Conversation"
       },
       {
-        "command": "voicepilot.openSettings",
-        "title": "VoicePilot: Open Settings"
+        "command": "agentvoice.openSettings",
+        "title": "Agent Voice: Open Settings"
       }
     ],
     "views": {
-      "voicepilot": [
+      "agentvoice": [
         {
-          "id": "voicepilot.sidebar",
-          "name": "VoicePilot",
-          "when": "voicepilot.activated"
+          "id": "agentvoice.sidebar",
+          "name": "Agent Voice",
+          "when": "agentvoice.activated"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "voicepilot",
-          "title": "VoicePilot",
+          "id": "agentvoice",
+          "title": "Agent Voice",
           "icon": "resources/icon.png"
         }
       ]
@@ -158,9 +158,9 @@ interface CommandDefinition {
 
 ## 5. Acceptance Criteria
 
-- **AC-001**: Given VS Code is starting, When user opens VoicePilot sidebar, Then extension activates within 5 seconds
+- **AC-001**: Given VS Code is starting, When user opens Agent Voice sidebar, Then extension activates within 5 seconds
 - **AC-002**: Given extension is activating, When activation completes, Then all commands are registered and functional
-- **AC-003**: Given extension is active, When user executes `voicepilot.startConversation`, Then conversation UI appears
+- **AC-003**: Given extension is active, When user executes `agentvoice.startConversation`, Then conversation UI appears
 - **AC-004**: Given extension is active, When VS Code is closing, Then extension deactivates cleanly without errors
 - **AC-005**: Given activation fails, When error occurs, Then user sees helpful error message with troubleshooting steps
 - **AC-006**: Given extension is activated, When configuration changes, Then services reload appropriately
@@ -231,9 +231,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       dispose: () => controller.deactivate()
     });
 
-    vscode.commands.executeCommand('setContext', 'voicepilot.activated', true);
+    vscode.commands.executeCommand('setContext', 'agentvoice.activated', true);
   } catch (error) {
-    vscode.window.showErrorMessage(`VoicePilot activation failed: ${error.message}`);
+    vscode.window.showErrorMessage(`Agent Voice activation failed: ${error.message}`);
     throw error;
   }
 }

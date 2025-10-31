@@ -3,22 +3,22 @@ title: ExtensionController - Technical Documentation
 component_path: src/core/extension-controller.ts
 version: 1.0
 date_created: 2025-09-27
-owner: VoicePilot Core Team
+owner: Agent Voice Core Team
 tags: [component, controller, orchestration, vs-code-extension]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->
 # ExtensionController Documentation
 
-The `ExtensionController` coordinates initialization, runtime orchestration, and disposal of VoicePilot's core services inside the VS Code extension host. It acts as the single entry point for lifecycle management, command wiring, recovery flows, and the conversational pipeline that bridges audio, Copilot chat, and the user interface.
+The `ExtensionController` coordinates initialization, runtime orchestration, and disposal of Agent Voice's core services inside the VS Code extension host. It acts as the single entry point for lifecycle management, command wiring, recovery flows, and the conversational pipeline that bridges audio, Copilot chat, and the user interface.
 
 ## 1. Component Overview
 
 ### Purpose/Responsibility
 
-- **OVR-001**: Manage the full lifecycle of authentication, configuration, privacy, session, and conversation services required by VoicePilot.
+- **OVR-001**: Manage the full lifecycle of authentication, configuration, privacy, session, and conversation services required by Agent Voice.
 - **OVR-002**: Scope is limited to orchestrating service initialization/disposal, wiring runtime observers, and exposing lightweight getters. Direct business logic (audio processing, Copilot communication, etc.) remains within specialized services.
-- **OVR-003**: Operates within the VS Code extension host, mediating between platform facilities (commands, context keys, UI surfaces) and VoicePilot services.
+- **OVR-003**: Operates within the VS Code extension host, mediating between platform facilities (commands, context keys, UI surfaces) and Agent Voice services.
 
 ## 2. Architecture Section
 
@@ -31,7 +31,7 @@ The `ExtensionController` coordinates initialization, runtime orchestration, and
 
 ```mermaid
 graph TD
-    subgraph "VoicePilot Extension Core"
+    subgraph "Agent Voice Extension Core"
         EC[ExtensionController]
         CM[ConfigurationManager]
         CR[CredentialManagerImpl]
@@ -131,7 +131,7 @@ graph TD
 
 ### Events & Callbacks
 
-- Registers VS Code commands `voicepilot.startConversation`, `voicepilot.endConversation`, and `voicepilot.openSettings`.
+- Registers VS Code commands `agentvoice.startConversation`, `agentvoice.endConversation`, and `agentvoice.openSettings`.
 - Subscribes to `ConfigurationManager.onConfigurationChanged`, `InterruptionEngine.onEvent`, and multiple `ConversationStateMachine` event streams (state, turn, transcript).
 - Bridges `ChatIntegration` response events back into the `ConversationStateMachine`.
 
@@ -191,7 +191,7 @@ if (!testResult.success) {
 }
 
 // Example: adjust conversation policy after a configuration update
-await vscode.workspace.getConfiguration("voicepilot.conversation")
+await vscode.workspace.getConfiguration("agentvoice.conversation")
   .update("policyProfile", "hands-free", vscode.ConfigurationTarget.Global);
 ```
 
@@ -211,9 +211,9 @@ await vscode.workspace.getConfiguration("voicepilot.conversation")
 
 - **REF-001 Dependencies**:
   - `vscode` (extension API) for commands, disposables, context keys.
-  - VoicePilot internal services: configuration, authentication, conversation, privacy, UI, recovery subsystems.
+  - Agent Voice internal services: configuration, authentication, conversation, privacy, UI, recovery subsystems.
   - Azure OpenAI connectivity handled indirectly via `EphemeralKeyServiceImpl` and `ChatIntegration`.
-- **REF-002 Configuration Options**: Relies on `ConversationConfig` (policy profile, barge-in allowances, timing budgets), `voicepilot` settings, and secret storage seeded by credential workflows.
+- **REF-002 Configuration Options**: Relies on `ConversationConfig` (policy profile, barge-in allowances, timing budgets), `agentvoice` settings, and secret storage seeded by credential workflows.
 - **REF-003 Testing Guidelines**: Unit tests should stub dependent services implementing `ServiceInitializable` and validate initialization order/recovery behavior. Integration tests should activate the extension host and verify command wiring and conversation state propagation.
 - **REF-004 Troubleshooting**:
   - Initialization failures roll back automatically; check logs from `Logger` for the first failing service.

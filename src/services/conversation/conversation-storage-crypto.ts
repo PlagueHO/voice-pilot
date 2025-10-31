@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import * as vscode from 'vscode';
 
-const SECRET_KEY_NAME = 'voicepilot.conversation.key';
+const SECRET_KEY_NAME = 'agentvoice.conversation.key';
 const KEY_LENGTH = 32; // 256-bit AES key
 const IV_LENGTH = 12; // 96-bit IV for GCM
 const AUTH_TAG_LENGTH = 16;

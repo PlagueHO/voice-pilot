@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Barrel exports for the VoicePilot type system.
+ * Barrel exports for the Agent Voice type system.
  *
  * @remarks
  * Re-exports shared type definitions and integration contracts so consumers can
@@ -16,7 +16,7 @@ export * from "./conversation-storage";
 export * from "./credentials";
 export * from "./ephemeral";
 export * from "./error/error-taxonomy";
-export * from "./error/voice-pilot-error";
+export * from "./error/agent-voice-error";
 export * from "./presence";
 export * from "./privacy";
 export * from "./realtime-events";

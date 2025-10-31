@@ -50,7 +50,7 @@ function sanitizeProfile(raw: unknown): AccessibilityProfile {
 export class AudioFeedbackSection {
   read(): AudioFeedbackConfig {
     const configuration = vscode.workspace.getConfiguration(
-      "voicepilot.audioFeedback",
+      "agentvoice.audioFeedback",
     );
 
     const enabled = configuration.get<boolean>("enabled", true);

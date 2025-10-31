@@ -3,7 +3,7 @@ goal: Align Audio Capture Pipeline with Updated SP-007 Web Audio API 1.1 Require
 version: 2.0
 date_created: 2025-09-29
 last_updated: 2025-09-29
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, capture, remediation, webaudio]
 ---

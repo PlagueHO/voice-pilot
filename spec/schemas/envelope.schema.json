@@ -1,8 +1,8 @@
 {
-  "$id": "https://voicepilot/spec/envelope.schema.json",
+  "$id": "https://agentvoice/spec/envelope.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "VoicePilot Message Envelope",
-  "description": "Canonical wrapper for VoicePilot message payloads exchanged across transports.",
+  "title": "Agent Voice Message Envelope",
+  "description": "Canonical wrapper for Agent Voice message payloads exchanged across transports.",
   "type": "object",
   "required": [
     "id",
@@ -49,7 +49,7 @@
         "telemetry",
         "error-service"
       ],
-      "description": "Logical origin of the message within the VoicePilot architecture."
+      "description": "Logical origin of the message within the Agent Voice architecture."
     },
     "privacyTier": {
       "type": "string",

@@ -65,12 +65,12 @@ function createSecrets(store: Map<string, string>): vscode.SecretStorage {
 export interface ExtensionContextStubOptions {
   /**
    * Root URI assigned to the synthetic extension context.
-   * @defaultValue `"file://voicepilot-unit-test"`
+   * @defaultValue `"file://agentvoice-unit-test"`
    */
   uri?: string;
   /**
    * Base filesystem location used when resolving `asAbsolutePath` calls.
-   * @defaultValue `"/tmp/voicepilot/test"`
+   * @defaultValue `"/tmp/agentvoice/test"`
    */
   storageBasePath?: string;
   /**
@@ -90,8 +90,8 @@ export interface ExtensionContextStubOptions {
  * @returns A fully populated extension context that mirrors the shape expected by production code.
  */
 export function createExtensionContextStub({
-  uri = "file://voicepilot-unit-test",
-  storageBasePath = "/tmp/voicepilot/test",
+  uri = "file://agentvoice-unit-test",
+  storageBasePath = "/tmp/agentvoice/test",
   overrides = {},
 }: ExtensionContextStubOptions = {}): vscode.ExtensionContext {
   const secretsStore = new Map<string, string>();

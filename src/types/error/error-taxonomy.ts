@@ -1,5 +1,5 @@
 /**
- * All fault domains recognized by the VoicePilot error taxonomy.
+ * All fault domains recognized by the Agent Voice error taxonomy.
  */
 export const VOICE_PILOT_FAULT_DOMAINS = [
   "auth",
@@ -14,7 +14,7 @@ export const VOICE_PILOT_FAULT_DOMAINS = [
 /**
  * Enumerated fault domain derived from {@link VOICE_PILOT_FAULT_DOMAINS}.
  */
-export type VoicePilotFaultDomain = (typeof VOICE_PILOT_FAULT_DOMAINS)[number];
+export type AgentVoiceFaultDomain = (typeof VOICE_PILOT_FAULT_DOMAINS)[number];
 
 /**
  * Severity levels surfaced to users and telemetry.
@@ -29,7 +29,7 @@ export const VOICE_PILOT_SEVERITIES = [
 /**
  * Enumerated severity level derived from {@link VOICE_PILOT_SEVERITIES}.
  */
-export type VoicePilotSeverity = (typeof VOICE_PILOT_SEVERITIES)[number];
+export type AgentVoiceSeverity = (typeof VOICE_PILOT_SEVERITIES)[number];
 
 /**
  * User impact levels describing perceived degradation.
@@ -43,7 +43,7 @@ export const VOICE_PILOT_USER_IMPACTS = [
 /**
  * Enumerated user impact derived from {@link VOICE_PILOT_USER_IMPACTS}.
  */
-export type VoicePilotUserImpact = (typeof VOICE_PILOT_USER_IMPACTS)[number];
+export type AgentVoiceUserImpact = (typeof VOICE_PILOT_USER_IMPACTS)[number];
 
 /**
  * Descriptor providing human-readable taxonomy labels.
@@ -59,7 +59,7 @@ type TaxonomyMap<TKey extends string> = Record<TKey, TaxonomyDescriptor>;
 /**
  * Mapping of fault domains to descriptor metadata.
  */
-export const FAULT_DOMAIN_DESCRIPTORS: TaxonomyMap<VoicePilotFaultDomain> = {
+export const FAULT_DOMAIN_DESCRIPTORS: TaxonomyMap<AgentVoiceFaultDomain> = {
   auth: {
     id: "auth",
     label: "Authentication",
@@ -102,7 +102,7 @@ export const FAULT_DOMAIN_DESCRIPTORS: TaxonomyMap<VoicePilotFaultDomain> = {
 /**
  * Mapping of severities to human-readable descriptors.
  */
-export const SEVERITY_DESCRIPTORS: TaxonomyMap<VoicePilotSeverity> = {
+export const SEVERITY_DESCRIPTORS: TaxonomyMap<AgentVoiceSeverity> = {
   info: {
     id: "info",
     label: "Informational",
@@ -129,7 +129,7 @@ export const SEVERITY_DESCRIPTORS: TaxonomyMap<VoicePilotSeverity> = {
 /**
  * Mapping of user impact levels to descriptive metadata.
  */
-export const USER_IMPACT_DESCRIPTORS: TaxonomyMap<VoicePilotUserImpact> = {
+export const USER_IMPACT_DESCRIPTORS: TaxonomyMap<AgentVoiceUserImpact> = {
   transparent: {
     id: "transparent",
     label: "Transparent",
@@ -151,21 +151,21 @@ export const USER_IMPACT_DESCRIPTORS: TaxonomyMap<VoicePilotUserImpact> = {
 /**
  * Type guard ensuring a string maps to a known fault domain.
  */
-export function isFaultDomain(value: string): value is VoicePilotFaultDomain {
+export function isFaultDomain(value: string): value is AgentVoiceFaultDomain {
   return (VOICE_PILOT_FAULT_DOMAINS as readonly string[]).includes(value);
 }
 
 /**
  * Type guard ensuring a string maps to a known severity.
  */
-export function isSeverity(value: string): value is VoicePilotSeverity {
+export function isSeverity(value: string): value is AgentVoiceSeverity {
   return (VOICE_PILOT_SEVERITIES as readonly string[]).includes(value);
 }
 
 /**
  * Type guard ensuring a string maps to a known user impact level.
  */
-export function isUserImpact(value: string): value is VoicePilotUserImpact {
+export function isUserImpact(value: string): value is AgentVoiceUserImpact {
   return (VOICE_PILOT_USER_IMPACTS as readonly string[]).includes(value);
 }
 
@@ -173,8 +173,8 @@ export function isUserImpact(value: string): value is VoicePilotUserImpact {
  * Default severity applied when fault domains do not provide overrides.
  */
 export const DEFAULT_SEVERITY_FOR_DOMAIN: Record<
-  VoicePilotFaultDomain,
-  VoicePilotSeverity
+  AgentVoiceFaultDomain,
+  AgentVoiceSeverity
 > = {
   auth: "error",
   session: "error",
@@ -189,8 +189,8 @@ export const DEFAULT_SEVERITY_FOR_DOMAIN: Record<
  * Default user impact applied when fault domains do not provide overrides.
  */
 export const DEFAULT_USER_IMPACT_FOR_DOMAIN: Record<
-  VoicePilotFaultDomain,
-  VoicePilotUserImpact
+  AgentVoiceFaultDomain,
+  AgentVoiceUserImpact
 > = {
   auth: "blocked",
   session: "degraded",
@@ -204,7 +204,7 @@ export const DEFAULT_USER_IMPACT_FOR_DOMAIN: Record<
 /**
  * Ordering helper used to compare severities.
  */
-export const SEVERITY_ORDER: Record<VoicePilotSeverity, number> = {
+export const SEVERITY_ORDER: Record<AgentVoiceSeverity, number> = {
   info: 0,
   warning: 1,
   error: 2,
@@ -215,8 +215,8 @@ export const SEVERITY_ORDER: Record<VoicePilotSeverity, number> = {
  * Compares two severities and returns a signed order value.
  */
 export function compareSeverity(
-  left: VoicePilotSeverity,
-  right: VoicePilotSeverity,
+  left: AgentVoiceSeverity,
+  right: AgentVoiceSeverity,
 ): number {
   return SEVERITY_ORDER[left] - SEVERITY_ORDER[right];
 }
@@ -225,8 +225,8 @@ export function compareSeverity(
  * Normalizes severities, falling back to the default when undefined.
  */
 export function normalizeSeverity(
-  severity?: VoicePilotSeverity,
-): VoicePilotSeverity {
+  severity?: AgentVoiceSeverity,
+): AgentVoiceSeverity {
   return severity && isSeverity(severity) ? severity : "error";
 }
 
@@ -234,7 +234,7 @@ export function normalizeSeverity(
  * Normalizes user impact, falling back to the default when undefined.
  */
 export function normalizeUserImpact(
-  userImpact?: VoicePilotUserImpact,
-): VoicePilotUserImpact {
+  userImpact?: AgentVoiceUserImpact,
+): AgentVoiceUserImpact {
   return userImpact && isUserImpact(userImpact) ? userImpact : "degraded";
 }

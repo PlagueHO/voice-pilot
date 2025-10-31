@@ -1,9 +1,9 @@
 ---
-post_title: VoicePilot Continuous Integration Pipeline
-author1: VoicePilot Team
-post_slug: voicepilot-continuous-integration-pipeline
-microsoft_alias: voicepilot
-featured_image: https://raw.githubusercontent.com/PlagueHO/voice-pilot/main/resources/icon.svg
+post_title: Agent Voice Continuous Integration Pipeline
+author1: Agent Voice Team
+post_slug: agentvoice-continuous-integration-pipeline
+microsoft_alias: agentvoice
+featured_image: https://raw.githubusercontent.com/PlagueHO/agent-voice/main/resources/icon.svg
 categories:
   - ci
 tags:
@@ -11,14 +11,14 @@ tags:
   - quality-gate
   - security
 ai_note: Created with assistance from AI pair programming tools.
-summary: Documentation for the VoicePilot GitHub Actions workflow defined in .github/workflows/continuous-integration.yml.
+summary: Documentation for the Agent Voice GitHub Actions workflow defined in .github/workflows/continuous-integration.yml.
 post_date: 2025-10-09
 ---
 
 <!-- markdownlint-disable-next-line MD041 -->
 ## Overview
 
-The VoicePilot repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. Matrixed jobs fan out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.12.0. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
+The Agent Voice repository ships a single GitHub Actions workflow, `continuous-integration.yml`, that validates pull requests and branch pushes before release. Matrixed jobs fan out across two VS Code channels (`stable` and `insiders`) while standardizing on Node.js 22.12.0. Every job executes on `ubuntu-latest` runners and shares the same concurrency guard (`ci-${{ github.ref }}`) to avoid duplicate runs on the same branch.
 
 ## Workflow Triggers and Permissions
 

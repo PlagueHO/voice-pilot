@@ -1,6 +1,6 @@
 import type {
-    VoicePilotFaultDomain,
-    VoicePilotSeverity,
+    AgentVoiceFaultDomain,
+    AgentVoiceSeverity,
 } from "../../types/error/error-taxonomy";
 import { Logger } from "../logger";
 import type { RetryMetricsSink, RetryOutcome } from "./retry-types";
@@ -17,8 +17,8 @@ export class RetryMetricsLoggerSink implements RetryMetricsSink {
   constructor(private readonly logger: Logger) {}
 
   async incrementAttempt(
-    domain: VoicePilotFaultDomain,
-    severity: VoicePilotSeverity,
+    domain: AgentVoiceFaultDomain,
+    severity: AgentVoiceSeverity,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
     const sanitized = this.sanitize(metadata);
@@ -30,7 +30,7 @@ export class RetryMetricsLoggerSink implements RetryMetricsSink {
   }
 
   async recordOutcome(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
     outcome: RetryOutcome,
     metadata?: Record<string, unknown>,
   ): Promise<void> {

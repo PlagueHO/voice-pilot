@@ -68,10 +68,8 @@ interface EntityExtractorStrategy {
  * Extract file path entities with workspace resolution.
  */
 class FilePathExtractor implements EntityExtractorStrategy {
-  private readonly logger: Logger;
-
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor(_logger: Logger) {
+    // Logger parameter kept for interface consistency but not currently used
   }
 
   async extract(
@@ -142,10 +140,8 @@ class FilePathExtractor implements EntityExtractorStrategy {
  * Extract line number entities.
  */
 class LineNumberExtractor implements EntityExtractorStrategy {
-  private readonly logger: Logger;
-
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor(_logger: Logger) {
+    // Logger parameter kept for interface consistency but not currently used
   }
 
   async extract(
@@ -181,10 +177,8 @@ class LineNumberExtractor implements EntityExtractorStrategy {
  * Extract generic number entities.
  */
 class NumberExtractor implements EntityExtractorStrategy {
-  private readonly logger: Logger;
-
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor(_logger: Logger) {
+    // Logger parameter kept for interface consistency but not currently used
   }
 
   async extract(

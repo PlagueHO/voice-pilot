@@ -115,14 +115,16 @@ suite('Unit: EphemeralKeyServiceImpl', () => {
     expect(svc.isInitialized()).to.equal(true);
   });
 
-  test('fails initialization when authentication test cannot create session', async () => {
+  test('initializes in degraded mode when authentication test cannot create session', async () => {
     (global as any).fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'Unauthorized' }}) });
     const svc = new EphemeralKeyServiceImpl(
       new MockCredMgr('bad') as any,
       new MockConfigMgr(baseConfig, baseRealtimeConfig, baseAudioConfig) as any,
       new Logger('Test'),
     );
-    await expect(svc.initialize()).to.be.rejectedWith(/Authentication test failed/i);
+    // Service should initialize successfully even if auth test fails (degraded mode)
+    await svc.initialize();
+    expect(svc.isInitialized()).to.equal(true);
   });
 
   test('requestEphemeralKey returns error when missing key', async () => {

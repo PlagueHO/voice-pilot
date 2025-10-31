@@ -1,12 +1,12 @@
 import type {
-    VoicePilotFaultDomain,
-    VoicePilotSeverity,
+    AgentVoiceFaultDomain,
+    AgentVoiceSeverity,
 } from "../../types/error/error-taxonomy";
 import type {
     CircuitBreakerState,
     RetryPlan,
-    VoicePilotError,
-} from "../../types/error/voice-pilot-error";
+    AgentVoiceError,
+} from "../../types/error/agent-voice-error";
 import type { RetryDomainOverride, RetryEnvelope } from "../../types/retry";
 import type { Logger } from "../logger";
 import type { ServiceInitializable } from "../service-initializable";
@@ -27,7 +27,7 @@ export interface RetryFailureContext {
 }
 
 export interface RetryFailureResult {
-  error: VoicePilotError;
+  error: AgentVoiceError;
   shouldRetry?: boolean;
   retryPlan?: RetryPlan;
 }
@@ -36,18 +36,18 @@ export interface RetryOutcome {
   success: boolean;
   attempts: number;
   totalDurationMs: number;
-  lastError?: VoicePilotError;
+  lastError?: AgentVoiceError;
   circuitBreakerOpened?: boolean;
 }
 
 export interface RetryMetricsSink {
   incrementAttempt(
-    domain: VoicePilotFaultDomain,
-    severity: VoicePilotSeverity,
+    domain: AgentVoiceFaultDomain,
+    severity: AgentVoiceSeverity,
     metadata?: Record<string, unknown>,
   ): Promise<void>;
   recordOutcome(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
     outcome: RetryOutcome,
     metadata?: Record<string, unknown>,
   ): Promise<void>;
@@ -61,25 +61,25 @@ export interface RetryExecutionContext {
   clock: RetryClock;
   logger: Logger;
   metrics: RetryMetricsSink;
-  severity?: VoicePilotSeverity;
+  severity?: AgentVoiceSeverity;
   metadata?: Record<string, unknown>;
   onAttempt?: (attempt: number, delayMs: number) => void | Promise<void>;
-  onRetryScheduled?: (plan: RetryPlan, error?: VoicePilotError) => void | Promise<void>;
+  onRetryScheduled?: (plan: RetryPlan, error?: AgentVoiceError) => void | Promise<void>;
   onFailure?: (
     context: RetryFailureContext,
   ) => RetryFailureResult | Promise<RetryFailureResult>;
   onComplete?: (outcome: RetryOutcome) => void | Promise<void>;
   onCircuitOpen?: (
     state: CircuitBreakerState,
-  ) => VoicePilotError | Promise<VoicePilotError>;
+  ) => AgentVoiceError | Promise<AgentVoiceError>;
 }
 
 export interface RetryExecutor extends ServiceInitializable {
   execute<T>(fn: () => Promise<T>, context: RetryExecutionContext): Promise<T>;
   getCircuitBreakerState(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
   ): CircuitBreakerState | undefined;
-  reset(domain: VoicePilotFaultDomain): void;
+  reset(domain: AgentVoiceFaultDomain): void;
 }
 
 export interface RetryConfigurationValidation {
@@ -88,9 +88,9 @@ export interface RetryConfigurationValidation {
 }
 
 export interface RetryConfigurationProvider extends ServiceInitializable {
-  getEnvelope(domain: VoicePilotFaultDomain): RetryEnvelope;
+  getEnvelope(domain: AgentVoiceFaultDomain): RetryEnvelope;
   getOverride(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
   ): RetryDomainOverride | undefined;
   validateEnvelope(envelope: RetryEnvelope): RetryConfigurationValidation;
 }

@@ -32,7 +32,7 @@ import {
 
 const MAX_UNCOMPRESSED_BYTES = 10 * 1024 * 1024;
 const SCHEMA_VERSION = 1;
-const STORAGE_NAMESPACE = 'voicepilot';
+const STORAGE_NAMESPACE = 'agentvoice';
 const CONVERSATION_FOLDER = 'conversations';
 const SNAPSHOT_FOLDER = 'snapshots';
 const RETENTION_SWEEP_MS = 6 * 60 * 60 * 1000;
@@ -782,7 +782,7 @@ export class ConversationStorageServiceImpl
 
     const extensionIdentifier = this.context.extensionUri
       ? createHash('sha1').update(this.context.extensionUri.fsPath).digest('hex').substring(0, 16)
-      : 'voicepilot';
+      : 'agentvoice';
     const fallbackPath = path.join(
       tmpdir(),
       STORAGE_NAMESPACE,

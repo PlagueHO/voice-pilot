@@ -6,12 +6,12 @@ import type {
     RetryMetricsSink,
     RetryOutcome,
 } from '../../../src/core/retry/retry-types';
-import { createVoicePilotError } from '../../../src/helpers/error/envelope';
+import { createAgentVoiceError } from '../../../src/helpers/error/envelope';
 import type {
-    VoicePilotFaultDomain,
-    VoicePilotSeverity,
+    AgentVoiceFaultDomain,
+    AgentVoiceSeverity,
 } from '../../../src/types/error/error-taxonomy';
-import type { CircuitBreakerState } from '../../../src/types/error/voice-pilot-error';
+import type { CircuitBreakerState } from '../../../src/types/error/agent-voice-error';
 import type { RetryEnvelope } from '../../../src/types/retry';
 import { expect } from '../../helpers/chai-setup';
 import { afterEach, beforeEach, suite, test } from '../../mocha-globals';
@@ -36,26 +36,26 @@ class FakeClock implements RetryClock {
 
 class RecordingMetrics implements RetryMetricsSink {
   readonly attempts: Array<{
-    domain: VoicePilotFaultDomain;
-    severity: VoicePilotSeverity;
+    domain: AgentVoiceFaultDomain;
+    severity: AgentVoiceSeverity;
     metadata?: Record<string, unknown>;
   }> = [];
   readonly outcomes: Array<{
-    domain: VoicePilotFaultDomain;
+    domain: AgentVoiceFaultDomain;
     outcome: RetryOutcome;
     metadata?: Record<string, unknown>;
   }> = [];
 
   async incrementAttempt(
-    domain: VoicePilotFaultDomain,
-    severity: VoicePilotSeverity,
+    domain: AgentVoiceFaultDomain,
+    severity: AgentVoiceSeverity,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
     this.attempts.push({ domain, severity, metadata });
   }
 
   async recordOutcome(
-    domain: VoicePilotFaultDomain,
+    domain: AgentVoiceFaultDomain,
     outcome: RetryOutcome,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
@@ -195,7 +195,7 @@ suite('Unit: RetryExecutorImpl', () => {
         scheduledDelays.push(plan.initialDelayMs);
       },
       onFailure: async (failure) => {
-        const error = createVoicePilotError({
+        const error = createAgentVoiceError({
           faultDomain: envelope.domain,
           code: 'TEST_RETRY_FAILURE',
           message: 'Injected retry failure',
@@ -264,7 +264,7 @@ suite('Unit: RetryExecutorImpl', () => {
       severity: 'error',
       onRetryScheduled: () => {},
       onFailure: async (failure) => {
-        const error = createVoicePilotError({
+        const error = createAgentVoiceError({
           faultDomain: envelope.domain,
           code: 'AUTH_RETRY_FAILED',
           message: 'Auth failed',
@@ -279,7 +279,7 @@ suite('Unit: RetryExecutorImpl', () => {
       },
       onCircuitOpen: (state) => {
         circuitStates.push(state);
-        return createVoicePilotError({
+        return createAgentVoiceError({
           faultDomain: envelope.domain,
           code: 'AUTH_CIRCUIT_OPEN',
           message: 'Circuit breaker open',

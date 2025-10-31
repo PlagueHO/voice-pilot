@@ -1,9 +1,9 @@
 import { SessionDiagnostics } from "./session";
 
 /**
- * Presence states surfaced by VoicePilot to UI surfaces.
+ * Presence states surfaced by Agent Voice to UI surfaces.
  */
-export type VoicePilotPresenceState =
+export type AgentVoicePresenceState =
   | "idle"
   | "listening"
   | "processing"
@@ -18,7 +18,7 @@ export type VoicePilotPresenceState =
  * Canonical presence states used for descriptor lookup (excludes transient states).
  */
 export type CanonicalPresenceState = Exclude<
-  VoicePilotPresenceState,
+  AgentVoicePresenceState,
   "interrupted"
 >;
 
@@ -45,7 +45,7 @@ export interface PresenceDetails {
  * Notification emitted when the presence state changes.
  */
 export interface PresenceUpdate {
-  state: VoicePilotPresenceState;
+  state: AgentVoicePresenceState;
   sessionId?: string;
   since: string;
   copilotAvailable: boolean;
@@ -79,10 +79,10 @@ const BASE_DESCRIPTORS: Record<
   idle: {
     state: "idle",
     sidebarLabel: "Hands/Eyes Free Planning",
-    statusBarText: "$(mic) VoicePilot",
+    statusBarText: "$(mic) Agent Voice",
     message: "Hands/Eyes Free Planning",
     tooltip: "Start Conversation",
-    ariaLabel: "VoicePilot ready",
+    ariaLabel: "Agent Voice ready",
     severity: "info",
     activityBarIcon: "$(mic)",
     defaultDetails: { retry: false, renewal: false },
@@ -92,8 +92,8 @@ const BASE_DESCRIPTORS: Record<
     sidebarLabel: "● Listening",
     statusBarText: "$(unmute) Listening…",
     message: "● Listening",
-    tooltip: "VoicePilot is listening. Speak anytime.",
-    ariaLabel: "VoicePilot listening",
+    tooltip: "Agent Voice is listening. Speak anytime.",
+    ariaLabel: "Agent Voice listening",
     severity: "info",
     activityBarIcon: "$(unmute)",
     defaultDetails: { retry: false, renewal: false },
@@ -104,7 +104,7 @@ const BASE_DESCRIPTORS: Record<
     statusBarText: "$(sync) Processing…",
     message: "⋯ Thinking",
     tooltip: "Analyzing your request.",
-    ariaLabel: "VoicePilot processing your request",
+    ariaLabel: "Agent Voice processing your request",
     severity: "info",
     activityBarIcon: "$(sync)",
     defaultDetails: { retry: false, renewal: false },
@@ -115,7 +115,7 @@ const BASE_DESCRIPTORS: Record<
     statusBarText: "$(clock) Waiting for Copilot…",
     message: "⋯ Waiting for Copilot",
     tooltip: "Copilot is responding. You may interrupt.",
-    ariaLabel: "VoicePilot waiting for Copilot response",
+    ariaLabel: "Agent Voice waiting for Copilot response",
     severity: "warn",
     activityBarIcon: "$(clock)",
     defaultDetails: { retry: false, renewal: false },
@@ -125,8 +125,8 @@ const BASE_DESCRIPTORS: Record<
     sidebarLabel: "● Speaking",
     statusBarText: "$(megaphone) Responding…",
     message: "● Speaking",
-    tooltip: "VoicePilot is responding. Speak to interrupt.",
-    ariaLabel: "VoicePilot speaking",
+    tooltip: "Agent Voice is responding. Speak to interrupt.",
+    ariaLabel: "Agent Voice speaking",
     severity: "info",
     activityBarIcon: "$(megaphone)",
     defaultDetails: { retry: false, renewal: false },
@@ -137,7 +137,7 @@ const BASE_DESCRIPTORS: Record<
     statusBarText: "$(debug-pause) Suspended…",
     message: "◌ Paused",
     tooltip: "Renewing connection. This may take a moment.",
-    ariaLabel: "VoicePilot suspended while renewing connection",
+    ariaLabel: "Agent Voice suspended while renewing connection",
     severity: "warn",
     activityBarIcon: "$(debug-pause)",
     defaultDetails: { retry: false, renewal: true },
@@ -145,10 +145,10 @@ const BASE_DESCRIPTORS: Record<
   error: {
     state: "error",
     sidebarLabel: "⚠️ Attention Needed",
-    statusBarText: "$(error) VoicePilot issue",
+    statusBarText: "$(error) Agent Voice issue",
     message: "⚠️ Attention Needed",
     tooltip: "Check logs. Run diagnostics command.",
-    ariaLabel: "VoicePilot requires attention",
+    ariaLabel: "Agent Voice requires attention",
     severity: "error",
     activityBarIcon: "$(error)",
     defaultDetails: { retry: true, renewal: false },
@@ -159,7 +159,7 @@ const BASE_DESCRIPTORS: Record<
     statusBarText: "$(cloud-offline) Offline",
     message: "✖ Offline",
     tooltip: "Reconnect to resume voice control.",
-    ariaLabel: "VoicePilot is offline",
+    ariaLabel: "Agent Voice is offline",
     severity: "error",
     activityBarIcon: "$(cloud-offline)",
     defaultDetails: { retry: true, renewal: false },
@@ -175,7 +175,7 @@ export const PRESENCE_BATCH_WINDOW_MS = 50;
  * Normalizes the presence state by mapping transient states to canonical ones.
  */
 export function normalizePresenceState(
-  state: VoicePilotPresenceState,
+  state: AgentVoicePresenceState,
 ): CanonicalPresenceState {
   return state === "interrupted" ? "listening" : state;
 }
@@ -184,7 +184,7 @@ export function normalizePresenceState(
  * Resolves the descriptor for a given presence state.
  */
 export function resolvePresenceDescriptor(
-  state: VoicePilotPresenceState,
+  state: AgentVoicePresenceState,
 ): PresenceStateDescriptor {
   const canonical = normalizePresenceState(state);
   return BASE_DESCRIPTORS[canonical];

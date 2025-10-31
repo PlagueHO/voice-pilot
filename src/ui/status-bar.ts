@@ -1,15 +1,15 @@
 import * as vscode from "vscode";
-import type { VoicePilotError } from "../types/error/voice-pilot-error";
+import type { AgentVoiceError } from "../types/error/agent-voice-error";
 
 /**
- * Manages the VoicePilot status bar item and renders state transitions for the extension lifecycle.
+ * Manages the Agent Voice status bar item and renders state transitions for the extension lifecycle.
  *
  * @remarks
  * The status bar item surfaces readiness, informational, and error states for the voice session.
  */
 export class StatusBar {
   private readonly item: vscode.StatusBarItem;
-  private readonly defaultLabel = "VoicePilot";
+  private readonly defaultLabel = "Agent Voice";
 
   /**
    * Creates the VS Code status bar item and initializes it in the ready state.
@@ -24,13 +24,13 @@ export class StatusBar {
   }
 
   /**
-   * Displays the ready state, indicating that VoicePilot is idle and prepared to start a session.
+   * Displays the ready state, indicating that Agent Voice is idle and prepared to start a session.
    *
    * @param message - Optional message appended to the ready label. Defaults to "Ready".
    */
   showReady(message = "Ready"): void {
     this.item.text = `$(mic) ${this.defaultLabel}: ${message}`;
-    this.item.tooltip = "VoicePilot voice assistant";
+    this.item.tooltip = "Agent Voice voice assistant";
     this.item.backgroundColor = undefined;
     this.item.color = undefined;
     this.item.command = undefined;
@@ -39,12 +39,12 @@ export class StatusBar {
   /**
    * Displays an informational state in the status bar.
    *
-   * @param message - Text to display alongside the VoicePilot label.
+   * @param message - Text to display alongside the Agent Voice label.
    * @param tooltip - Optional tooltip content to provide additional context.
    */
   showInfo(message: string, tooltip?: string): void {
     this.item.text = `$(comment-discussion) ${this.defaultLabel}: ${message}`;
-    this.item.tooltip = tooltip ?? "VoicePilot status";
+    this.item.tooltip = tooltip ?? "Agent Voice status";
     this.item.backgroundColor = undefined;
     this.item.color = undefined;
     this.item.command = undefined;
@@ -53,9 +53,9 @@ export class StatusBar {
   /**
    * Displays an error state with structured remediation details.
    *
-   * @param error - The error raised by VoicePilot, including remediation guidance for the tooltip.
+   * @param error - The error raised by Agent Voice, including remediation guidance for the tooltip.
    */
-  showError(error: VoicePilotError): void {
+  showError(error: AgentVoiceError): void {
     this.item.text = `$(error) ${this.defaultLabel} issue`;
     this.item.tooltip = [error.message, error.remediation]
       .filter(Boolean)

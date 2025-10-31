@@ -31,7 +31,7 @@ export type MicrophoneStatus =
  */
 export interface TranscriptEntry {
   entryId: string;
-  speaker: "user" | "voicepilot" | "copilot";
+  speaker: "user" | "agentvoice" | "copilot";
   content: string;
   timestamp: string;
   confidence?: number;

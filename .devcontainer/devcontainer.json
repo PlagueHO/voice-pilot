@@ -1,7 +1,7 @@
 {
-  "name": "VoicePilot VS Code Extension Development",
+  "name": "Agent Voice VS Code Extension Development",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22",
-  "workspaceFolder": "/workspaces/voice-pilot",
+  "workspaceFolder": "/workspaces/agent-voice",
 
   "features": {
     "ghcr.io/devcontainers/features/node:1": {

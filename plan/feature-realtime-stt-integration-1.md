@@ -2,7 +2,7 @@
 goal: Implement realtime STT service compliant with SP-009
 version: 1.0
 date_created: 2025-09-25
-owner: VoicePilot Project
+owner: Agent Voice Project
 status: 'Completed'
 tags: [feature, audio, realtime, azure]
 ---
@@ -11,7 +11,7 @@ tags: [feature, audio, realtime, azure]
 
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
-This implementation plan delivers the realtime speech-to-text (STT) service described in `spec/sp-009-spec-tool-realtime-stt.md`, wiring Azure OpenAI GPT Realtime streaming into the VoicePilot audio pipeline and UI.
+This implementation plan delivers the realtime speech-to-text (STT) service described in `spec/sp-009-spec-tool-realtime-stt.md`, wiring Azure OpenAI GPT Realtime streaming into the Agent Voice audio pipeline and UI.
 
 ## 1. Requirements & Constraints
 

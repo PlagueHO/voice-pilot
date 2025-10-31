@@ -1,9 +1,9 @@
 ---
-goal: Implement SP-056 Threat Modeling Controls Across VoicePilot
+goal: Implement SP-056 Threat Modeling Controls Across Agent Voice
 version: 1.0
 date_created: 2025-10-18
 last_updated: 2025-10-18
-owner: VoicePilot Security Engineering
+owner: Agent Voice Security Engineering
 status: Completed
 tags: [process, security, governance]
 ---

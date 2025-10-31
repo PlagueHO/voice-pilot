@@ -1,10 +1,10 @@
 {
-  "$id": "https://voicepilot/spec/ui.session.state.schema.json",
+  "$id": "https://agentvoice/spec/ui.session.state.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "UI Session State Envelope",
-  "description": "Session state payload communicated from the host to the VoicePilot webview UI.",
+  "description": "Session state payload communicated from the host to the Agent Voice webview UI.",
   "allOf": [
-  { "$ref": "https://voicepilot/spec/envelope.schema.json" },
+  { "$ref": "https://agentvoice/spec/envelope.schema.json" },
     {
       "type": "object",
       "properties": {
@@ -50,7 +50,7 @@
                 "required": ["entryId", "speaker", "content", "timestamp"],
                 "properties": {
                   "entryId": { "type": "string", "minLength": 1 },
-                  "speaker": { "type": "string", "enum": ["user", "voicepilot", "copilot"] },
+                  "speaker": { "type": "string", "enum": ["user", "agentvoice", "copilot"] },
                   "content": { "type": "string" },
                   "timestamp": { "type": "string", "format": "date-time" },
                   "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
