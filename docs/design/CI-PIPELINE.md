@@ -3,7 +3,7 @@ post_title: Agent Voice Continuous Integration Pipeline
 author1: Agent Voice Team
 post_slug: agentvoice-continuous-integration-pipeline
 microsoft_alias: agentvoice
-featured_image: https://raw.githubusercontent.com/PlagueHO/agent-voice/main/resources/icon.svg
+featured_image: https://raw.githubusercontent.com/PlagueHO/agent-voice/main/assets/icon.svg
 categories:
   - ci
 tags:

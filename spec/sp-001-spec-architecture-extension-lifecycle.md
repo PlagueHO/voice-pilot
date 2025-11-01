@@ -114,7 +114,7 @@ This specification defines the activation and lifecycle management requirements 
         {
           "id": "agentvoice",
           "title": "Agent Voice",
-          "icon": "resources/icon.png"
+          "icon": "assets/icon.png"
         }
       ]
     }

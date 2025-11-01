@@ -30,7 +30,7 @@ Scope includes:
 - Session Manager (SP-005) emits lifecycle events and diagnostics in real time.
 - Conversation State Machine (SP-012) produces deterministic state change events for each turn.
 - UI layout and visual primitives follow `docs/design/UI.md`.
-- Activity bar icon assets and animations exist within `resources/`.
+- Activity bar icon assets and animations exist within `assets/`.
 - VS Code context key updates drive conditional command visibility.
 
 ## 2. Definitions
@@ -87,7 +87,7 @@ Scope includes:
 ### Constraints
 
 - **CON-001**: Indicator rendering SHALL rely solely on VS Code API primitives (`setStatusBarMessage`, `StatusBarItem`, `WebviewViewProvider`) and SHALL NOT require native modules.
-- **CON-002**: All indicator assets SHALL reside under `resources/` and follow VS Code CSP rules when used within webviews.
+- **CON-002**: All indicator assets SHALL reside under `assets/` and follow VS Code CSP rules when used within webviews.
 - **CON-003**: Presence states SHALL be forward-compatible; new states MUST default to the `idle` behaviour if unrecognised by older clients.
 
 ### Guidelines & Patterns
