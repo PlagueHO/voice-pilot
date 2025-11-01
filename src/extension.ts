@@ -63,6 +63,8 @@ export async function activate(context: vscode.ExtensionContext) {
     voicePanel.setCopilotAvailable(!!copilotInstalled);
     await vscode.commands.executeCommand('setContext', 'agentvoice.copilotAvailable', !!copilotInstalled);
     await controller.initialize();
+    // Check if configuration is complete after controller initializes
+    voicePanel.setConfigurationComplete(configurationManager.isConfigured());
     await vscode.commands.executeCommand('setContext', 'agentvoice.activated', true);
     const duration = performance.now() - start;
     logger.info(`Activation completed in ${duration.toFixed(2)}ms`);

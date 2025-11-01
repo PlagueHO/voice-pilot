@@ -4,10 +4,10 @@ import { EphemeralKeyServiceImpl } from "../auth/ephemeral-key-service";
 import { presentCleanupDiagnostics, summarizeCleanupReport, type CleanupDiagnosticsResult } from "../commands/run-diagnostics";
 import { ConfigurationManager } from "../config/configuration-manager";
 import ConversationStateMachine, {
-  StateChangeEvent as ConversationStateChangeEvent,
-  TurnContext as ConversationTurnContext,
-  TurnEvent as ConversationTurnEvent,
-  CopilotResponseEvent,
+    StateChangeEvent as ConversationStateChangeEvent,
+    TurnContext as ConversationTurnContext,
+    TurnEvent as ConversationTurnEvent,
+    CopilotResponseEvent,
 } from "../conversation/conversation-state-machine";
 import { TranscriptPrivacyAggregator } from "../conversation/transcript-privacy-aggregator";
 import { ChatIntegration } from "../copilot/chat-integration";
@@ -24,16 +24,16 @@ import { InterruptionEngineImpl } from "../session/interruption-engine";
 import { SessionManagerImpl } from "../session/session-manager";
 
 import {
-  lifecycleTelemetry,
-  type LifecyclePhase,
+    lifecycleTelemetry,
+    type LifecyclePhase,
 } from "../telemetry/lifecycle-telemetry";
 import { telemetryLogger } from "../telemetry/logger";
 import { ConversationConfig } from "../types/configuration";
 import { InterruptionPolicyConfig } from "../types/conversation";
 import type { DisposalReason, DisposalReport } from "../types/disposal";
 import type {
-  RecoveryPlan,
-  AgentVoiceError,
+    AgentVoiceError,
+    RecoveryPlan,
 } from "../types/error/agent-voice-error";
 import { ErrorPresenter } from "../ui/error-presentation-adapter";
 import { StatusBar } from "../ui/status-bar";
@@ -43,8 +43,8 @@ import { OrphanDetector } from "./disposal/orphan-detector";
 import type { AggregatedResourceTracker } from "./disposal/orphan-resource-tracker";
 import { OrphanResourceTracker } from "./disposal/orphan-resource-tracker";
 import {
-  createServiceScope,
-  DisposableScope,
+    createServiceScope,
+    DisposableScope,
 } from "./disposal/scoped-disposable";
 import { Logger } from "./logger";
 import { RetryConfigurationProviderImpl } from "./retry/retry-configuration-provider";
@@ -617,7 +617,7 @@ export class ExtensionController implements ServiceInitializable {
       vscode.commands.registerCommand("agentvoice.openSettings", () => {
         vscode.commands.executeCommand(
           "workbench.action.openSettings",
-          "@ext:agentvoice",
+          "@ext:neuralflow.agentvoice",
         );
       }),
     );

@@ -13,6 +13,7 @@ const state = {
   renewalCountdownSeconds: undefined,
   transcript: [],
   copilotAvailable: true,
+  configurationComplete: false,
   microphoneStatus: 'idle',
   errorBanner: undefined,
   truncated: false,
@@ -33,6 +34,8 @@ const dom = {
   retryButton: document.getElementById('vp-retry'),
   copilotBanner: document.getElementById('vp-copilot-banner'),
   installCopilot: document.getElementById('vp-install-copilot'),
+  configBanner: document.getElementById('vp-config-banner'),
+  openConfig: document.getElementById('vp-open-config'),
   liveRegion: document.getElementById('vp-live-region'),
   settingsButton: document.getElementById('vp-settings')
 };
@@ -155,7 +158,13 @@ function renderPrimaryAction() {
   }
   const label = computePrimaryLabel();
   dom.primaryAction.textContent = label;
-  dom.primaryAction.disabled = Boolean(state.pendingAction);
+  const isDisabled = Boolean(state.pendingAction) || !state.configurationComplete;
+  dom.primaryAction.disabled = isDisabled;
+  if (!state.configurationComplete && !state.sessionId) {
+    dom.primaryAction.title = 'Configuration required. Click Configure above.';
+  } else {
+    dom.primaryAction.title = '';
+  }
 }
 
 function computePrimaryLabel() {
@@ -267,6 +276,20 @@ function handleInstallCopilot() {
   vscode.postMessage({ type: 'panel.action', action: 'configure' });
 }
 
+function handleOpenConfig() {
+  vscode.postMessage({ type: 'panel.action', action: 'configure' });
+}
+
+function renderConfigBanner() {
+  if (!dom.configBanner) {
+    return;
+  }
+  dom.configBanner.hidden = state.configurationComplete;
+  if (!state.configurationComplete) {
+    announce('Configuration required: Azure OpenAI endpoint and deployment must be set');
+  }
+}
+
 function applySessionUpdate(message) {
   if (typeof message.sessionId !== 'undefined') {
     state.sessionId = message.sessionId || undefined;
@@ -305,6 +328,7 @@ function applyInitialize(initialState) {
   renderTranscript();
   renderErrorBanner();
   renderCopilotBanner();
+  renderConfigBanner();
   renderPrimaryAction();
 }
 
@@ -362,6 +386,10 @@ window.addEventListener('message', event => {
       state.copilotAvailable = message.available;
       renderCopilotBanner();
       break;
+    case 'configuration.status':
+      state.configurationComplete = message.complete;
+      renderConfigBanner();
+      break;
     case 'audioFeedback.control':
       audioFeedback.handleControl(message);
       break;
@@ -386,6 +414,9 @@ if (dom.retryButton) {
 }
 if (dom.installCopilot) {
   dom.installCopilot.addEventListener('click', handleInstallCopilot);
+}
+if (dom.openConfig) {
+  dom.openConfig.addEventListener('click', handleOpenConfig);
 }
 if (dom.settingsButton) {
   dom.settingsButton.addEventListener('click', handleSettingsClick);

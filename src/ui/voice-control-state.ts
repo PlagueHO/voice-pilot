@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
 import type {
-  AudioFeedbackControlMessage,
-  AudioFeedbackEventMessage,
-  AudioFeedbackStateMessage,
+    AudioFeedbackControlMessage,
+    AudioFeedbackEventMessage,
+    AudioFeedbackStateMessage,
 } from "../types/audio-feedback";
 import type { TurnEventDiagnostics } from "../types/conversation";
 
@@ -61,6 +61,7 @@ export interface VoiceControlPanelState {
   renewalCountdownSeconds?: number;
   transcript: TranscriptEntry[];
   copilotAvailable: boolean;
+  configurationComplete: boolean;
   microphoneStatus: MicrophoneStatus;
   errorBanner?: UserFacingError;
   truncated?: boolean;
@@ -145,6 +146,14 @@ export interface CopilotAvailabilityMessage {
 }
 
 /**
+ * Message broadcasting configuration completeness to the panel.
+ */
+export interface ConfigurationStatusMessage {
+  type: "configuration.status";
+  complete: boolean;
+}
+
+/**
  * Union of messages sent from the extension host to the voice control panel.
  */
 export type PanelOutboundMessage =
@@ -156,6 +165,7 @@ export type PanelOutboundMessage =
   | TranscriptRemoveMessage
   | AudioStatusMessage
   | CopilotAvailabilityMessage
+  | ConfigurationStatusMessage
   | AudioFeedbackControlMessage
   | AudioFeedbackStateMessage;
 
@@ -199,6 +209,7 @@ export function createInitialPanelState(): VoiceControlPanelState {
     statusLabel: "Ready",
     transcript: [],
     copilotAvailable: true,
+    configurationComplete: false,
     microphoneStatus: "idle",
     pendingAction: null,
     fallbackActive: false,

@@ -2,29 +2,29 @@ import * as vscode from "vscode";
 import type { ResourceTracker } from "../core/disposal/resource-tracker";
 import type { ServiceInitializable } from "../core/service-initializable";
 import type {
-  AudioFeedbackControlMessage,
-  AudioFeedbackEventMessage,
-  AudioFeedbackPanelAdapter,
-  AudioFeedbackStateMessage,
+    AudioFeedbackControlMessage,
+    AudioFeedbackEventMessage,
+    AudioFeedbackPanelAdapter,
+    AudioFeedbackStateMessage,
 } from "../types/audio-feedback";
 import type { TurnEventDiagnostics } from "../types/conversation";
 import { renderVoiceControlPanelHtml } from "./templates/voice-control-panel.html";
 import {
-  createInitialPanelState,
-  deriveMicrophoneStatusFromState,
-  ensureEntryId,
-  isSessionActive,
-  MicrophoneStatus,
-  PanelActionMessage,
-  PanelFeedbackMessage,
-  PanelInboundMessage,
-  PanelOutboundMessage,
-  PanelStatus,
-  TranscriptEntry,
-  UserFacingError,
-  VoiceControlPanelState,
-  withTranscriptAppend,
-  withTranscriptCommit,
+    createInitialPanelState,
+    deriveMicrophoneStatusFromState,
+    ensureEntryId,
+    isSessionActive,
+    MicrophoneStatus,
+    PanelActionMessage,
+    PanelFeedbackMessage,
+    PanelInboundMessage,
+    PanelOutboundMessage,
+    PanelStatus,
+    TranscriptEntry,
+    UserFacingError,
+    VoiceControlPanelState,
+    withTranscriptAppend,
+    withTranscriptCommit,
 } from "./voice-control-state";
 
 type PanelAction = PanelActionMessage["action"];
@@ -479,6 +479,23 @@ export class VoiceControlPanel
   }
 
   /**
+   * Sets whether the essential configuration is complete.
+   *
+   * @param complete - True when Azure OpenAI endpoint and deployment are configured.
+   */
+  setConfigurationComplete(complete: boolean): void {
+    if (this.state.configurationComplete === complete) {
+      return;
+    }
+    this.state = {
+      ...this.state,
+      configurationComplete: complete,
+    };
+    this.sendConfigurationStatus();
+    this.flushPendingMessages();
+  }
+
+  /**
    * Toggles fallback mode visuals for degraded experiences.
    *
    * @param active - Indicates whether fallback mode is active.
@@ -652,6 +669,7 @@ export class VoiceControlPanel
     this.sendSessionUpdate();
     this.sendAudioStatus();
     this.sendCopilotAvailability();
+    this.sendConfigurationStatus();
     this.flushPendingMessages();
   }
 
@@ -754,6 +772,13 @@ export class VoiceControlPanel
     this.enqueueMessage({
       type: "copilot.availability",
       available: this.state.copilotAvailable,
+    });
+  }
+
+  private sendConfigurationStatus(): void {
+    this.enqueueMessage({
+      type: "configuration.status",
+      complete: this.state.configurationComplete,
     });
   }
 

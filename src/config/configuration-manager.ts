@@ -202,6 +202,22 @@ export class ConfigurationManager implements ServiceInitializable {
     return this.lastValidation;
   }
 
+  /**
+   * Checks if the essential Azure OpenAI configuration is present.
+   * Returns false if endpoint or deployment name is missing/empty.
+   */
+  isConfigured(): boolean {
+    const azureConfig = this.getAzureOpenAIConfig();
+    return !!(azureConfig.endpoint && azureConfig.deploymentName);
+  }
+
+  /**
+   * Returns the last validation result if available.
+   */
+  getLastValidation(): ValidationResult | undefined {
+    return this.lastValidation;
+  }
+
   // Internal ---------------------------------------------------------------
   private cached<T>(key: string, loader: () => T): T {
     if (this.cache.has(key)) {
@@ -293,7 +309,7 @@ export class ConfigurationManager implements ServiceInitializable {
       const oldValue = oldVal[k];
       const newValue = newVal[k];
       let hasChanged = oldValue !== newValue;
-      
+
       // For non-primitive values, perform deep comparison only when references differ
       if (
         hasChanged &&
@@ -302,7 +318,7 @@ export class ConfigurationManager implements ServiceInitializable {
       ) {
         hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
       }
-      
+
       if (hasChanged) {
         changes.push({
           section,

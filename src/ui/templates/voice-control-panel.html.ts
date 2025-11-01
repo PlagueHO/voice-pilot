@@ -299,6 +299,10 @@ export function renderVoiceControlPanelHtml(options: RenderOptions): string {
         <span>GitHub Copilot Chat is required for full functionality.</span>
         <button id="vp-install-copilot" class="vp-icon-button">Install</button>
       </div>
+      <div id="vp-config-banner" class="vp-banner" hidden style="background: var(--vscode-statusBarItem-errorBackground); color: var(--vscode-statusBarItem-errorForeground);">
+        <span>⚙️ Configuration required: Azure OpenAI endpoint and deployment must be set.</span>
+        <button id="vp-open-config" class="vp-icon-button" title="Open Settings">Configure</button>
+      </div>
       <div class="vp-meta-row">
         <span id="vp-mic" class="vp-mic-indicator" data-state="${state.microphoneStatus}">Microphone: ${state.microphoneStatus}</span>
         <span id="vp-countdown" class="vp-countdown">${

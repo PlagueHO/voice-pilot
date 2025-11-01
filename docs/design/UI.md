@@ -383,6 +383,93 @@ Would you like me to create a detailed specification document for any of these a
 - **Tooltip**: Error message with details
 - **Click Action**: Opens error details or troubleshooting panel
 
+#### Hover Menu
+
+**Trigger**: Mouse hover over status bar item for 500ms
+**Behavior**: Shows floating panel above status bar item with conversation details and quick actions
+
+##### Inactive State Hover
+
+```text
+┌─────────────────────────────────┐
+│ Agent Voice - Ready             │
+├─────────────────────────────────┤
+│ No active conversation          │
+│                                 │
+│ [▶ Start Conversation]          │
+│                                 │
+│ ⚙ Settings                      │
+└─────────────────────────────────┘
+```
+
+##### Active Conversation Hover
+
+```text
+┌─────────────────────────────────┐
+│ Agent Voice - Active            │
+├─────────────────────────────────┤
+│ Status: Listening               │
+│ Duration: 2:34                  │
+│ Turns: 8 exchanges              │
+│                                 │
+│ [⏸ Pause] [⏹ Stop]              │
+│                                 │
+│ 📋 Show Panel · ⚙ Settings      │
+└─────────────────────────────────┘
+```
+
+##### Thinking/Processing State Hover
+
+```text
+┌─────────────────────────────────┐
+│ Agent Voice - Processing        │
+├─────────────────────────────────┤
+│ Status: Analyzing request       │
+│ Duration: 3:12                  │
+│ Current: Waiting for Copilot    │
+│                                 │
+│ [⏹ Stop]                        │
+│                                 │
+│ 📋 Show Panel · ⚙ Settings      │
+└─────────────────────────────────┘
+```
+
+##### Error State Hover
+
+```text
+┌─────────────────────────────────┐
+│ Agent Voice - Error             │
+├─────────────────────────────────┤
+│ ⚠ Connection Failed              │
+│                                 │
+│ Unable to connect to Azure      │
+│ OpenAI endpoint.                │
+│                                 │
+│ [🔄 Retry] [⚙ Fix Settings]     │
+│                                 │
+│ 📋 Show Details                 │
+└─────────────────────────────────┘
+```
+
+**Hover Menu Features**:
+
+- **Persistent Display**: Menu stays visible while mouse is over it
+- **Auto-Dismiss**: Closes when mouse moves away for 200ms
+- **Keyboard Accessible**: Can be opened via keyboard shortcut (Alt+Shift+V)
+- **Status Details**: Shows conversation duration, turn count, current activity
+- **Quick Actions**: Context-appropriate action buttons (Start, Pause, Stop, Retry)
+- **Navigation Links**: Quick access to panel and settings
+- **Compact Layout**: Maximum 300px width, auto-height based on content
+- **Theme Aware**: Uses VS Code theme colors and borders
+
+**Hover Menu Behavior**:
+
+1. **Hover Delay**: 500ms delay before showing to prevent accidental triggers
+2. **Position**: Centered above status bar item with 8px vertical spacing
+3. **Arrow Indicator**: Small arrow pointing to status bar item
+4. **Animation**: Fade in over 150ms with subtle scale effect (95% → 100%)
+5. **Dismiss**: Fades out over 100ms when mouse leaves both status bar item and hover menu
+
 #### Right-Click Context Menu
 
 ```text
