@@ -18,7 +18,7 @@
   "main": "./out/extension.js",
   "files": [
     "out/extension.js",
-    "resources/**",
+    "assets/**",
     "media/**",
     "spec/schemas/**/*.json",
     "README.md",
@@ -429,7 +429,7 @@
         {
           "id": "agentvoice",
           "title": "Agent Voice",
-          "icon": "resources/icon.svg"
+          "icon": "assets/icon.svg"
         }
       ]
     },
@@ -439,7 +439,7 @@
           "id": "agentvoice.voiceControl",
           "name": "Voice Control",
           "when": "agentvoice.activated",
-          "icon": "resources/icon.svg"
+          "icon": "assets/icon.svg"
         }
       ]
     }
