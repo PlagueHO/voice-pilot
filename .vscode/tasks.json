@@ -82,7 +82,7 @@
     {
       "label": "Test All",
       "type": "npm",
-      "script": "test:all",
+      "script": "test",
       "icon": {
         "id": "beaker"
       },
