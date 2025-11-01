@@ -24,7 +24,7 @@ Agent Voice provides a natural, conversational voice interface for hands/eyes fr
 - **Agent Voice Speaking**: Soft green glow
 - **Thinking/Waiting**: Gentle orange pulse
 
-```
+```text
 Position: After Explorer, Search, Source Control, Run and Debug
 Icon: 🎤 (clean microphone with minimal visual feedback)
 Tooltip: "Agent Voice - Start Conversation"
@@ -36,7 +36,7 @@ Tooltip: "Agent Voice - Start Conversation"
 
 #### Panel Header
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ 🎤 Agent Voice                    ⚙️  │
 ├─────────────────────────────────────┤
@@ -83,7 +83,7 @@ Tooltip: "Agent Voice - Start Conversation"
 
 #### Footer Controls
 
-```
+```text
 ┌─────────────────────────────────────┐
 │                                     │
 │        [Start Conversation]         │
@@ -302,41 +302,253 @@ stateDiagram-v2
 Would you like me to create a detailed specification document for any of these approaches?
 ````
 
-## 6. Accessibility and Responsive Design
+## 6. Status Bar Integration
 
-### 6.1 Accessibility Features
+### 6.1 Status Bar Item
+
+**Location**: VS Code Status Bar (bottom of window, right side)
+
+**Visual Design**:
+
+- **Icon**: Microphone icon (🎤) matching the Activity Bar icon
+- **Status Text**: Contextual status label next to icon
+- **Hover Tooltip**: Detailed status information
+- **Right-Click Menu**: Quick actions for conversation control
+
+#### Status Bar States
+
+##### Inactive/Ready State
+
+```text
+[🎤 Agent Voice: Ready]
+```
+
+- **Icon**: Static microphone icon
+- **Color**: Default foreground color
+- **Tooltip**: "Agent Voice - Click to start conversation"
+- **Click Action**: Opens Agent Voice panel and starts conversation
+
+##### Active Conversation State
+
+```text
+[🎤 Agent Voice: Listening]
+```
+
+- **Icon**: Animated pulsing microphone
+- **Color**: Blue accent (--vscode-statusBarItem.activeBackground)
+- **Tooltip**: "Conversation active - Click for details"
+- **Animation**: Gentle pulse every 2 seconds
+
+##### User Speaking State
+
+```text
+[🎤 Agent Voice: Speaking...]
+```
+
+- **Icon**: Microphone with sound waves animation
+- **Color**: Blue accent
+- **Tooltip**: "You are speaking"
+- **Animation**: Sound wave ripple effect
+
+##### Agent Voice Thinking State
+
+```text
+[🎤 Agent Voice: Thinking...]
+```
+
+- **Icon**: Microphone with rotating/spinner animation
+- **Color**: Orange (--vscode-statusBarItem.warningBackground)
+- **Tooltip**: "Processing your request"
+- **Animation**: Gentle rotation or dots animation
+
+##### Agent Voice Speaking State
+
+```text
+[🎤 Agent Voice: Responding]
+```
+
+- **Icon**: Microphone with outward waves animation
+- **Color**: Green accent
+- **Tooltip**: "Agent Voice is responding - Speak to interrupt"
+- **Animation**: Expanding wave circles
+
+##### Error State
+
+```text
+[🎤 Agent Voice: Error]
+```
+
+- **Icon**: Microphone with warning/error indicator
+- **Color**: Red (--vscode-statusBarItem.errorBackground)
+- **Tooltip**: Error message with details
+- **Click Action**: Opens error details or troubleshooting panel
+
+#### Right-Click Context Menu
+
+```text
+┌─────────────────────────────────┐
+│ ▶ Start Conversation            │  (when inactive)
+│ ⏸ Pause Conversation            │  (when active)
+│ ⏹ Stop Conversation             │  (when active)
+├─────────────────────────────────┤
+│ ⚙ Open Settings                 │
+│ 📋 Open Agent Voice Panel       │
+└─────────────────────────────────┘
+```
+
+**Menu Actions**:
+
+- **Start Conversation**: Initializes audio session and begins listening
+- **Pause Conversation**: Temporarily mutes microphone while maintaining session
+- **Stop Conversation**: Ends current session and cleans up resources
+- **Open Settings**: Opens Agent Voice configuration in VS Code settings
+- **Open Agent Voice Panel**: Reveals the sidebar panel if hidden
+
+### 6.2 Status Bar Behavior
+
+#### Click Actions
+
+- **Left Click (Inactive)**: Opens Agent Voice panel and starts conversation
+- **Left Click (Active)**: Opens Agent Voice panel and shows current conversation
+- **Left Click (Error)**: Opens error notification with details and recovery options
+- **Right Click**: Shows context menu with conversation controls
+
+#### Error States and Messages
+
+##### Connection Error
+
+```text
+[🎤 Agent Voice: Connection Failed]
+```
+
+- **Tooltip**: "Unable to connect to Azure OpenAI. Check your endpoint configuration."
+- **Click Action**: Opens troubleshooting guide
+
+##### Authentication Error
+
+```text
+[🎤 Agent Voice: Auth Required]
+```
+
+- **Tooltip**: "Authentication failed. Please check your credentials."
+- **Click Action**: Opens authentication settings
+
+##### Microphone Error
+
+```text
+[🎤 Agent Voice: Mic Unavailable]
+```
+
+- **Tooltip**: "Microphone access denied or unavailable. Check permissions."
+- **Click Action**: Opens system audio permissions guide
+
+##### Copilot Unavailable
+
+```text
+[🎤 Agent Voice: Copilot Offline]
+```
+
+- **Tooltip**: "GitHub Copilot Chat extension not installed or unavailable."
+- **Click Action**: Prompts to install Copilot Chat extension
+
+### 6.3 Status Bar Animations
+
+#### Listening Animation
+
+- **Type**: Gentle pulse
+- **Duration**: 2 second cycle
+- **Effect**: Icon scales 100% → 110% → 100%
+- **Easing**: Ease-in-out
+
+#### Speaking Animation
+
+- **Type**: Sound wave ripple
+- **Duration**: 1 second cycle
+- **Effect**: Concentric circles expanding from icon
+- **Color**: Semi-transparent blue
+
+#### Thinking Animation
+
+- **Type**: Rotating dots or spinner
+- **Duration**: 1.5 second cycle
+- **Effect**: Three dots rotating around icon or spinner rotation
+- **Color**: Orange accent
+
+#### Error State
+
+- **Type**: Static with warning indicator
+- **Effect**: Small warning/error badge on icon
+- **Color**: Red background with white icon
+
+### 6.4 Accessibility Considerations
+
+**Screen Reader Support**:
+
+- Status changes announce via ARIA live regions
+- "Agent Voice status changed to Listening"
+- "Agent Voice is thinking"
+- "Error: Connection failed. Click for details"
+
+**Keyboard Navigation**:
+
+- Tab navigation includes status bar item
+- Enter key activates primary action (same as left click)
+- Context menu accessible via keyboard (Shift+F10 or Menu key)
+
+**High Contrast Mode**:
+
+- Status bar colors adapt to high contrast themes
+- Error states use system error colors
+- Animations remain visible but use high contrast colors
+
+**Reduced Motion**:
+
+- When user has reduced motion enabled, animations are replaced with:
+  - Static icons with color changes
+  - Simple opacity transitions
+  - Text-only status indicators
+
+## 7. Accessibility and Responsive Design
+
+### 7.1 Accessibility Features
+
 - **Keyboard Navigation**: All functions accessible via keyboard shortcuts
 - **Screen Reader Support**: ARIA labels for voice status and controls
 - **Visual Indicators**: High contrast status indicators for deaf/hard-of-hearing users
 - **Customizable UI**: Adjustable text size, colors, and audio feedback levels
 
-### 6.2 Voice-First Design Principles
+### 7.2 Voice-First Design Principles
+
 - **Minimal Visual Dependency**: Core functionality works entirely through voice
 - **Audio Redundancy**: Important visual states have audio equivalents
 - **Natural Language**: All interactions use conversational patterns
 - **Error Recovery**: Voice-guided error correction and retry mechanisms
 
-### 6.3 Responsive Layout
+### 7.3 Responsive Layout
+
 - **Sidebar Integration**: Fits naturally in VS Code's sidebar panel system
 - **Collapsible Sections**: Conversation history and settings can be minimized
 - **Mobile-Ready**: Design principles work for VS Code mobile experiences
 - **Split Screen**: Works alongside code editor and other panels
 
-## 7. Technical Implementation Notes
+## 8. Technical Implementation Notes
 
-### 7.1 Audio Technology Stack
+### 8.1 Audio Technology Stack
+
 - **WebRTC**: Low-latency audio streaming with Azure OpenAI Realtime API
 - **VAD Engine**: Client-side voice activity detection for interruption
 - **Audio Processing**: Real-time noise reduction and echo cancellation
 - **Format Support**: Multiple audio codecs for optimal quality
 
-### 7.2 Performance Considerations
+### 8.2 Performance Considerations
+
 - **Lazy Loading**: Audio engines initialize only when needed
 - **Background Processing**: Voice detection runs efficiently in background
 - **Memory Management**: Audio buffers cleaned up after conversations
 - **Network Optimization**: Compressed audio streams, connection pooling
 
-### 7.3 Security and Privacy
+### 8.3 Security and Privacy
+
 - **Ephemeral Keys**: 50-second Azure OpenAI key rotation
 - **Local Processing**: VAD and audio preprocessing happen client-side
 - **No Audio Storage**: Conversations are not recorded or stored
@@ -347,24 +559,27 @@ Would you like me to create a detailed specification document for any of these a
 ## Implementation Priority
 
 ### Phase 1: Core Conversational Interface ✅
+
 - Basic panel layout with minimal controls
 - Natural conversation states (Ready → Listening → Speaking)
 - Simple audio feedback system
 
 ### Phase 2: Advanced Voice Features 🔄
+
 - Interruption handling and turn-taking
 - Thinking audio and visual cues
 - Continuous dialogue flow
 
 ### Phase 3: Copilot Integration 📋
+
 - Seamless chat panel integration
 - Mixed voice/text interaction
 - Context sharing and response formatting
 
 ### Phase 4: Polish and Accessibility 📋
+
 - Full accessibility compliance
 - Advanced audio processing
 - Performance optimization and security hardening
 
 This UI design creates a natural, conversational voice interface that feels like talking to an intelligent assistant rather than operating a traditional software tool.
-```
